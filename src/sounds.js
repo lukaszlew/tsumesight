@@ -1,4 +1,5 @@
 let ctx = null
+let streak = 0
 
 function getCtx() {
   if (!ctx) ctx = new AudioContext()
@@ -20,9 +21,13 @@ function playTone(freq, duration, type = 'sine') {
 }
 
 export function playCorrect() {
-  playTone(880, 0.15)
+  // Each consecutive correct raises pitch by a semitone (ratio 2^(1/12))
+  let freq = 660 * Math.pow(2, streak / 12)
+  playTone(freq, 0.15)
+  streak++
 }
 
 export function playWrong() {
+  streak = 0
   playTone(220, 0.3, 'square')
 }
