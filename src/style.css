@@ -11,7 +11,233 @@ body {
 }
 
 #app {
-  max-width: 800px;
+  max-width: 640px;
   margin: 0 auto;
   padding: 1rem;
+}
+
+/* Library */
+
+.library h1 {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+}
+
+.upload-btn {
+  display: block;
+  text-align: center;
+  padding: 0.75rem 1.5rem;
+  background: #2a6;
+  color: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  margin-bottom: 1.5rem;
+}
+.upload-btn:hover {
+  background: #3b7;
+}
+
+.empty-msg, .loading {
+  text-align: center;
+  color: #888;
+  margin-top: 2rem;
+}
+
+.sgf-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.sgf-table th {
+  text-align: left;
+  padding: 0.5rem;
+  border-bottom: 1px solid #444;
+  color: #aaa;
+  font-size: 0.85rem;
+}
+.sgf-table td {
+  padding: 0.5rem;
+  border-bottom: 1px solid #333;
+}
+.sgf-row {
+  cursor: pointer;
+}
+.sgf-row:hover {
+  background: #2a2a2a;
+}
+
+.delete-btn {
+  background: none;
+  border: none;
+  color: #a55;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.2rem 0.5rem;
+}
+.delete-btn:hover {
+  color: #f66;
+}
+
+/* Quiz */
+
+.quiz {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.5rem 0;
+  margin-bottom: 0.5rem;
+}
+
+.back-btn {
+  background: #444;
+  color: #ddd;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.back-btn:hover {
+  background: #555;
+}
+.back-btn.small {
+  padding: 0.3rem 0.6rem;
+  font-size: 1.1rem;
+}
+
+.move-counter {
+  font-size: 1rem;
+  color: #ccc;
+}
+
+.score {
+  font-size: 1rem;
+}
+.score-correct {
+  color: #4c4;
+}
+.score-wrong {
+  color: #c44;
+}
+
+.board-container {
+  margin: 0 auto 1rem;
+}
+
+/* Shudan overrides */
+.shudan-goban {
+  --shudan-board-background-color: #dcb35c;
+  --shudan-board-border-color: #b8923a;
+}
+
+/* Question marker: make point markers red */
+.shudan-vertex .shudan-marker[data-type="point"] circle {
+  fill: #e33 !important;
+}
+
+/* Answer buttons */
+
+.answer-buttons {
+  width: 100%;
+  max-width: 400px;
+  margin-bottom: 0.75rem;
+}
+
+.button-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  justify-content: center;
+}
+
+.ans-btn {
+  flex: 1;
+  max-width: 5rem;
+  padding: 0.6rem 0;
+  font-size: 1rem;
+  border: 2px solid #555;
+  background: #2a2a2a;
+  color: #ddd;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.1s, background 0.1s;
+}
+.ans-btn:hover:not(:disabled) {
+  border-color: #888;
+  background: #333;
+}
+.ans-btn.selected {
+  border-color: #5af;
+  background: #1a3a5a;
+}
+.ans-btn.correct-hint {
+  border-color: #4c4;
+  background: #1a3a1a;
+}
+.ans-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.color-btn {
+  max-width: 8rem;
+}
+
+/* Feedback strip */
+
+.feedback-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  justify-content: center;
+  padding: 0.5rem 0;
+  max-width: 560px;
+}
+
+.pip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  font-size: 0.7rem;
+  border-radius: 3px;
+  font-weight: bold;
+}
+.pip-correct {
+  background: #2a5a2a;
+  color: #4c4;
+}
+.pip-wrong {
+  background: #5a2a2a;
+  color: #c44;
+}
+
+/* Summary overlay */
+
+.summary-overlay {
+  text-align: center;
+  padding: 3rem 2rem;
+}
+.summary-overlay h2 {
+  margin-bottom: 1.5rem;
+}
+.summary-stats {
+  font-size: 1.2rem;
+  line-height: 2;
+  margin-bottom: 2rem;
+}
+.summary-correct {
+  color: #4c4;
+}
+.summary-wrong {
+  color: #c44;
 }
