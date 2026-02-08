@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'preact/hooks'
 import { BoundedGoban } from '@sabaki/shudan'
 import { QuizEngine } from './engine.js'
-import { playCorrect, playWrong } from './sounds.js'
+import { playCorrect, playWrong, isSoundEnabled, toggleSound } from './sounds.js'
 
 function makeEmptyMap(size, fill = null) {
   return Array.from({ length: size }, () => Array(size).fill(fill))
@@ -105,6 +105,7 @@ export function Quiz({ sgf, onBack }) {
 }
 
 function TopBar({ moveIndex, totalMoves, correct, wrong, onBack }) {
+  let [soundOn, setSoundOn] = useState(isSoundEnabled())
   return (
     <div class="top-bar">
       <button class="back-btn small" onClick={onBack}>←</button>
@@ -114,6 +115,9 @@ function TopBar({ moveIndex, totalMoves, correct, wrong, onBack }) {
         {' '}
         <span class="score-wrong">✗ {wrong}</span>
       </span>
+      <button class="sound-toggle" onClick={() => setSoundOn(toggleSound())}>
+        {soundOn ? '🔊' : '🔇'}
+      </button>
     </div>
   )
 }

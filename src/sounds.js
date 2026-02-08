@@ -1,5 +1,14 @@
 let ctx = null
 let streak = 0
+let enabled = localStorage.getItem('sound') !== 'off'
+
+export function isSoundEnabled() { return enabled }
+
+export function toggleSound() {
+  enabled = !enabled
+  localStorage.setItem('sound', enabled ? 'on' : 'off')
+  return enabled
+}
 
 function getCtx() {
   if (!ctx) ctx = new AudioContext()
@@ -7,6 +16,7 @@ function getCtx() {
 }
 
 function playTone(freq, duration, type = 'sine') {
+  if (!enabled) return
   let c = getCtx()
   let osc = c.createOscillator()
   let gain = c.createGain()
