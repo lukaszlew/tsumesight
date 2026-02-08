@@ -80,11 +80,11 @@ describe('QuizEngine', () => {
     it('returns null when all moves are played', () => {
       let engine = new QuizEngine(simpleSgf)
       engine.advance()
-      engine.answer(1, 4) // correct or not, doesn't matter for advance
+      engine.answer(4)
       engine.advance()
-      engine.answer(-1, 4)
+      engine.answer(4)
       engine.advance()
-      engine.answer(1, 4)
+      engine.answer(4)
       let state = engine.advance()
       expect(state).toBe(null)
       expect(engine.finished).toBe(true)
@@ -99,30 +99,22 @@ describe('QuizEngine', () => {
   })
 
   describe('answer()', () => {
-    it('returns correct when both color and liberties match', () => {
+    it('returns correct when liberties match', () => {
       let engine = new QuizEngine(simpleSgf)
       engine.advance() // B[ee] on 9x9, center stone, 4 liberties
-      let result = engine.answer(1, 4) // black, 4+ liberties
+      let result = engine.answer(4)
       expect(result.correct).toBe(true)
-      expect(result.trueColor).toBe(1)
       expect(result.trueLiberties).toBe(4)
       expect(engine.correct).toBe(1)
       expect(engine.wrong).toBe(0)
     })
 
-    it('returns wrong when color is incorrect', () => {
-      let engine = new QuizEngine(simpleSgf)
-      engine.advance()
-      let result = engine.answer(-1, 4) // wrong color
-      expect(result.correct).toBe(false)
-      expect(engine.wrong).toBe(1)
-    })
-
     it('returns wrong when liberties are incorrect', () => {
       let engine = new QuizEngine(simpleSgf)
       engine.advance()
-      let result = engine.answer(1, 2) // wrong liberties
+      let result = engine.answer(2)
       expect(result.correct).toBe(false)
+      expect(engine.wrong).toBe(1)
     })
 
     it('materializes invisible stones on wrong answer', () => {
@@ -130,7 +122,7 @@ describe('QuizEngine', () => {
       engine.advance() // B[ee]
       engine.advance() // W[ce]
       expect(engine.invisibleStones.size).toBe(2)
-      engine.answer(-1, 1) // wrong
+      engine.answer(1) // wrong
       expect(engine.invisibleStones.size).toBe(0)
       // Stones now visible on base
       expect(engine.baseSignMap[4][4]).toBe(1) // B at ee
@@ -140,8 +132,8 @@ describe('QuizEngine', () => {
     it('does not materialize on correct answer', () => {
       let engine = new QuizEngine(simpleSgf)
       engine.advance() // B[ee]
-      // question is [4,4], true color=1, true liberties=4
-      engine.answer(1, 4)
+      // question is [4,4], true liberties=4
+      engine.answer(4)
       expect(engine.invisibleStones.size).toBe(1) // still invisible
       expect(engine.baseSignMap[4][4]).toBe(0) // still not on base
     })
@@ -149,9 +141,9 @@ describe('QuizEngine', () => {
     it('tracks results array', () => {
       let engine = new QuizEngine(simpleSgf)
       engine.advance()
-      engine.answer(1, 4) // correct
+      engine.answer(4) // correct
       engine.advance()
-      engine.answer(1, 1) // wrong (color wrong)
+      engine.answer(1) // wrong
       expect(engine.results).toEqual([true, false])
     })
   })
@@ -202,7 +194,6 @@ describe('QuizEngine', () => {
     it('counts 4 liberties for center stone on empty board', () => {
       let engine = new QuizEngine('(;SZ[9];B[ee])')
       engine.advance()
-      // ee=[4,4], center of 9x9, 4 neighbors all empty
       let libs = engine.trueBoard.getLiberties([4, 4])
       expect(libs.length).toBe(4)
     })
@@ -217,16 +208,26 @@ describe('QuizEngine', () => {
     it('counts 3 liberties for edge stone', () => {
       let engine = new QuizEngine('(;SZ[9];B[ea])')
       engine.advance()
-      // ea=[4,0], top edge, 3 liberties
       let libs = engine.trueBoard.getLiberties([4, 0])
       expect(libs.length).toBe(3)
     })
 
-    it('caps at 4 in answer evaluation', () => {
+    it('caps at 6 in answer evaluation', () => {
+      // Two adjacent stones: 6 liberties as a chain, capped to 6
+      let engine = new QuizEngine('(;SZ[9];B[ee];W[aa];B[fe])')
+      engine.advance() // B[ee]
+      engine.advance() // W[aa]
+      engine.advance() // B[fe]
+      let result = engine.answer(6)
+      expect(result.correct).toBe(true)
+      expect(result.trueLiberties).toBe(6)
+    })
+
+    it('does not cap below 6', () => {
       let engine = new QuizEngine('(;SZ[9];B[ee])')
       engine.advance()
-      // ee has 4 liberties, answer(1, 4) should be correct
-      let result = engine.answer(1, 4)
+      // ee has 4 liberties exactly
+      let result = engine.answer(4)
       expect(result.correct).toBe(true)
       expect(result.trueLiberties).toBe(4)
     })

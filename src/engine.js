@@ -66,16 +66,12 @@ export class QuizEngine {
     }
   }
 
-  answer(color, liberties) {
+  answer(liberties) {
     let v = this.questionVertex
     assert(v != null, 'No question to answer')
 
-    let trueColor = this.trueBoard.get(v) // 1 or -1
-    let trueLiberties = Math.min(this.trueBoard.getLiberties(v).length, 4)
-
-    let colorCorrect = color === trueColor
-    let libertiesCorrect = liberties === trueLiberties
-    let isCorrect = colorCorrect && libertiesCorrect
+    let trueLiberties = Math.min(this.trueBoard.getLiberties(v).length, 6)
+    let isCorrect = liberties === trueLiberties
 
     if (isCorrect) {
       this.correct++
@@ -85,7 +81,7 @@ export class QuizEngine {
     }
     this.results.push(isCorrect)
 
-    return { correct: isCorrect, trueColor, trueLiberties }
+    return { correct: isCorrect, trueLiberties }
   }
 
   materialize() {

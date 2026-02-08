@@ -18,49 +18,31 @@ export function Quiz({ sgf, onBack }) {
   }
   let engine = engineRef.current
 
-  let [selectedColor, setSelectedColor] = useState(null)
-  let [selectedLiberties, setSelectedLiberties] = useState(null)
-  let [feedback, setFeedback] = useState(null) // {correct, trueColor, trueLiberties}
+  let [feedback, setFeedback] = useState(null) // {correct, trueLiberties}
 
-  let submitAnswer = useCallback((color, liberties) => {
-    let result = engine.answer(color, liberties)
+  let submitAnswer = useCallback((liberties) => {
+    if (feedback) return
+    let result = engine.answer(liberties)
     setFeedback(result)
 
     // Brief delay to show feedback, then advance
     setTimeout(() => {
       setFeedback(null)
-      setSelectedColor(null)
-      setSelectedLiberties(null)
       engine.advance()
       rerender()
     }, result.correct ? 300 : 1200)
-  }, [])
-
-  // Auto-submit when both selections are made
-  let selectColor = useCallback((c) => {
-    if (feedback) return
-    setSelectedColor(c)
-    if (selectedLiberties != null) submitAnswer(c, selectedLiberties)
-  }, [selectedLiberties, feedback, submitAnswer])
-
-  let selectLiberties = useCallback((l) => {
-    if (feedback) return
-    setSelectedLiberties(l)
-    if (selectedColor != null) submitAnswer(selectedColor, l)
-  }, [selectedColor, feedback, submitAnswer])
+  }, [feedback])
 
   // Keyboard shortcuts
   useEffect(() => {
     function onKey(e) {
       if (feedback) return
-      if (e.key >= '1' && e.key <= '3') selectLiberties(parseInt(e.key))
-      else if (e.key === '4') selectLiberties(4)
-      else if (e.key === 'q') selectColor(1)
-      else if (e.key === 'w') selectColor(-1)
+      if (e.key >= '1' && e.key <= '5') submitAnswer(parseInt(e.key))
+      else if (e.key === '6') submitAnswer(6)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [selectColor, selectLiberties, feedback])
+  }, [submitAnswer, feedback])
 
   // End of game summary
   if (engine.finished) {
@@ -130,11 +112,8 @@ export function Quiz({ sgf, onBack }) {
       </div>
 
       <AnswerButtons
-        selectedColor={selectedColor}
-        selectedLiberties={selectedLiberties}
         feedback={feedback}
-        onColor={selectColor}
-        onLiberties={selectLiberties}
+        onLiberties={submitAnswer}
       />
 
       <FeedbackStrip results={engine.results} />
@@ -156,35 +135,18 @@ function TopBar({ moveIndex, totalMoves, correct, wrong, onBack }) {
   )
 }
 
-function AnswerButtons({ selectedColor, selectedLiberties, feedback, onColor, onLiberties }) {
-  let libertyValues = [1, 2, 3, 4]
-  let colorValues = [
-    { sign: 1, label: '● Black', key: 'q' },
-    { sign: -1, label: '○ White', key: 'w' },
-  ]
+function AnswerButtons({ feedback, onLiberties }) {
+  let libertyValues = [1, 2, 3, 4, 5, 6]
 
   return (
     <div class="answer-buttons">
       <div class="button-row">
         {libertyValues.map(l => {
-          let label = l === 4 ? '4+' : String(l)
+          let label = l === 6 ? '6+' : String(l)
           let cls = 'ans-btn'
-          if (selectedLiberties === l) cls += ' selected'
           if (feedback && !feedback.correct && feedback.trueLiberties === l) cls += ' correct-hint'
           return (
             <button key={l} class={cls} onClick={() => onLiberties(l)} disabled={!!feedback}>
-              {label}
-            </button>
-          )
-        })}
-      </div>
-      <div class="button-row">
-        {colorValues.map(({ sign, label }) => {
-          let cls = 'ans-btn color-btn'
-          if (selectedColor === sign) cls += ' selected'
-          if (feedback && !feedback.correct && feedback.trueColor === sign) cls += ' correct-hint'
-          return (
-            <button key={sign} class={cls} onClick={() => onColor(sign)} disabled={!!feedback}>
               {label}
             </button>
           )
