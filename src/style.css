@@ -143,11 +143,6 @@ body {
   --shudan-board-border-color: #b8923a;
 }
 
-/* Question marker: make point markers red */
-.shudan-vertex .shudan-marker[data-type="point"] circle {
-  fill: #e33 !important;
-}
-
 /* Answer buttons */
 
 .answer-buttons {
@@ -173,23 +168,10 @@ body {
   color: #ddd;
   border-radius: 6px;
   cursor: pointer;
-
 }
-.ans-btn:hover:not(:disabled) {
+.ans-btn:hover {
   border-color: #888;
   background: #333;
-}
-.ans-btn.selected {
-  border-color: #5af;
-  background: #1a3a5a;
-}
-.ans-btn.correct-hint {
-  border-color: #4c4;
-  background: #1a3a1a;
-}
-.ans-btn:disabled {
-  opacity: 0.6;
-  cursor: default;
 }
 
 /* Feedback strip */
