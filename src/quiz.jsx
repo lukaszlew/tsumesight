@@ -70,10 +70,10 @@ export function Quiz({ sgf, onBack }) {
   let markerMap = makeEmptyMap(size)
   let paintMap = makeEmptyMap(size, 0)
 
-  // Current move: show move number label
+  // Current move: circle marker (standard "last move" indicator)
   if (engine.currentMove) {
     let [x, y] = engine.currentMove.vertex
-    markerMap[y][x] = { type: 'label', label: String(engine.moveIndex) }
+    markerMap[y][x] = { type: 'circle' }
   }
 
   // Question vertex: "?" marker
