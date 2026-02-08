@@ -23,12 +23,12 @@ function playTone(freq, duration, type = 'sine') {
 
 export function playCorrect() {
   // Each consecutive correct raises pitch by a semitone (ratio 2^(1/12))
-  let freq = 660 * Math.pow(2, streak / 12)
+  let freq = 330 * Math.pow(2, streak / 12)
   playTone(freq, 0.35)
   streak++
 }
 
 export function playWrong() {
   streak = 0
-  playTone(220, 0.45, 'triangle')
+  playTone(130, 0.45, 'triangle')
 }
