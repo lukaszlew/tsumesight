@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'preact/hooks'
 import { BoundedGoban } from '@sabaki/shudan'
 import { QuizEngine } from './engine.js'
+import { playCorrect, playWrong } from './sounds.js'
 
 function makeEmptyMap(size, fill = null) {
   return Array.from({ length: size }, () => Array(size).fill(fill))
@@ -19,7 +20,9 @@ export function Quiz({ sgf, onBack }) {
   let engine = engineRef.current
 
   let submitAnswer = useCallback((liberties) => {
-    engine.answer(liberties)
+    let result = engine.answer(liberties)
+    if (result.correct) playCorrect()
+    else playWrong()
     engine.advance()
     rerender()
   }, [])
