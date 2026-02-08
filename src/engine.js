@@ -5,6 +5,12 @@ function vertexKey([x, y]) {
   return `${x},${y}`
 }
 
+function libertyBonus(libCount) {
+  if (libCount <= 3) return 2
+  if (libCount === 4) return 1
+  return 0
+}
+
 export class QuizEngine {
   constructor(sgfString) {
     let parsed = parseSgf(sgfString)
@@ -22,6 +28,7 @@ export class QuizEngine {
 
     // Tracking
     this.invisibleStones = new Map() // vertexKey → {sign, vertex}
+    this.staleness = new Map() // vertexKey → number (turns since last questioned, cap 4)
     this.moveIndex = 0
     this.currentMove = null
     this.questionVertex = null
@@ -43,20 +50,33 @@ export class QuizEngine {
     this.moveIndex++
     this.currentMove = move
 
+    // Age all existing invisible stones (before adding the new one)
+    for (let [key, val] of this.staleness) {
+      this.staleness.set(key, Math.min(val + 1, 4))
+    }
+
     // Play on true board
     this.trueBoard = this.trueBoard.makeMove(move.sign, move.vertex)
 
     // Track as invisible (not shown on base display)
-    this.invisibleStones.set(vertexKey(move.vertex), {
-      sign: move.sign,
-      vertex: move.vertex,
-    })
+    let key = vertexKey(move.vertex)
+    this.invisibleStones.set(key, { sign: move.sign, vertex: move.vertex })
+    this.staleness.set(key, 0)
 
     // Remove captured invisible stones (they died on trueBoard)
     this._pruneDeadInvisible()
 
-    // Pick question: random invisible stone still alive on trueBoard
+    // Pick question by group scoring
     this.questionVertex = this._pickQuestion()
+
+    // Reset staleness for the chosen group
+    if (this.questionVertex) {
+      let chain = this.trueBoard.getChain(this.questionVertex)
+      for (let v of chain) {
+        let k = vertexKey(v)
+        if (this.staleness.has(k)) this.staleness.set(k, 0)
+      }
+    }
 
     return {
       moveIndex: this.moveIndex,
@@ -85,22 +105,19 @@ export class QuizEngine {
   }
 
   materialize() {
-    // Copy all invisible stones to baseSignMap so they become visible
     for (let [, { vertex }] of this.invisibleStones) {
       let [x, y] = vertex
       let sign = this.trueBoard.get(vertex)
-      // Stone might have been captured — only materialize if alive
       if (sign !== 0) {
         this.baseSignMap[y][x] = sign
       }
     }
     this.invisibleStones.clear()
+    this.staleness.clear()
   }
 
-  // Build the display signMap for rendering
   getDisplaySignMap() {
     let display = this.baseSignMap.map(row => [...row])
-    // Overlay current move stone so it's visible
     if (this.currentMove && this.currentMove.vertex) {
       let [x, y] = this.currentMove.vertex
       display[y][x] = this.currentMove.sign
@@ -108,25 +125,54 @@ export class QuizEngine {
     return display
   }
 
+  // Returns groups of invisible stones with their scores
+  // Each group: { vertices: [[x,y]...], score, liberties }
+  getGroupScores() {
+    let visited = new Set()
+    let groups = []
+    for (let [, { vertex }] of this.invisibleStones) {
+      let k = vertexKey(vertex)
+      if (visited.has(k)) continue
+      if (this.trueBoard.get(vertex) === 0) continue
+
+      let chain = this.trueBoard.getChain(vertex)
+      let groupVertices = []
+      let maxStaleness = 0
+      for (let v of chain) {
+        let vk = vertexKey(v)
+        visited.add(vk)
+        if (this.invisibleStones.has(vk)) {
+          groupVertices.push(v)
+          maxStaleness = Math.max(maxStaleness, this.staleness.get(vk) || 0)
+        }
+      }
+      if (groupVertices.length === 0) continue
+
+      let libs = this.trueBoard.getLiberties(vertex).length
+      let score = maxStaleness + libertyBonus(libs)
+      groups.push({ vertices: groupVertices, score, liberties: libs })
+    }
+    return groups
+  }
+
   _pruneDeadInvisible() {
     for (let [key, { vertex }] of this.invisibleStones) {
       if (this.trueBoard.get(vertex) === 0) {
-        // Stone was captured on true board — but stays visible on base display
-        // (spec: captured stones not removed from display)
         this.invisibleStones.delete(key)
+        this.staleness.delete(key)
       }
     }
   }
 
   _pickQuestion() {
-    let alive = []
-    for (let [, entry] of this.invisibleStones) {
-      if (this.trueBoard.get(entry.vertex) !== 0) {
-        alive.push(entry.vertex)
-      }
-    }
-    if (alive.length === 0) return null
-    return alive[Math.floor(Math.random() * alive.length)]
+    let groups = this.getGroupScores()
+    if (groups.length === 0) return null
+
+    let maxScore = Math.max(...groups.map(g => g.score))
+    let best = groups.filter(g => g.score === maxScore)
+    let chosen = best[Math.floor(Math.random() * best.length)]
+    // Pick random vertex from chosen group
+    return chosen.vertices[Math.floor(Math.random() * chosen.vertices.length)]
   }
 }
 

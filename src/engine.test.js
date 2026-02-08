@@ -250,4 +250,81 @@ describe('QuizEngine', () => {
       expect(libs.length).toBe(6)
     })
   })
+
+  describe('group scoring', () => {
+    it('new stone starts with staleness 0', () => {
+      let engine = new QuizEngine(simpleSgf)
+      engine.advance() // B[ee]
+      expect(engine.staleness.get('4,4')).toBe(0)
+    })
+
+    it('staleness increments each turn for unchosen groups', () => {
+      // 4 moves, all separate groups
+      let sgf = '(;SZ[9];B[aa];W[ii];B[ai];W[ia])'
+      let engine = new QuizEngine(sgf)
+      engine.advance() // B[aa] — staleness 0, then chosen → 0
+      engine.advance() // W[ii] — B[aa] aged to 1, then question chosen
+      engine.advance() // B[ai]
+      engine.advance() // W[ia]
+      // All staleness values should be <= 4
+      for (let [, val] of engine.staleness) {
+        expect(val).toBeLessThanOrEqual(4)
+      }
+    })
+
+    it('staleness caps at 4', () => {
+      // Many moves to age a stone
+      let sgf = '(;SZ[9];B[aa];W[ii];B[bb];W[hh];B[cc];W[gg];B[dd];W[ff])'
+      let engine = new QuizEngine(sgf)
+      for (let i = 0; i < 8; i++) engine.advance()
+      for (let [, val] of engine.staleness) {
+        expect(val).toBeLessThanOrEqual(4)
+      }
+    })
+
+    it('getGroupScores returns correct liberty bonus', () => {
+      // Single stone in corner: 2 liberties → bonus +2
+      let engine = new QuizEngine('(;SZ[9];B[aa])')
+      engine.advance()
+      let groups = engine.getGroupScores()
+      expect(groups.length).toBe(1)
+      expect(groups[0].liberties).toBe(2)
+      // score = staleness(0) + libertyBonus(2) = 0 + 2 = 2
+      expect(groups[0].score).toBe(2)
+    })
+
+    it('getGroupScores gives no bonus for 5+ liberties', () => {
+      // Two adjacent stones: 6 liberties → bonus 0
+      let engine = new QuizEngine('(;SZ[9];B[ee];W[aa];B[fe])')
+      engine.advance()
+      engine.advance()
+      engine.advance()
+      let groups = engine.getGroupScores()
+      let bigGroup = groups.find(g => g.liberties === 6)
+      // score = staleness + 0
+      expect(bigGroup.score).toBeLessThanOrEqual(4)
+    })
+
+    it('prefers low-liberty groups over fresh high-liberty groups', () => {
+      // Move 1: B at corner (2 libs, bonus +2)
+      // Move 2: W at center (4 libs, bonus +1)
+      // After move 2, B[aa] has staleness 1 + bonus 2 = 3
+      // W[ee] has staleness 0 + bonus 1 = 1
+      // So B[aa] should be questioned
+      let engine = new QuizEngine('(;SZ[9];B[aa];W[ee])')
+      engine.advance() // B[aa] questioned (only stone)
+      engine.advance() // W[ee] — now B[aa] staleness=1, W[ee] staleness=0
+      // B[aa]: 1 + 2(corner) = 3, W[ee]: 0 + 1(4 libs) = 1
+      expect(engine.questionVertex).toEqual([0, 0])
+    })
+
+    it('clears staleness on materialize', () => {
+      let engine = new QuizEngine(simpleSgf)
+      engine.advance()
+      engine.advance()
+      expect(engine.staleness.size).toBe(2)
+      engine.materialize()
+      expect(engine.staleness.size).toBe(0)
+    })
+  })
 })

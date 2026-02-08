@@ -11,6 +11,7 @@ export function Quiz({ sgf, onBack }) {
   let engineRef = useRef(null)
   let [, forceRender] = useState(0)
   let rerender = () => forceRender(n => n + 1)
+  let [peeking, setPeeking] = useState(false)
 
   // Initialize engine once
   if (!engineRef.current) {
@@ -27,14 +28,22 @@ export function Quiz({ sgf, onBack }) {
     rerender()
   }, [])
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts + hold space to peek
   useEffect(() => {
-    function onKey(e) {
-      if (e.key >= '1' && e.key <= '5') submitAnswer(parseInt(e.key))
+    function onKeyDown(e) {
+      if (e.key === ' ') { e.preventDefault(); setPeeking(true) }
+      else if (e.key >= '1' && e.key <= '5') submitAnswer(parseInt(e.key))
       else if (e.key === '6') submitAnswer(6)
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    function onKeyUp(e) {
+      if (e.key === ' ') setPeeking(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+    }
   }, [submitAnswer])
 
   // End of game summary
@@ -61,6 +70,7 @@ export function Quiz({ sgf, onBack }) {
   let size = engine.boardSize
   let signMap = engine.getDisplaySignMap()
   let markerMap = makeEmptyMap(size)
+  let ghostStoneMap = makeEmptyMap(size)
 
   // Current move: circle marker (standard "last move" indicator)
   if (engine.currentMove) {
@@ -68,10 +78,24 @@ export function Quiz({ sgf, onBack }) {
     markerMap[y][x] = { type: 'circle' }
   }
 
-  // Question vertex: "?" marker
-  if (engine.questionVertex) {
-    let [x, y] = engine.questionVertex
-    markerMap[y][x] = { type: 'label', label: '❓' }
+  if (peeking) {
+    // Show invisible stones as ghost stones + group scores as labels
+    let groups = engine.getGroupScores()
+    for (let group of groups) {
+      for (let [x, y] of group.vertices) {
+        let sign = engine.trueBoard.get([x, y])
+        ghostStoneMap[y][x] = { sign, faint: true }
+      }
+      // Show score on first vertex of each group
+      let [x, y] = group.vertices[0]
+      markerMap[y][x] = { type: 'label', label: String(group.score) }
+    }
+  } else {
+    // Question vertex: ❓ marker
+    if (engine.questionVertex) {
+      let [x, y] = engine.questionVertex
+      markerMap[y][x] = { type: 'label', label: '❓' }
+    }
   }
 
   return (
@@ -84,13 +108,18 @@ export function Quiz({ sgf, onBack }) {
         onBack={onBack}
       />
 
-      <div class="board-container">
+      <div
+        class="board-container"
+        onPointerDown={() => setPeeking(true)}
+        onPointerUp={() => setPeeking(false)}
+        onPointerLeave={() => setPeeking(false)}
+      >
         <BoundedGoban
           maxWidth={560}
           maxHeight={560}
           signMap={signMap}
           markerMap={markerMap}
-
+          ghostStoneMap={ghostStoneMap}
           showCoordinates={false}
           fuzzyStonePlacement={false}
           animateStonePlacement={false}
