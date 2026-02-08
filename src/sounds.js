@@ -12,7 +12,8 @@ function playTone(freq, duration, type = 'sine') {
   let gain = c.createGain()
   osc.type = type
   osc.frequency.value = freq
-  gain.gain.setValueAtTime(0.3, c.currentTime)
+  gain.gain.setValueAtTime(0.001, c.currentTime)
+  gain.gain.linearRampToValueAtTime(0.08, c.currentTime + 0.05)
   gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + duration)
   osc.connect(gain)
   gain.connect(c.destination)
@@ -23,11 +24,11 @@ function playTone(freq, duration, type = 'sine') {
 export function playCorrect() {
   // Each consecutive correct raises pitch by a semitone (ratio 2^(1/12))
   let freq = 660 * Math.pow(2, streak / 12)
-  playTone(freq, 0.15)
+  playTone(freq, 0.35)
   streak++
 }
 
 export function playWrong() {
   streak = 0
-  playTone(220, 0.3, 'square')
+  playTone(220, 0.45, 'triangle')
 }
