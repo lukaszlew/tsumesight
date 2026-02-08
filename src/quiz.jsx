@@ -58,7 +58,6 @@ export function Quiz({ sgf, onBack }) {
   let size = engine.boardSize
   let signMap = engine.getDisplaySignMap()
   let markerMap = makeEmptyMap(size)
-  let paintMap = makeEmptyMap(size, 0)
 
   // Current move: circle marker (standard "last move" indicator)
   if (engine.currentMove) {
@@ -70,9 +69,6 @@ export function Quiz({ sgf, onBack }) {
   if (engine.questionVertex) {
     let [x, y] = engine.questionVertex
     markerMap[y][x] = { type: 'label', label: '?' }
-    if (signMap[y][x] === 0) {
-      paintMap[y][x] = 0.5
-    }
   }
 
   return (
@@ -91,7 +87,7 @@ export function Quiz({ sgf, onBack }) {
           maxHeight={560}
           signMap={signMap}
           markerMap={markerMap}
-          paintMap={paintMap}
+
           showCoordinates={false}
           fuzzyStonePlacement={false}
           animateStonePlacement={false}
