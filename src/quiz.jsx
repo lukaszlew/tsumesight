@@ -103,7 +103,7 @@ export function Quiz({ sgf, onBack }) {
           markerMap={markerMap}
           paintMap={paintMap}
           showCoordinates={false}
-          fuzzyStonePlacement={true}
+          fuzzyStonePlacement={false}
           animateStonePlacement={false}
         />
       </div>
