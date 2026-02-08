@@ -18,26 +18,21 @@ export function Quiz({ sgf, onBack }) {
   }
   let engine = engineRef.current
 
-  let [feedback, setFeedback] = useState(null) // {correct, trueLiberties}
-
   let submitAnswer = useCallback((liberties) => {
-    if (feedback) return
-    let result = engine.answer(liberties)
-    setFeedback(result)
+    engine.answer(liberties)
     engine.advance()
     rerender()
-  }, [feedback])
+  }, [])
 
   // Keyboard shortcuts
   useEffect(() => {
     function onKey(e) {
-      if (feedback) return
       if (e.key >= '1' && e.key <= '5') submitAnswer(parseInt(e.key))
       else if (e.key === '6') submitAnswer(6)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [submitAnswer, feedback])
+  }, [submitAnswer])
 
   // End of game summary
   if (engine.finished) {
@@ -103,10 +98,7 @@ export function Quiz({ sgf, onBack }) {
         />
       </div>
 
-      <AnswerButtons
-        feedback={feedback}
-        onLiberties={submitAnswer}
-      />
+      <AnswerButtons onLiberties={submitAnswer} />
 
       <FeedbackStrip results={engine.results} />
     </div>
@@ -127,22 +119,17 @@ function TopBar({ moveIndex, totalMoves, correct, wrong, onBack }) {
   )
 }
 
-function AnswerButtons({ feedback, onLiberties }) {
+function AnswerButtons({ onLiberties }) {
   let libertyValues = [1, 2, 3, 4, 5, 6]
 
   return (
     <div class="answer-buttons">
       <div class="button-row">
-        {libertyValues.map(l => {
-          let label = l === 6 ? '6+' : String(l)
-          let cls = 'ans-btn'
-          if (feedback && !feedback.correct && feedback.trueLiberties === l) cls += ' correct-hint'
-          return (
-            <button key={l} class={cls} onClick={() => onLiberties(l)} disabled={!!feedback}>
-              {label}
-            </button>
-          )
-        })}
+        {libertyValues.map(l => (
+          <button key={l} class="ans-btn" onClick={() => onLiberties(l)}>
+            {l === 6 ? '6+' : l}
+          </button>
+        ))}
       </div>
     </div>
   )
