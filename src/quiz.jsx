@@ -76,15 +76,12 @@ export function Quiz({ sgf, onBack }) {
     markerMap[y][x] = { type: 'label', label: String(engine.moveIndex) }
   }
 
-  // Question vertex: red dot marker
+  // Question vertex: "?" marker
   if (engine.questionVertex) {
     let [x, y] = engine.questionVertex
-    // Use paint for visibility if it's an empty intersection on display
+    markerMap[y][x] = { type: 'label', label: '?' }
     if (signMap[y][x] === 0) {
-      markerMap[y][x] = { type: 'point' }
       paintMap[y][x] = 0.5
-    } else {
-      markerMap[y][x] = { type: 'point' }
     }
   }
 
