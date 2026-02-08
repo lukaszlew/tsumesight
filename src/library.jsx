@@ -15,7 +15,7 @@ export function Library({ onSelect }) {
   useEffect(() => { refresh() }, [])
 
   let handleFiles = async (e) => {
-    let files = Array.from(e.target.files)
+    let files = Array.from(e.target.files).filter(f => f.name.endsWith('.sgf'))
     for (let file of files) {
       let content = await file.text()
       let parsed = parseSgf(content)
@@ -42,15 +42,21 @@ export function Library({ onSelect }) {
     <div class="library">
       <h1>Go Reading Trainer</h1>
 
-      <label class="upload-btn">
-        Upload SGF files
-        <input type="file" accept=".sgf" multiple onChange={handleFiles} hidden />
-      </label>
+      <div class="upload-row">
+        <label class="upload-btn">
+          Upload SGF files
+          <input type="file" accept=".sgf" multiple onChange={handleFiles} hidden />
+        </label>
+        <label class="upload-btn">
+          Upload folder
+          <input type="file" webkitdirectory="" onChange={handleFiles} hidden />
+        </label>
+      </div>
 
       {loading && <p class="loading">Loading...</p>}
 
       {!loading && sgfs.length === 0 && (
-        <p class="empty-msg">No SGF files yet. Upload one to start training.</p>
+        <p class="empty-msg">No SGF files yet. Upload files or a folder to start training.</p>
       )}
 
       {sgfs.length > 0 && (
