@@ -68,7 +68,7 @@ export function Quiz({ sgf, onBack }) {
   // Question vertex: "?" marker
   if (engine.questionVertex) {
     let [x, y] = engine.questionVertex
-    markerMap[y][x] = { type: 'label', label: '?' }
+    markerMap[y][x] = { type: 'label', label: '❓' }
   }
 
   return (
