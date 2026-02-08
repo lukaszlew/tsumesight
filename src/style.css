@@ -173,7 +173,7 @@ body {
   color: #ddd;
   border-radius: 6px;
   cursor: pointer;
-  transition: border-color 0.1s, background 0.1s;
+
 }
 .ans-btn:hover:not(:disabled) {
   border-color: #888;

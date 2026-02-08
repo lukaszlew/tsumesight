@@ -24,13 +24,8 @@ export function Quiz({ sgf, onBack }) {
     if (feedback) return
     let result = engine.answer(liberties)
     setFeedback(result)
-
-    // Brief delay to show feedback, then advance
-    setTimeout(() => {
-      setFeedback(null)
-      engine.advance()
-      rerender()
-    }, result.correct ? 300 : 1200)
+    engine.advance()
+    rerender()
   }, [feedback])
 
   // Keyboard shortcuts
