@@ -141,17 +141,15 @@ body {
 }
 
 .board-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
+  position: relative;
   margin-bottom: 1rem;
 }
 
-.board-container {
-  flex-shrink: 0;
-}
-
 .scoring-rules {
+  position: absolute;
+  left: 100%;
+  top: 0;
+  margin-left: 0.75rem;
   background: #2a2a2a;
   border: 1px solid #444;
   border-radius: 6px;
@@ -179,7 +177,7 @@ body {
 }
 .shudan-vertex.shudan-marker_label.shudan-sign_0 .shudan-marker {
   background: transparent;
-  font-size: 1em;
+  font-size: .7em;
 }
 
 /* Answer buttons */
