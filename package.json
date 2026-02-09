@@ -13,6 +13,7 @@
     "@sabaki/go-board": "^1.4.3",
     "@sabaki/sgf": "^3.4.7",
     "@sabaki/shudan": "^1.7.1",
+    "jszip": "^3.10.1",
     "preact": "^10.28.3"
   },
   "devDependencies": {

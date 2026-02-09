@@ -1,0 +1,65 @@
+import JSZip from 'jszip'
+
+const ARCHIVE_EXTENSIONS = ['.zip', '.tar.gz', '.tgz', '.tar']
+
+export function isArchive(filename) {
+  let lower = filename.toLowerCase()
+  return ARCHIVE_EXTENSIONS.some(ext => lower.endsWith(ext))
+}
+
+// Returns [{name, content}] — name includes path, content is string
+export async function extractSgfs(file) {
+  let lower = file.name.toLowerCase()
+  if (lower.endsWith('.zip')) return extractZip(file)
+  if (lower.endsWith('.tar.gz') || lower.endsWith('.tgz')) return extractTarGz(file)
+  if (lower.endsWith('.tar')) return extractTar(await file.arrayBuffer())
+  return []
+}
+
+async function extractZip(file) {
+  let zip = await JSZip.loadAsync(file)
+  let results = []
+  for (let [name, entry] of Object.entries(zip.files)) {
+    if (entry.dir) continue
+    if (!name.toLowerCase().endsWith('.sgf')) continue
+    let content = await entry.async('string')
+    results.push({ name, content })
+  }
+  return results
+}
+
+async function extractTarGz(file) {
+  let ds = new DecompressionStream('gzip')
+  let decompressed = file.stream().pipeThrough(ds)
+  let buf = await new Response(decompressed).arrayBuffer()
+  return extractTar(buf)
+}
+
+function extractTar(buf) {
+  let results = []
+  let offset = 0
+  let view = new Uint8Array(buf)
+  while (offset + 512 <= buf.byteLength) {
+    // Empty block = end of archive
+    if (view.slice(offset, offset + 512).every(b => b === 0)) break
+    let name = readString(view, offset, 100)
+    let size = parseInt(readString(view, offset + 124, 12).trim(), 8) || 0
+    // UStar prefix extends the name
+    let prefix = readString(view, offset + 345, 155)
+    if (prefix) name = prefix + '/' + name
+    offset += 512
+    if (name.toLowerCase().endsWith('.sgf') && size > 0) {
+      let content = new TextDecoder().decode(view.slice(offset, offset + size))
+      results.push({ name, content })
+    }
+    offset += Math.ceil(size / 512) * 512
+  }
+  return results
+}
+
+function readString(view, offset, len) {
+  let end = offset + len
+  let nullIdx = view.indexOf(0, offset)
+  if (nullIdx >= offset && nullIdx < end) end = nullIdx
+  return new TextDecoder().decode(view.slice(offset, end))
+}

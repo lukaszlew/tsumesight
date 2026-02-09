@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'preact/hooks'
 import { getAllSgfs, addSgf, deleteSgf, deleteSgfsByPrefix } from './db.js'
 import { parseSgf } from './sgf-utils.js'
+import { isArchive, extractSgfs } from './archive.js'
 
 async function collectSgfFiles(dirHandle, path) {
   let results = []
@@ -29,14 +30,11 @@ export function Library({ onSelect, initialPath = '' }) {
 
   useEffect(() => { refresh() }, [])
 
-  let addParsedFile = async (file, path, uploadedAt) => {
+  let addParsedContent = async (filename, path, content, uploadedAt) => {
     try {
-      let content = await file.text()
       let parsed = parseSgf(content)
       await addSgf({
-        filename: file.name,
-        path,
-        content,
+        filename, path, content,
         boardSize: parsed.boardSize,
         moveCount: parsed.moveCount,
         playerBlack: parsed.playerBlack,
@@ -44,14 +42,27 @@ export function Library({ onSelect, initialPath = '' }) {
         uploadedAt,
       })
     } catch {
-      console.warn('Skipping unparseable SGF:', file.name)
+      console.warn('Skipping unparseable SGF:', filename)
     }
   }
 
   let handleFiles = async (e) => {
-    let files = Array.from(e.target.files).filter(f => f.name.endsWith('.sgf'))
     let now = Date.now()
-    for (let file of files) await addParsedFile(file, '', now)
+    for (let file of Array.from(e.target.files)) {
+      if (isArchive(file.name)) {
+        let entries = await extractSgfs(file)
+        let archiveName = file.name.replace(/\.(zip|tar\.gz|tgz|tar)$/i, '')
+        for (let { name, content } of entries) {
+          let parts = name.split('/')
+          let filename = parts.pop()
+          let path = archiveName + (parts.length ? '/' + parts.join('/') : '')
+          await addParsedContent(filename, path, content, now)
+        }
+      } else if (file.name.toLowerCase().endsWith('.sgf')) {
+        let content = await file.text()
+        await addParsedContent(file.name, '', content, now)
+      }
+    }
     e.target.value = ''
     refresh()
   }
@@ -60,7 +71,10 @@ export function Library({ onSelect, initialPath = '' }) {
     let dirHandle = await window.showDirectoryPicker()
     let entries = await collectSgfFiles(dirHandle, dirHandle.name)
     let now = Date.now()
-    for (let { file, path } of entries) await addParsedFile(file, path, now)
+    for (let { file, path } of entries) {
+      let content = await file.text()
+      await addParsedContent(file.name, path, content, now)
+    }
     refresh()
   }
 
@@ -119,8 +133,8 @@ export function Library({ onSelect, initialPath = '' }) {
 
       <div class="upload-row">
         <label class="upload-btn">
-          Upload SGF files
-          <input type="file" accept=".sgf" multiple onChange={handleFiles} hidden />
+          Upload files
+          <input type="file" accept=".sgf,.zip,.tar.gz,.tgz,.tar" multiple onChange={handleFiles} hidden />
         </label>
         <button class="upload-btn" onClick={handleFolder}>
           Upload folder
