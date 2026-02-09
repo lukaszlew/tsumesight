@@ -303,7 +303,7 @@ body {
 }
 /* Comparison labels: single color on all backgrounds */
 .shudan-vertex.shudan-marker_label .shudan-marker {
-  color: #f80;
+  color: #44f;
   font-weight: bold;
   text-shadow: 0 0 3px rgba(0,0,0,0.6);
 }
