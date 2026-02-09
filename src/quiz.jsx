@@ -138,8 +138,10 @@ export function Quiz({ sgf, quizKey, onBack, onSolved, onProgress, onLoadError, 
   let ghostStoneMap = makeEmptyMap(size)
 
   // Current move: ghost stone (semi-transparent last move indicator)
+  // Clear signMap at ghost vertex so stale captured stones don't show through
   if (engine.currentMove) {
     let [x, y] = engine.currentMove.vertex
+    signMap[y][x] = 0
     ghostStoneMap[y][x] = { sign: engine.currentMove.sign, faint: true }
   }
 
@@ -148,7 +150,10 @@ export function Quiz({ sgf, quizKey, onBack, onSolved, onProgress, onLoadError, 
     for (let [, { vertex }] of engine.invisibleStones) {
       let [x, y] = vertex
       let sign = engine.trueBoard.get(vertex)
-      if (sign !== 0) ghostStoneMap[y][x] = { sign, faint: true }
+      if (sign !== 0) {
+        signMap[y][x] = 0
+        ghostStoneMap[y][x] = { sign, faint: true }
+      }
     }
   } else {
     // Show all pending question vertices
@@ -165,7 +170,6 @@ export function Quiz({ sgf, quizKey, onBack, onSolved, onProgress, onLoadError, 
         <button class="bar-btn" onClick={onBack}>☰</button>
         <div class="nav-group">
           <button class="bar-btn" onClick={onPrev}>◀</button>
-          {fileTotal && <span class="file-counter">{fileIndex}/{fileTotal}</span>}
           <button class="bar-btn" onClick={onNext}>▶</button>
         </div>
         <button class="bar-btn" onClick={() => setSoundOn(toggleSound())}>
