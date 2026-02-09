@@ -173,8 +173,8 @@ export function Quiz({ sgf, quizKey, onBack, onSolved, onProgress, onLoadError, 
     let { v1, v2 } = engine.comparisonPair
     let [x1, y1] = v1
     let [x2, y2] = v2
-    markerMap[y1][x1] = { type: 'label', label: '🅰️' }
-    markerMap[y2][x2] = { type: 'label', label: '🅱️' }
+    markerMap[y1][x1] = { type: 'label', label: 'A' }
+    markerMap[y2][x2] = { type: 'label', label: 'B' }
   } else if (engine.questionVertex) {
     let [x, y] = engine.questionVertex
     markerMap[y][x] = { type: 'label', label: '❓' }
@@ -296,9 +296,9 @@ function AnswerButtons({ onAnswer }) {
 function ComparisonButtons({ onAnswer }) {
   return (
     <div class="answer-buttons">
-      <button class="bar-btn ans-btn" onClick={() => onAnswer(1)}>🅰️</button>
+      <button class="bar-btn ans-btn" onClick={() => onAnswer(1)}>A</button>
       <button class="bar-btn ans-btn" onClick={() => onAnswer(2)}>=</button>
-      <button class="bar-btn ans-btn" onClick={() => onAnswer(3)}>🅱️</button>
+      <button class="bar-btn ans-btn" onClick={() => onAnswer(3)}>B</button>
     </div>
   )
 }
