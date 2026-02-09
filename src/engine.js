@@ -58,7 +58,7 @@ export class QuizEngine {
       this.staleness.set(key, Math.min(val + 1, 4))
     }
 
-    // Snapshot liberty counts before the move (for flux bonus)
+    // Snapshot liberty counts before the move (to detect changed libs)
     this.prevLibs = new Map()
     for (let [key, { vertex }] of this.invisibleStones) {
       if (this.trueBoard.get(vertex) !== 0) {
