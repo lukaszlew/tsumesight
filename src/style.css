@@ -230,12 +230,13 @@ body {
   min-width: 0;
   display: flex;
   gap: 1px;
-  overflow-x: auto;
-  scrollbar-width: none;
+  align-items: center;
   padding: 0.25rem 0;
 }
-.progress-bar::-webkit-scrollbar {
-  display: none;
+.progress-ellipsis {
+  color: #666;
+  font-size: 0.75rem;
+  padding: 0 0.2rem;
 }
 .progress-move {
   display: flex;

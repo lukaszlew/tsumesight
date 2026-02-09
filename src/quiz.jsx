@@ -178,27 +178,28 @@ function SummaryPanel({ engine, onBack, onRetry, onNextUnsolved }) {
 }
 
 function ProgressBar({ questionsPerMove, moveProgress }) {
-  let ref = useRef(null)
-  let played = moveProgress.length
-
-  useEffect(() => {
-    if (!ref.current || played === 0) return
-    let col = ref.current.children[played - 1]
-    if (col) col.scrollIntoView({ inline: 'nearest', block: 'nearest' })
-  })
+  let total = questionsPerMove.length
+  let current = moveProgress.length - 1
+  let CONTEXT = 3
+  let needsWindow = total > CONTEXT * 2 + 1
+  let start = needsWindow ? Math.max(0, Math.min(current - CONTEXT, total - CONTEXT * 2 - 1)) : 0
+  let end = needsWindow ? Math.min(total, start + CONTEXT * 2 + 1) : total
 
   return (
-    <div class="progress-bar" ref={ref}>
-      {questionsPerMove.map((total, i) => {
+    <div class="progress-bar">
+      {needsWindow && start > 0 && <span class="progress-ellipsis">…</span>}
+      {questionsPerMove.slice(start, end).map((qCount, offset) => {
+        let i = start + offset
         let results = moveProgress[i] ? moveProgress[i].results : []
         return (
-          <div key={i} class={`progress-move${i === played - 1 ? ' current' : ''}`}>
-            {Array.from({ length: total }, (_, j) => (
+          <div key={i} class={`progress-move${i === current ? ' current' : ''}`}>
+            {Array.from({ length: qCount }, (_, j) => (
               <span key={j} class={results[j] === 'correct' ? 'check-done' : results[j] === 'failed' ? 'check-fail' : 'check-empty'} />
             ))}
           </div>
         )
       })}
+      {needsWindow && end < total && <span class="progress-ellipsis">…</span>}
     </div>
   )
 }
