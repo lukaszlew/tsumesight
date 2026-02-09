@@ -524,6 +524,141 @@ describe('QuizEngine', () => {
     })
   })
 
+  describe('comparison mode', () => {
+    // After W[aa]: W chain [0,0]+[0,1] has 2 libs, B[ba]=[1,0] has 2 libs
+    // They share liberty [1,1]
+    let compSgf = '(;SZ[9]AW[ab];B[ba];W[aa])'
+
+    it('constructor accepts mode parameter', () => {
+      let engine = new QuizEngine(compSgf, 'comparison')
+      expect(engine.mode).toBe('comparison')
+    })
+
+    it('defaults to liberty mode', () => {
+      let engine = new QuizEngine(compSgf)
+      expect(engine.mode).toBe('liberty')
+    })
+
+    it('finds comparison pairs for adjacent groups sharing a liberty', () => {
+      let engine = new QuizEngine(compSgf, 'comparison')
+      engine.advance() // B[ba]
+      engine.advance() // W[aa] — now B[1,0] and W[0,0]+[0,1] share liberty [1,1]
+      expect(engine.questions.length).toBeGreaterThanOrEqual(1)
+      let pair = engine.comparisonPair
+      expect(pair).not.toBe(null)
+      expect(pair.libs1).toBeLessThanOrEqual(2)
+      expect(pair.libs2).toBeLessThanOrEqual(2)
+    })
+
+    it('sets questionVertex to null in comparison mode', () => {
+      let engine = new QuizEngine(compSgf, 'comparison')
+      engine.advance()
+      engine.advance()
+      expect(engine.questionVertex).toBe(null)
+    })
+
+    it('correct comparison answer returns correct=true', () => {
+      let engine = new QuizEngine(compSgf, 'comparison')
+      engine.advance()
+      // Skip first move's questions (may be empty if no pairs)
+      while (engine.comparisonPair) {
+        let pair = engine.comparisonPair
+        let trueAnswer = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 3 : 2
+        engine.answer(trueAnswer)
+      }
+      engine.advance()
+      if (!engine.comparisonPair) return // no pairs on this move
+      let pair = engine.comparisonPair
+      let trueAnswer = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 3 : 2
+      let result = engine.answer(trueAnswer)
+      expect(result.correct).toBe(true)
+      expect(result.trueAnswer).toBe(trueAnswer)
+    })
+
+    it('wrong comparison answer returns correct=false and enables retry', () => {
+      let engine = new QuizEngine(compSgf, 'comparison')
+      engine.advance() // B[ba] — may or may not have pairs
+      while (engine.comparisonPair) {
+        let pair = engine.comparisonPair
+        let trueAnswer = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 3 : 2
+        engine.answer(trueAnswer)
+      }
+      engine.advance() // W[aa] — should have pairs
+      if (!engine.comparisonPair) return
+      let pair = engine.comparisonPair
+      let trueAnswer = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 3 : 2
+      let wrongAnswer = trueAnswer === 1 ? 3 : 1
+      let result = engine.answer(wrongAnswer)
+      expect(result.correct).toBe(false)
+      expect(engine.retrying).toBe(true)
+      // Retry with correct answer
+      let retry = engine.answer(trueAnswer)
+      expect(retry.correct).toBe(true)
+    })
+
+    it('comparison mode skips moves with no qualifying pairs', () => {
+      // Two far-apart stones: no shared liberties
+      let sgf = '(;SZ[9];B[aa];W[ii])'
+      let engine = new QuizEngine(sgf, 'comparison')
+      engine.advance() // B[aa] — only one group, no pairs possible
+      expect(engine.questions.length).toBe(0)
+      expect(engine.comparisonPair).toBe(null)
+    })
+
+    it('filters out pairs where both libs > 2', () => {
+      // Two adjacent center stones: both have 3+ liberties
+      let sgf = '(;SZ[9];B[ee];W[fe])'
+      let engine = new QuizEngine(sgf, 'comparison')
+      engine.advance() // B[ee] — 4 libs
+      engine.advance() // W[fe] — 3 libs each, both > 2
+      // Should find no pairs (both have 3+ libs)
+      expect(engine.questions.length).toBe(0)
+    })
+
+    it('fromReplay works with comparison mode', () => {
+      let engine = new QuizEngine(compSgf, 'comparison')
+      let history = []
+      engine.advance()
+      while (!engine.finished) {
+        if (!engine.comparisonPair) { engine.advance(); continue }
+        let pair = engine.comparisonPair
+        let trueAnswer = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 3 : 2
+        let result = engine.answer(trueAnswer)
+        history.push(true)
+        if (result.done) engine.advance()
+      }
+      let replayed = QuizEngine.fromReplay(compSgf, history, 'comparison')
+      expect(replayed.finished).toBe(true)
+      expect(replayed.correct).toBe(engine.correct)
+      expect(replayed.results).toEqual(engine.results)
+    })
+
+    it('questionsPerMove reflects comparison mode counts', () => {
+      let engine = new QuizEngine(compSgf, 'comparison')
+      // questionsPerMove should be precomputed for comparison mode
+      expect(engine.questionsPerMove.length).toBe(2) // 2 moves in this SGF
+    })
+
+    it('equal liberties gives trueAnswer=2', () => {
+      let engine = new QuizEngine(compSgf, 'comparison')
+      engine.advance()
+      while (engine.comparisonPair) {
+        let pair = engine.comparisonPair
+        let ta = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 3 : 2
+        engine.answer(ta)
+      }
+      engine.advance()
+      if (!engine.comparisonPair) return
+      let pair = engine.comparisonPair
+      // Both groups have 2 libs in this SGF
+      if (pair.libs1 === pair.libs2) {
+        let result = engine.answer(2)
+        expect(result.correct).toBe(true)
+        expect(result.trueAnswer).toBe(2)
+      }
+    })
+  })
+
   describe('multi-question per move', () => {
     it('asks about all groups with changed liberties', () => {
       // B[ba] then W[aa] — adjacent, both groups change libs

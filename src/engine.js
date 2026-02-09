@@ -32,7 +32,8 @@ function libertyBonus(libCount) {
 }
 
 export class QuizEngine {
-  constructor(sgfString, _precompute = true) {
+  constructor(sgfString, mode = 'liberty', _precompute = true) {
+    this.mode = mode
     this.random = mulberry32(hashString(sgfString))
     let parsed = parseSgf(sgfString)
     this.boardSize = parsed.boardSize
@@ -61,6 +62,7 @@ export class QuizEngine {
     this.questions = []
     this.questionIndex = 0
     this.questionVertex = null
+    this.comparisonPair = null // {v1, v2, libs1, libs2} for comparison mode
     this.correct = 0
     this.wrong = 0
     this.results = []
@@ -71,7 +73,7 @@ export class QuizEngine {
 
     // Precompute question counts per move (ideal play, no wrong answers)
     if (_precompute) {
-      let sim = new QuizEngine(sgfString, false)
+      let sim = new QuizEngine(sgfString, mode, false)
       while (!sim.finished) sim.advance()
       this.questionsPerMove = sim.moveProgress.map(m => m.total)
     } else {
@@ -128,35 +130,10 @@ export class QuizEngine {
     // Remove captured stones from tracking
     this._pruneCaptured()
 
-    // Build question queue: all groups with changed liberties
-    this.peekGroupScores = this.getGroupScores()
-    let pool = this.peekGroupScores.filter(g => g.libsChanged)
-    pool.sort((a, b) => b.score - a.score)
-
-    this.questions = pool.map(g =>
-      g.vertices[Math.floor(this.random() * g.vertices.length)]
-    )
-
-    // Always ask about just-played stone first
-    let moveChainKeys = new Set(this.trueBoard.getChain(move.vertex).map(vertexKey))
-    this.questions = this.questions.filter(q => !moveChainKeys.has(vertexKey(q)))
-    this.questions.unshift(move.vertex)
-
-    // Skip groups with 6+ liberties (answer is always "5+"), keep at least one
-    let filtered = this.questions.filter(q => this.trueBoard.getLiberties(q).length < 6)
-    if (filtered.length > 0) this.questions = filtered
-
-    this.questionIndex = 0
-    this.questionVertex = this.questions[0] || null
-    this.moveProgress.push({ total: this.questions.length, results: [] })
-
-    // Reset staleness for all questioned groups
-    for (let qv of this.questions) {
-      let chain = this.trueBoard.getChain(qv)
-      for (let v of chain) {
-        let k = vertexKey(v)
-        if (this.staleness.has(k)) this.staleness.set(k, -1)
-      }
+    if (this.mode === 'comparison') {
+      this._advanceComparison()
+    } else {
+      this._advanceLiberty(move)
     }
 
     return {
@@ -167,7 +144,12 @@ export class QuizEngine {
     }
   }
 
-  answer(liberties) {
+  answer(value) {
+    if (this.mode === 'comparison') return this._answerComparison(value)
+    return this._answerLiberty(value)
+  }
+
+  _answerLiberty(liberties) {
     let v = this.questionVertex
     assert(v != null, 'No question to answer')
 
@@ -178,17 +160,8 @@ export class QuizEngine {
     if (this.retrying) {
       if (!isCorrect) return { correct: false, trueLiberties, done: false }
       this.retrying = false
-      this.baseSignMap = this._savedBaseSignMap
-      this.invisibleStones = this._savedInvisibleStones
-      this.staleness = this._savedStaleness
-      this._savedBaseSignMap = null
-      this._savedInvisibleStones = null
-      this._savedStaleness = null
-      // Continue with remaining questions
-      this.questionIndex++
-      this.questionVertex = this.questionIndex < this.questions.length
-        ? this.questions[this.questionIndex]
-        : null
+      this._restoreSaved()
+      this._advanceQuestion()
       let done = this.questionIndex >= this.questions.length
       return { correct: true, trueLiberties, done }
     }
@@ -199,23 +172,81 @@ export class QuizEngine {
     if (!isCorrect) {
       this.wrong++
       mp.results.push('failed')
-      // Save state before materialize so we can restore after retry
-      this._savedBaseSignMap = this.baseSignMap.map(row => [...row])
-      this._savedInvisibleStones = new Map(this.invisibleStones)
-      this._savedStaleness = new Map(this.staleness)
-      this.materialize()
+      this._saveAndMaterialize()
       this.retrying = true
       return { correct: false, trueLiberties, done: false }
     }
 
     this.correct++
     mp.results.push('correct')
-    this.questionIndex++
-    this.questionVertex = this.questionIndex < this.questions.length
-      ? this.questions[this.questionIndex]
-      : null
+    this._advanceQuestion()
     let done = this.questionIndex >= this.questions.length
     return { correct: true, trueLiberties, done }
+  }
+
+  _answerComparison(value) {
+    let pair = this.comparisonPair
+    assert(pair != null, 'No comparison question to answer')
+
+    let trueAnswer = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 3 : 2
+    let isCorrect = value === trueAnswer
+
+    if (this.retrying) {
+      if (!isCorrect) return { correct: false, trueAnswer, done: false }
+      this.retrying = false
+      this._restoreSaved()
+      this._advanceQuestion()
+      let done = this.questionIndex >= this.questions.length
+      return { correct: true, trueAnswer, done }
+    }
+
+    this.results.push(isCorrect)
+    let mp = this.moveProgress[this.moveProgress.length - 1]
+
+    if (!isCorrect) {
+      this.wrong++
+      mp.results.push('failed')
+      this._saveAndMaterialize()
+      this.retrying = true
+      return { correct: false, trueAnswer, done: false }
+    }
+
+    this.correct++
+    mp.results.push('correct')
+    this._advanceQuestion()
+    let done = this.questionIndex >= this.questions.length
+    return { correct: true, trueAnswer, done }
+  }
+
+  _advanceQuestion() {
+    this.questionIndex++
+    if (this.mode === 'comparison') {
+      this.comparisonPair = this.questionIndex < this.questions.length
+        ? this.questions[this.questionIndex]
+        : null
+      this.questionVertex = null
+    } else {
+      this.questionVertex = this.questionIndex < this.questions.length
+        ? this.questions[this.questionIndex]
+        : null
+      this.comparisonPair = null
+    }
+  }
+
+  _saveAndMaterialize() {
+    this._savedBaseSignMap = this.baseSignMap.map(row => [...row])
+    this._savedInvisibleStones = new Map(this.invisibleStones)
+    this._savedStaleness = new Map(this.staleness)
+    this.materialize()
+  }
+
+  _restoreSaved() {
+    this.baseSignMap = this._savedBaseSignMap
+    this.invisibleStones = this._savedInvisibleStones
+    this.staleness = this._savedStaleness
+    this._savedBaseSignMap = null
+    this._savedInvisibleStones = null
+    this._savedStaleness = null
   }
 
   materialize() {
@@ -283,6 +314,104 @@ export class QuizEngine {
     return groups
   }
 
+  _advanceLiberty(move) {
+    // Build question queue: all groups with changed liberties
+    this.peekGroupScores = this.getGroupScores()
+    let pool = this.peekGroupScores.filter(g => g.libsChanged)
+    pool.sort((a, b) => b.score - a.score)
+
+    this.questions = pool.map(g =>
+      g.vertices[Math.floor(this.random() * g.vertices.length)]
+    )
+
+    // Always ask about just-played stone first
+    let moveChainKeys = new Set(this.trueBoard.getChain(move.vertex).map(vertexKey))
+    this.questions = this.questions.filter(q => !moveChainKeys.has(vertexKey(q)))
+    this.questions.unshift(move.vertex)
+
+    // Skip groups with 6+ liberties (answer is always "5+"), keep at least one
+    let filtered = this.questions.filter(q => this.trueBoard.getLiberties(q).length < 6)
+    if (filtered.length > 0) this.questions = filtered
+
+    this.questionIndex = 0
+    this.questionVertex = this.questions[0] || null
+    this.comparisonPair = null
+    this.moveProgress.push({ total: this.questions.length, results: [] })
+
+    // Reset staleness for all questioned groups
+    for (let qv of this.questions) {
+      let chain = this.trueBoard.getChain(qv)
+      for (let v of chain) {
+        let k = vertexKey(v)
+        if (this.staleness.has(k)) this.staleness.set(k, -1)
+      }
+    }
+  }
+
+  _advanceComparison() {
+    let pairs = this._findComparisonPairs()
+    this.questions = pairs
+    this.questionIndex = 0
+    this.comparisonPair = pairs[0] || null
+    this.questionVertex = null
+    this.moveProgress.push({ total: pairs.length, results: [] })
+
+    // Reset staleness for all groups involved in questions
+    for (let pair of pairs) {
+      for (let v of [pair.v1, pair.v2]) {
+        let chain = this.trueBoard.getChain(v)
+        for (let cv of chain) {
+          let k = vertexKey(cv)
+          if (this.staleness.has(k)) this.staleness.set(k, -1)
+        }
+      }
+    }
+  }
+
+  _findComparisonPairs() {
+    let groups = this.getGroupScores()
+
+    // Build map: liberty vertex key → list of group indices that have it as a liberty
+    let libToGroups = new Map()
+    for (let i = 0; i < groups.length; i++) {
+      let rep = groups[i].vertices[0]
+      let libs = this.trueBoard.getLiberties(rep)
+      for (let lv of libs) {
+        let k = vertexKey(lv)
+        if (!libToGroups.has(k)) libToGroups.set(k, [])
+        libToGroups.get(k).push(i)
+      }
+    }
+
+    // Collect pairs sharing a liberty
+    let seen = new Set()
+    let pairs = []
+    for (let [, gis] of libToGroups) {
+      if (gis.length < 2) continue
+      for (let a = 0; a < gis.length; a++) {
+        for (let b = a + 1; b < gis.length; b++) {
+          let pairKey = gis[a] < gis[b] ? `${gis[a]}-${gis[b]}` : `${gis[b]}-${gis[a]}`
+          if (seen.has(pairKey)) continue
+          seen.add(pairKey)
+          let ga = groups[gis[a]], gb = groups[gis[b]]
+          let libsA = ga.liberties, libsB = gb.liberties
+          // Filter: both groups have libs ≤ 2, |diff| ≤ 1
+          if (libsA > 2 || libsB > 2) continue
+          if (Math.abs(libsA - libsB) > 1) continue
+          // Filter: at least one group has a vertex in invisibleStones
+          let hasInvisible = ga.vertices.some(v => this.invisibleStones.has(vertexKey(v)))
+            || gb.vertices.some(v => this.invisibleStones.has(vertexKey(v)))
+          if (!hasInvisible) continue
+          // Pick representative vertex from each group
+          let v1 = ga.vertices[Math.floor(this.random() * ga.vertices.length)]
+          let v2 = gb.vertices[Math.floor(this.random() * gb.vertices.length)]
+          pairs.push({ v1, v2, libs1: libsA, libs2: libsB })
+        }
+      }
+    }
+    return pairs
+  }
+
   _pruneCaptured() {
     for (let [key] of this.staleness) {
       let [x, y] = key.split(',').map(Number)
@@ -293,20 +422,38 @@ export class QuizEngine {
     }
   }
 
-  static fromReplay(sgfString, history) {
-    let engine = new QuizEngine(sgfString)
+  static fromReplay(sgfString, history, mode = 'liberty') {
+    let engine = new QuizEngine(sgfString, mode)
     engine.advance()
     for (let wasCorrectFirst of history) {
-      if (!engine.questionVertex) break
-      let trueLiberties = Math.min(engine.trueBoard.getLiberties(engine.questionVertex).length, 5)
-      if (wasCorrectFirst) {
-        let result = engine.answer(trueLiberties)
-        if (result.done) engine.advance()
+      if (engine.finished) break
+      if (engine.mode === 'comparison') {
+        // Skip moves with no comparison pairs
+        while (!engine.comparisonPair && !engine.finished) engine.advance()
+        if (!engine.comparisonPair) break
+        let pair = engine.comparisonPair
+        let trueAnswer = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 3 : 2
+        if (wasCorrectFirst) {
+          let result = engine.answer(trueAnswer)
+          if (result.done) engine.advance()
+        } else {
+          let wrongAnswer = trueAnswer === 1 ? 2 : 1
+          engine.answer(wrongAnswer)
+          let result = engine.answer(trueAnswer)
+          if (result.done) engine.advance()
+        }
       } else {
-        let wrongAnswer = trueLiberties === 1 ? 2 : 1
-        engine.answer(wrongAnswer)
-        let result = engine.answer(trueLiberties)
-        if (result.done) engine.advance()
+        if (!engine.questionVertex) break
+        let trueLiberties = Math.min(engine.trueBoard.getLiberties(engine.questionVertex).length, 5)
+        if (wasCorrectFirst) {
+          let result = engine.answer(trueLiberties)
+          if (result.done) engine.advance()
+        } else {
+          let wrongAnswer = trueLiberties === 1 ? 2 : 1
+          engine.answer(wrongAnswer)
+          let result = engine.answer(trueLiberties)
+          if (result.done) engine.advance()
+        }
       }
     }
     return engine
