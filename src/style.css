@@ -137,6 +137,18 @@ body {
   font-size: 1.1rem;
 }
 
+.nav-group {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.file-counter {
+  font-size: 0.85rem;
+  color: #999;
+  min-width: 3ch;
+  text-align: center;
+}
+
 .move-counter {
   font-size: 1rem;
   color: #ccc;

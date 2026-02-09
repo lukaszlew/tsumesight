@@ -43,7 +43,7 @@ export class QuizEngine {
     this.correct = 0
     this.wrong = 0
     this.results = []
-    this.lastWrong = null // { vertex, trueLiberties } — shown until next answer
+    this.retrying = false
     this.finished = false
   }
 
@@ -126,29 +126,37 @@ export class QuizEngine {
   }
 
   answer(liberties) {
-    this.lastWrong = null
     let v = this.questionVertex
     assert(v != null, 'No question to answer')
 
     let trueLiberties = Math.min(this.trueBoard.getLiberties(v).length, 5)
     let isCorrect = liberties === trueLiberties
 
-    if (isCorrect) {
-      this.correct++
-    } else {
-      this.wrong++
-      this.lastWrong = { vertex: v, trueLiberties }
-      this.materialize()
+    // Retry after wrong — don't record, just wait for correct answer
+    if (this.retrying) {
+      if (!isCorrect) return { correct: false, trueLiberties, done: false }
+      this.retrying = false
+      this.questionVertex = null
+      return { correct: true, trueLiberties, done: true }
     }
+
     this.results.push(isCorrect)
 
+    if (!isCorrect) {
+      this.wrong++
+      this.materialize()
+      this.retrying = true
+      // Keep questionVertex — user retries with revealed stones
+      return { correct: false, trueLiberties, done: false }
+    }
+
+    this.correct++
     this.questionIndex++
     this.questionVertex = this.questionIndex < this.questions.length
       ? this.questions[this.questionIndex]
       : null
     let done = this.questionIndex >= this.questions.length
-
-    return { correct: isCorrect, trueLiberties, done }
+    return { correct: true, trueLiberties, done }
   }
 
   materialize() {

@@ -7,7 +7,7 @@ function makeEmptyMap(size, fill = null) {
   return Array.from({ length: size }, () => Array(size).fill(fill))
 }
 
-export function Quiz({ sgf, onBack, onSolved, onPrev, onNext, onNextUnsolved, onRetry }) {
+export function Quiz({ sgf, onBack, onSolved, onPrev, onNext, onNextUnsolved, onRetry, fileIndex, fileTotal }) {
   let engineRef = useRef(null)
   let [, forceRender] = useState(0)
   let rerender = () => forceRender(n => n + 1)
@@ -39,16 +39,24 @@ export function Quiz({ sgf, onBack, onSolved, onPrev, onNext, onNextUnsolved, on
 
   let solvedRef = useRef(false)
 
-  let submitAnswer = useCallback((liberties) => {
-    let result = engine.answer(liberties)
-    if (result.correct) playCorrect()
-    else playWrong()
-    if (result.done) engine.advance()
+  let checkFinished = () => {
     if (engine.finished && !solvedRef.current) {
       solvedRef.current = true
       onSolved()
       playComplete()
     }
+  }
+
+  let submitAnswer = useCallback((liberties) => {
+    if (!engine.questionVertex) return
+    let result = engine.answer(liberties)
+    if (result.correct) {
+      playCorrect()
+      if (result.done) engine.advance()
+    } else {
+      playWrong()
+    }
+    checkFinished()
     rerender()
   }, [])
 
@@ -95,16 +103,9 @@ export function Quiz({ sgf, onBack, onSolved, onPrev, onNext, onNextUnsolved, on
     }
   } else {
     // Show all pending question vertices
-    for (let i = engine.questionIndex; i < engine.questions.length; i++) {
-      let [x, y] = engine.questions[i]
-      markerMap[y][x] = i === engine.questionIndex
-        ? { type: 'label', label: '❓' }
-        : { type: 'point' }
-    }
-    // Last wrong answer: show correct liberty count on that stone
-    if (engine.lastWrong) {
-      let [x, y] = engine.lastWrong.vertex
-      markerMap[y][x] = { type: 'label', label: '❶❷❸❹❺'[engine.lastWrong.trueLiberties - 1] }
+    if (engine.questionVertex) {
+      let [x, y] = engine.questionVertex
+      markerMap[y][x] = { type: 'label', label: '❓' }
     }
   }
 
@@ -118,6 +119,8 @@ export function Quiz({ sgf, onBack, onSolved, onPrev, onNext, onNextUnsolved, on
         onBack={onBack}
         onPrev={onPrev}
         onNext={onNext}
+        fileIndex={fileIndex}
+        fileTotal={fileTotal}
       />
 
       <div class="board-row">
@@ -150,17 +153,20 @@ export function Quiz({ sgf, onBack, onSolved, onPrev, onNext, onNextUnsolved, on
   )
 }
 
-function TopBar({ moveIndex, totalMoves, questionIndex, questionCount, onBack, onPrev, onNext }) {
+function TopBar({ moveIndex, totalMoves, questionIndex, questionCount, onBack, onPrev, onNext, fileIndex, fileTotal }) {
   let [soundOn, setSoundOn] = useState(isSoundEnabled())
   return (
     <div class="top-bar">
       <button class="back-btn small" onClick={onBack}>←</button>
-      <button class="back-btn small" onClick={onPrev}>◀</button>
+      <div class="nav-group">
+        <button class="back-btn small" onClick={onPrev}>◀</button>
+        {fileTotal && <span class="file-counter">{fileIndex}/{fileTotal}</span>}
+        <button class="back-btn small" onClick={onNext}>▶</button>
+      </div>
       <span class="move-counter">
         Move {moveIndex} / {totalMoves}
         {questionCount > 1 && ` · Q ${questionIndex + 1}/${questionCount}`}
       </span>
-      <button class="back-btn small" onClick={onNext}>▶</button>
       <button class="sound-toggle" onClick={() => setSoundOn(toggleSound())}>
         {soundOn ? '🔊' : '🔇'}
       </button>
