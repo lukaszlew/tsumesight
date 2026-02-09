@@ -165,13 +165,12 @@ export class QuizEngine {
       if (groupVertices.length === 0) continue
 
       let libs = this.trueBoard.getLiberties(vertex).length
-
-      // Flux penalty: -1 if group's liberty count did NOT change after current move
-      // Exclude current move's group if it's a single stone (just placed)
       let isSingleCurrent = chain.length === 1 && currentMoveKey === vertexKey(chain[0])
-      let fluxPenalty = 0
-      if (!isSingleCurrent) {
-        let libsChanged = false
+
+      // Did this group's liberty count change after the current move?
+      // Current move's group always counts as "changed"
+      let libsChanged = isSingleCurrent
+      if (!libsChanged) {
         for (let v of groupVertices) {
           let prev = this.prevLibs.get(vertexKey(v))
           if (prev !== undefined && prev !== libs) {
@@ -179,14 +178,13 @@ export class QuizEngine {
             break
           }
         }
-        if (!libsChanged) fluxPenalty = -1
       }
 
       // Just-played single stone: no bonuses (you just saw it placed)
       let score = isSingleCurrent
         ? maxStaleness
-        : maxStaleness + libertyBonus(libs) + fluxPenalty
-      groups.push({ vertices: groupVertices, score, liberties: libs, fluxPenalty })
+        : maxStaleness + libertyBonus(libs)
+      groups.push({ vertices: groupVertices, score, liberties: libs, libsChanged })
     }
     return groups
   }
@@ -203,10 +201,13 @@ export class QuizEngine {
   _pickQuestionFrom(groups) {
     if (groups.length === 0) return null
 
-    let maxScore = Math.max(...groups.map(g => g.score))
-    let best = groups.filter(g => g.score === maxScore)
+    // Prefer groups whose libs changed (including current move)
+    let changed = groups.filter(g => g.libsChanged)
+    let pool = changed.length > 0 ? changed : groups
+
+    let maxScore = Math.max(...pool.map(g => g.score))
+    let best = pool.filter(g => g.score === maxScore)
     let chosen = best[Math.floor(Math.random() * best.length)]
-    // Pick random vertex from chosen group
     return chosen.vertices[Math.floor(Math.random() * chosen.vertices.length)]
   }
 }

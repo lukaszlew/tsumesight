@@ -163,7 +163,7 @@ function ScoringRules() {
   return (
     <div class="scoring-rules">
       <div class="scoring-title">Group Score</div>
-      <div>staleness + lib bonus + flux</div>
+      <div>staleness + lib bonus</div>
       <hr />
       <div>+1/turn not asked</div>
       <div>(max +4)</div>
@@ -172,7 +172,7 @@ function ScoringRules() {
       <div>4 libs: +1</div>
       <div>5+ libs: +0</div>
       <hr />
-      <div>libs unchanged: -1</div>
+      <div>libs changed → priority</div>
     </div>
   )
 }
