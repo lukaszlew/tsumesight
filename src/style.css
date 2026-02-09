@@ -72,6 +72,22 @@ body {
   background: #2a2a2a;
 }
 
+.breadcrumbs {
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: #888;
+}
+.crumb {
+  cursor: pointer;
+  color: #6af;
+}
+.crumb:hover {
+  text-decoration: underline;
+}
+.dir-row td {
+  color: #aaa;
+}
+
 .delete-btn {
   background: none;
   border: none;
