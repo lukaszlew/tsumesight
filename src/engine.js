@@ -70,8 +70,17 @@ export class QuizEngine {
       }
     }
 
-    // Play on true board
-    this.trueBoard = this.trueBoard.makeMove(move.sign, move.vertex)
+    // Play on true board (may fail on illegal positions in problem SGFs)
+    try {
+      this.trueBoard = this.trueBoard.makeMove(move.sign, move.vertex)
+    } catch {
+      // Skip illegal move — treat as end of playable sequence
+      this.moveIndex = this.totalMoves
+      this.finished = true
+      this.currentMove = null
+      this.questionVertex = null
+      return null
+    }
 
     // Track as invisible (not shown on base display)
     let key = vertexKey(move.vertex)
@@ -207,7 +216,9 @@ export class QuizEngine {
     if (groups.length === 0) return null
 
     // Only consider groups whose libs changed (current move always qualifies)
+    // If current move was captured, pool may be empty — use all groups
     let pool = groups.filter(g => g.libsChanged)
+    if (pool.length === 0) pool = groups
 
     let maxScore = Math.max(...pool.map(g => g.score))
     let best = pool.filter(g => g.score === maxScore)

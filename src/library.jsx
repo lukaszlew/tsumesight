@@ -30,17 +30,21 @@ export function Library({ onSelect }) {
   useEffect(() => { refresh() }, [])
 
   let addParsedFile = async (file, path) => {
-    let content = await file.text()
-    let parsed = parseSgf(content)
-    await addSgf({
-      filename: file.name,
-      path,
-      content,
-      boardSize: parsed.boardSize,
-      moveCount: parsed.moveCount,
-      playerBlack: parsed.playerBlack,
-      playerWhite: parsed.playerWhite,
-    })
+    try {
+      let content = await file.text()
+      let parsed = parseSgf(content)
+      await addSgf({
+        filename: file.name,
+        path,
+        content,
+        boardSize: parsed.boardSize,
+        moveCount: parsed.moveCount,
+        playerBlack: parsed.playerBlack,
+        playerWhite: parsed.playerWhite,
+      })
+    } catch {
+      console.warn('Skipping unparseable SGF:', file.name)
+    }
   }
 
   let handleFiles = async (e) => {

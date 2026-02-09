@@ -12,13 +12,30 @@ export function Quiz({ sgf, onBack }) {
   let [, forceRender] = useState(0)
   let rerender = () => forceRender(n => n + 1)
   let [peeking, setPeeking] = useState(false)
+  let [error, setError] = useState(null)
 
   // Initialize engine once
-  if (!engineRef.current) {
-    engineRef.current = new QuizEngine(sgf)
-    engineRef.current.advance()
+  if (!engineRef.current && !error) {
+    try {
+      engineRef.current = new QuizEngine(sgf)
+      engineRef.current.advance()
+    } catch (e) {
+      setError(e.message)
+    }
   }
   let engine = engineRef.current
+
+  if (error) {
+    return (
+      <div class="quiz">
+        <div class="summary-overlay">
+          <h2>Cannot load SGF</h2>
+          <p>{error}</p>
+          <button class="back-btn" onClick={onBack}>Back to Library</button>
+        </div>
+      </div>
+    )
+  }
 
   let submitAnswer = useCallback((liberties) => {
     let result = engine.answer(liberties)
