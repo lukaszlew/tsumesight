@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'preact/hooks'
-import { BoundedGoban } from '@sabaki/shudan'
+import { Goban } from '@sabaki/shudan'
 import { QuizEngine } from './engine.js'
 import { playCorrect, playWrong, playComplete, isSoundEnabled, toggleSound } from './sounds.js'
 
@@ -13,9 +13,9 @@ export function Quiz({ sgf, onBack, onSolved, onLoadError, onPrev, onNext, onNex
   let rerender = () => forceRender(n => n + 1)
   let [peeking, setPeeking] = useState(false)
   let [soundOn, setSoundOn] = useState(isSoundEnabled())
-  let [mounted, setMounted] = useState(false)
+  let [vertexSize, setVertexSize] = useState(0)
+  let boardContainerRef = useRef(null)
   let [error, setError] = useState(null)
-  useEffect(() => { setMounted(true) }, [])
 
   // Initialize engine once
   if (!engineRef.current && !error) {
@@ -86,6 +86,19 @@ export function Quiz({ sgf, onBack, onSolved, onLoadError, onPrev, onNext, onNex
     }
   }, [submitAnswer])
 
+  // Compute vertex size from container
+  let rangeX = engine.boardRange && [engine.boardRange[0], engine.boardRange[2]]
+  let rangeY = engine.boardRange && [engine.boardRange[1], engine.boardRange[3]]
+  let cols = rangeX ? rangeX[1] - rangeX[0] + 1 : engine.boardSize
+  let rows = rangeY ? rangeY[1] - rangeY[0] + 1 : engine.boardSize
+  useEffect(() => {
+    let el = boardContainerRef.current
+    if (!el) return
+    let maxW = Math.min(560, el.offsetWidth)
+    let maxH = 560
+    setVertexSize(Math.max(1, Math.floor(Math.min(maxW / (cols + 1), maxH / (rows + 1)))))
+  }, [cols, rows])
+
   // Build display maps
   let size = engine.boardSize
   let signMap = engine.finished ? engine.trueBoard.signMap : engine.getDisplaySignMap()
@@ -130,18 +143,18 @@ export function Quiz({ sgf, onBack, onSolved, onLoadError, onPrev, onNext, onNex
       <div class="board-row">
         <div
           class="board-container"
+          ref={boardContainerRef}
           onPointerDown={() => setPeeking(true)}
           onPointerUp={() => setPeeking(false)}
           onPointerLeave={() => setPeeking(false)}
         >
-          {mounted && <BoundedGoban
-            maxWidth={560}
-            maxHeight={560}
+          {vertexSize > 0 && <Goban
+            vertexSize={vertexSize}
             signMap={signMap}
             markerMap={markerMap}
             ghostStoneMap={ghostStoneMap}
-            rangeX={engine.boardRange && [engine.boardRange[0], engine.boardRange[2]]}
-            rangeY={engine.boardRange && [engine.boardRange[1], engine.boardRange[3]]}
+            rangeX={rangeX}
+            rangeY={rangeY}
             showCoordinates={false}
             fuzzyStonePlacement={false}
             animateStonePlacement={false}
