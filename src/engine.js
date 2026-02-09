@@ -201,9 +201,8 @@ export class QuizEngine {
   _pickQuestionFrom(groups) {
     if (groups.length === 0) return null
 
-    // Prefer groups whose libs changed (including current move)
-    let changed = groups.filter(g => g.libsChanged)
-    let pool = changed.length > 0 ? changed : groups
+    // Only consider groups whose libs changed (current move always qualifies)
+    let pool = groups.filter(g => g.libsChanged)
 
     let maxScore = Math.max(...pool.map(g => g.score))
     let best = pool.filter(g => g.score === maxScore)
