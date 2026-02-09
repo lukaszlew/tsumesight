@@ -10,10 +10,21 @@ export function isArchive(filename) {
 // Returns [{name, content}] — name includes path, content is string
 export async function extractSgfs(file) {
   let lower = file.name.toLowerCase()
-  if (lower.endsWith('.zip')) return extractZip(file)
-  if (lower.endsWith('.tar.gz') || lower.endsWith('.tgz')) return extractTarGz(file)
-  if (lower.endsWith('.tar')) return extractTar(await file.arrayBuffer())
-  return []
+  let entries = []
+  if (lower.endsWith('.zip')) entries = await extractZip(file)
+  else if (lower.endsWith('.tar.gz') || lower.endsWith('.tgz')) entries = await extractTarGz(file)
+  else if (lower.endsWith('.tar')) entries = await extractTar(await file.arrayBuffer())
+  return flattenSingleRoot(entries)
+}
+
+// If all entries share a single top-level directory, strip it
+function flattenSingleRoot(entries) {
+  if (entries.length === 0) return entries
+  let roots = new Set(entries.map(e => e.name.split('/')[0]))
+  if (roots.size !== 1) return entries
+  let prefix = [...roots][0] + '/'
+  if (!entries.every(e => e.name.startsWith(prefix))) return entries
+  return entries.map(e => ({ ...e, name: e.name.slice(prefix.length) }))
 }
 
 async function extractZip(file) {
