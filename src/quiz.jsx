@@ -4,6 +4,11 @@ import { QuizEngine } from './engine.js'
 import { playCorrect, playWrong, playComplete, isSoundEnabled, toggleSound, resetStreak } from './sounds.js'
 
 const HISTORY_KEY = 'quizHistory'
+const MODE_KEY = 'quizMode'
+
+function getMode() {
+  return localStorage.getItem(MODE_KEY) || 'liberty'
+}
 
 function loadHistory(quizKey) {
   let saved = sessionStorage.getItem(HISTORY_KEY)
@@ -32,6 +37,7 @@ export function Quiz({ sgf, quizKey, onBack, onSolved, onProgress, onLoadError, 
   let [soundOn, setSoundOn] = useState(isSoundEnabled())
   let [vertexSize, setVertexSize] = useState(0)
   let boardContainerRef = useRef(null)
+  let [mode, setMode] = useState(getMode)
   let [error, setError] = useState(null)
 
   // Initialize engine once (possibly replaying saved history)
@@ -40,15 +46,20 @@ export function Quiz({ sgf, quizKey, onBack, onSolved, onProgress, onLoadError, 
     try {
       let saved = loadHistory(quizKey)
       if (saved && saved.length > 0) {
-        engineRef.current = QuizEngine.fromReplay(sgf, saved)
+        engineRef.current = QuizEngine.fromReplay(sgf, saved, mode)
         historyRef.current = [...saved]
         if (engineRef.current.finished) {
           solvedRef.current = true
           onSolved(engineRef.current.correct, engineRef.current.results.length)
         }
       } else {
-        engineRef.current = new QuizEngine(sgf)
+        engineRef.current = new QuizEngine(sgf, mode)
         engineRef.current.advance()
+        // In comparison mode, skip moves with no qualifying pairs
+        if (mode === 'comparison') {
+          while (!engineRef.current.comparisonPair && !engineRef.current.finished)
+            engineRef.current.advance()
+        }
       }
     } catch (e) {
       sessionStorage.removeItem(HISTORY_KEY)
@@ -77,15 +88,22 @@ export function Quiz({ sgf, quizKey, onBack, onSolved, onProgress, onLoadError, 
     }
   }
 
-  let submitAnswer = useCallback((liberties) => {
-    if (!engine.questionVertex) return
+  let submitAnswer = useCallback((value) => {
+    let hasQuestion = engine.mode === 'comparison' ? engine.comparisonPair : engine.questionVertex
+    if (!hasQuestion) return
     let wasRetrying = engine.retrying
-    let result = engine.answer(liberties)
+    let result = engine.answer(value)
     if (result.correct) {
       historyRef.current.push(!wasRetrying)
       saveHistory(quizKey, historyRef.current)
       playCorrect()
-      if (result.done) engine.advance()
+      if (result.done) {
+        engine.advance()
+        // In comparison mode, skip moves with no qualifying pairs
+        if (engine.mode === 'comparison') {
+          while (!engine.comparisonPair && !engine.finished) engine.advance()
+        }
+      }
       let total = engine.questionsPerMove.reduce((a, b) => a + b, 0)
       onProgress({ correct: engine.correct, done: engine.results.length, total })
     } else {
@@ -105,7 +123,8 @@ export function Quiz({ sgf, quizKey, onBack, onSolved, onProgress, onLoadError, 
         if (engine.finished) onNextUnsolved()
         else setPeeking(true)
       }
-      else if (e.key >= '1' && e.key <= '5') submitAnswer(parseInt(e.key))
+      else if (engine.mode === 'comparison' && e.key >= '1' && e.key <= '3') submitAnswer(parseInt(e.key))
+      else if (engine.mode !== 'comparison' && e.key >= '1' && e.key <= '5') submitAnswer(parseInt(e.key))
     }
     function onKeyUp(e) {
       if (e.key === ' ') setPeeking(false)
@@ -155,12 +174,15 @@ export function Quiz({ sgf, quizKey, onBack, onSolved, onProgress, onLoadError, 
         ghostStoneMap[y][x] = { sign, faint: true }
       }
     }
-  } else {
-    // Show all pending question vertices
-    if (engine.questionVertex) {
-      let [x, y] = engine.questionVertex
-      markerMap[y][x] = { type: 'label', label: '❓' }
-    }
+  } else if (engine.mode === 'comparison' && engine.comparisonPair) {
+    let { v1, v2 } = engine.comparisonPair
+    let [x1, y1] = v1
+    let [x2, y2] = v2
+    markerMap[y1][x1] = { type: 'label', label: '1' }
+    markerMap[y2][x2] = { type: 'label', label: '3' }
+  } else if (engine.questionVertex) {
+    let [x, y] = engine.questionVertex
+    markerMap[y][x] = { type: 'label', label: '❓' }
   }
 
   return (
@@ -172,6 +194,14 @@ export function Quiz({ sgf, quizKey, onBack, onSolved, onProgress, onLoadError, 
           <button class="bar-btn" onClick={onPrev}>◀</button>
           <button class="bar-btn" onClick={onNext}>▶</button>
         </div>
+        <button class="bar-btn" onClick={() => {
+          let next = mode === 'liberty' ? 'comparison' : 'liberty'
+          localStorage.setItem(MODE_KEY, next)
+          setMode(next)
+          engine.mode = next
+        }}>
+          {mode === 'liberty' ? '#' : '><'}
+        </button>
         <button class="bar-btn" onClick={() => setSoundOn(toggleSound())}>
           {soundOn ? '🔊' : '🔇'}
         </button>
@@ -202,7 +232,9 @@ export function Quiz({ sgf, quizKey, onBack, onSolved, onProgress, onLoadError, 
 
       <div class="bottom-bar">
         <ProgressBar questionsPerMove={engine.questionsPerMove} moveProgress={engine.moveProgress} />
-        {!engine.finished && <AnswerButtons onLiberties={submitAnswer} />}
+        {!engine.finished && (engine.mode === 'comparison'
+          ? <ComparisonButtons onAnswer={submitAnswer} />
+          : <AnswerButtons onAnswer={submitAnswer} />)}
       </div>
       </div>
     </div>
@@ -254,14 +286,24 @@ function ProgressBar({ questionsPerMove, moveProgress }) {
   )
 }
 
-function AnswerButtons({ onLiberties }) {
+function AnswerButtons({ onAnswer }) {
   return (
     <div class="answer-buttons">
       {[1, 2, 3, 4, 5].map(l => (
-        <button key={l} class="bar-btn ans-btn" onClick={() => onLiberties(l)}>
+        <button key={l} class="bar-btn ans-btn" onClick={() => onAnswer(l)}>
           {l === 5 ? '5+' : l}
         </button>
       ))}
+    </div>
+  )
+}
+
+function ComparisonButtons({ onAnswer }) {
+  return (
+    <div class="answer-buttons">
+      <button class="bar-btn ans-btn" onClick={() => onAnswer(1)}>1</button>
+      <button class="bar-btn ans-btn" onClick={() => onAnswer(2)}>=</button>
+      <button class="bar-btn ans-btn" onClick={() => onAnswer(3)}>3</button>
     </div>
   )
 }
