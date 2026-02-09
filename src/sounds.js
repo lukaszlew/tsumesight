@@ -67,3 +67,23 @@ export function playWrong() {
   streak = 0
   playTone(130, 0.45, 'triangle')
 }
+
+export function playComplete() {
+  if (!enabled) return
+  let c = getCtx()
+  // Ascending major chord with sustain: C5 → E5 → G5 → C6
+  let freqs = [523, 659, 784, 1047]
+  freqs.forEach((freq, i) => {
+    let osc = c.createOscillator()
+    let gain = c.createGain()
+    let t = c.currentTime + i * 0.12
+    osc.frequency.value = freq
+    gain.gain.setValueAtTime(0.001, t)
+    gain.gain.linearRampToValueAtTime(0.1, t + 0.04)
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.8)
+    osc.connect(gain)
+    gain.connect(c.destination)
+    osc.start(t)
+    osc.stop(t + 0.8)
+  })
+}

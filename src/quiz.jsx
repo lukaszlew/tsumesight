@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'preact/hooks'
 import { BoundedGoban } from '@sabaki/shudan'
 import { QuizEngine } from './engine.js'
-import { playCorrect, playWrong, isSoundEnabled, toggleSound } from './sounds.js'
+import { playCorrect, playWrong, playComplete, isSoundEnabled, toggleSound } from './sounds.js'
 
 function makeEmptyMap(size, fill = null) {
   return Array.from({ length: size }, () => Array(size).fill(fill))
@@ -47,6 +47,7 @@ export function Quiz({ sgf, onBack, onSolved, onNext }) {
     if (engine.finished && !solvedRef.current) {
       solvedRef.current = true
       onSolved()
+      playComplete()
     }
     rerender()
   }, [])
