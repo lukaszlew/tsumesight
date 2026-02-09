@@ -55,11 +55,6 @@ export function Quiz({ sgf, quizKey, onBack, onSolved, onProgress, onLoadError, 
       } else {
         engineRef.current = new QuizEngine(sgf, mode)
         engineRef.current.advance()
-        // In comparison mode, skip moves with no qualifying pairs
-        if (mode === 'comparison') {
-          while (!engineRef.current.comparisonPair && !engineRef.current.finished)
-            engineRef.current.advance()
-        }
       }
     } catch (e) {
       sessionStorage.removeItem(HISTORY_KEY)
@@ -90,20 +85,20 @@ export function Quiz({ sgf, quizKey, onBack, onSolved, onProgress, onLoadError, 
 
   let submitAnswer = useCallback((value) => {
     let hasQuestion = engine.mode === 'comparison' ? engine.comparisonPair : engine.questionVertex
-    if (!hasQuestion) return
+    if (!hasQuestion) {
+      // No question this move (e.g. 0 comparison pairs) — any press advances
+      if (!engine.finished) engine.advance()
+      checkFinished()
+      rerender()
+      return
+    }
     let wasRetrying = engine.retrying
     let result = engine.answer(value)
     if (result.correct) {
       historyRef.current.push(!wasRetrying)
       saveHistory(quizKey, historyRef.current)
       playCorrect()
-      if (result.done) {
-        engine.advance()
-        // In comparison mode, skip moves with no qualifying pairs
-        if (engine.mode === 'comparison') {
-          while (!engine.comparisonPair && !engine.finished) engine.advance()
-        }
-      }
+      if (result.done) engine.advance()
       let total = engine.questionsPerMove.reduce((a, b) => a + b, 0)
       onProgress({ correct: engine.correct, done: engine.results.length, total })
     } else {
