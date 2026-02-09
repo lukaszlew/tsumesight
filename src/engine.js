@@ -85,7 +85,7 @@ export class QuizEngine {
       let chain = this.trueBoard.getChain(this.questionVertex)
       for (let v of chain) {
         let k = vertexKey(v)
-        if (this.staleness.has(k)) this.staleness.set(k, 0)
+        if (this.staleness.has(k)) this.staleness.set(k, -1)
       }
     }
 

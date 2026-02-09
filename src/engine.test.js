@@ -252,10 +252,10 @@ describe('QuizEngine', () => {
   })
 
   describe('group scoring', () => {
-    it('new stone starts with staleness 0', () => {
+    it('questioned stone gets staleness -1', () => {
       let engine = new QuizEngine(simpleSgf)
-      engine.advance() // B[ee]
-      expect(engine.staleness.get('4,4')).toBe(0)
+      engine.advance() // B[ee] — only stone, questioned, reset to -1
+      expect(engine.staleness.get('4,4')).toBe(-1)
     })
 
     it('staleness increments each turn for unchosen groups', () => {
@@ -295,12 +295,12 @@ describe('QuizEngine', () => {
     it('getGroupScores returns correct liberty bonus for older group', () => {
       // After 2 moves, the older stone gets liberty bonus
       let engine = new QuizEngine('(;SZ[9];B[aa];W[ii])')
-      engine.advance() // B[aa] — single current, score 0
-      engine.advance() // W[ii] — now B[aa] is older with staleness 1
+      engine.advance() // B[aa] — questioned, staleness → -1
+      engine.advance() // W[ii] — B[aa] aged: -1 → 0
       // Use peekGroupScores (snapshot before staleness reset)
       let blackGroup = engine.peekGroupScores.find(g => g.vertices.some(v => v[0] === 0 && v[1] === 0))
-      // staleness(1) + libertyBonus(2) = 3
-      expect(blackGroup.score).toBe(3)
+      // staleness(0) + libertyBonus(2) = 2
+      expect(blackGroup.score).toBe(2)
     })
 
     it('getGroupScores gives no bonus for 5+ liberties', () => {
@@ -365,6 +365,30 @@ describe('QuizEngine', () => {
       let groups = engine.getGroupScores()
       let bigGroup = groups.find(g => g.liberties === 6)
       expect(bigGroup.fluxBonus).toBe(2)
+    })
+
+    it('two identical center stones have different scores', () => {
+      // B[ee] and W[cc] — both 4 libs, not adjacent, not edge
+      let engine = new QuizEngine('(;SZ[9];B[ee];W[cc];B[gg])')
+      engine.advance() // B[ee]
+      engine.answer(4) // correct
+      engine.advance() // W[cc]
+      engine.answer(4) // correct (question is B[ee])
+
+      // Move 2 peek scores: B[ee]=2, W[cc]=0 (single current)
+      let m2 = engine.peekGroupScores
+      let m2black = m2.find(g => g.vertices.some(v => v[0] === 4 && v[1] === 4))
+      let m2white = m2.find(g => g.vertices.some(v => v[0] === 2 && v[1] === 2))
+      expect(m2black.score).toBeGreaterThan(m2white.score)
+
+      engine.advance() // B[gg]
+      // Now B[ee] staleness was reset to 0, W[cc] was 0 (unchosen), both aged to 1
+      // Without fix: both score 1+1=2 — EVEN! With fix: questioned → -1, ages to 0
+      // B[ee]: 0 + 1 = 1, W[cc]: 1 + 1 = 2, B[gg]: 0 (single current)
+      let m3 = engine.peekGroupScores
+      let m3black = m3.find(g => g.vertices.some(v => v[0] === 4 && v[1] === 4))
+      let m3white = m3.find(g => g.vertices.some(v => v[0] === 2 && v[1] === 2))
+      expect(m3white.score).toBeGreaterThan(m3black.score)
     })
 
     it('clears staleness on materialize', () => {
