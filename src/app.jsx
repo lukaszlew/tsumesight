@@ -45,7 +45,7 @@ export function App() {
   }
 
   if (active) {
-    return <Quiz sgf={active.content} onBack={clearSgf} onSolved={markSolved} onNext={goNext} />
+    return <Quiz key={active.id} sgf={active.content} onBack={clearSgf} onSolved={markSolved} onNext={goNext} />
   }
   return <Library onSelect={selectSgf} />
 }
