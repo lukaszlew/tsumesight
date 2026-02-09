@@ -189,30 +189,28 @@ function AnswerButtons({ onLiberties }) {
 function FeedbackStrip({ results }) {
   if (results.length === 0) return null
 
-  // Fold runs of 5 consecutive corrects into fat pips
-  let pips = []
-  let i = 0
-  while (i < results.length) {
-    if (!results[i]) {
-      pips.push({ type: 'wrong', key: i })
-      i++
-      continue
-    }
-    // Count consecutive corrects
-    let run = 0
-    while (i + run < results.length && results[i + run]) run++
-    let fat = Math.floor(run / 5)
-    let remainder = run % 5
-    for (let f = 0; f < fat; f++) pips.push({ type: 'fat', key: i + f * 5 })
-    for (let r = 0; r < remainder; r++) pips.push({ type: 'correct', key: i + fat * 5 + r })
-    i += run
+  // Split into completed streaks (ended by wrong) + ongoing streak
+  let completed = []
+  let current = 0
+  for (let r of results) {
+    if (r) current++
+    else { if (current > 0) completed.push(current); current = 0 }
   }
 
+  let pips = []
+  let key = 0
+  // Completed streaks: single numbered box each
+  for (let count of completed) pips.push({ type: 'streak', count, key: key++ })
+  // Ongoing streak: fold every 5 + individual ✓
+  for (let f = 0; f < Math.floor(current / 5); f++) pips.push({ type: 'fat', key: key++ })
+  for (let r = 0; r < current % 5; r++) pips.push({ type: 'correct', key: key++ })
+
+  if (pips.length === 0) return null
   return (
     <div class="feedback-strip">
       {pips.map(p => (
         <span key={p.key} class={`pip pip-${p.type}`}>
-          {p.type === 'wrong' ? '✗' : p.type === 'fat' ? '5' : '✓'}
+          {p.type === 'streak' ? p.count : p.type === 'fat' ? '5' : '✓'}
         </span>
       ))}
     </div>
