@@ -395,13 +395,9 @@ export class QuizEngine {
           seen.add(pairKey)
           let ga = groups[gis[a]], gb = groups[gis[b]]
           let libsA = ga.liberties, libsB = gb.liberties
-          // Filter: both groups have libs ≤ 2, |diff| ≤ 1
-          if (libsA > 2 || libsB > 2) continue
-          if (Math.abs(libsA - libsB) > 1) continue
-          // Filter: at least one group has a vertex in invisibleStones
-          let hasInvisible = ga.vertices.some(v => this.invisibleStones.has(vertexKey(v)))
-            || gb.vertices.some(v => this.invisibleStones.has(vertexKey(v)))
-          if (!hasInvisible) continue
+          // Filter: |diff| ≤ 2, at least one group's libs changed
+          if (Math.abs(libsA - libsB) > 2) continue
+          if (!ga.libsChanged && !gb.libsChanged) continue
           // Pick representative vertex from each group
           let v1 = ga.vertices[Math.floor(this.random() * ga.vertices.length)]
           let v2 = gb.vertices[Math.floor(this.random() * gb.vertices.length)]

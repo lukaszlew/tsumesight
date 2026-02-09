@@ -546,8 +546,7 @@ describe('QuizEngine', () => {
       expect(engine.questions.length).toBeGreaterThanOrEqual(1)
       let pair = engine.comparisonPair
       expect(pair).not.toBe(null)
-      expect(pair.libs1).toBeLessThanOrEqual(2)
-      expect(pair.libs2).toBeLessThanOrEqual(2)
+      expect(Math.abs(pair.libs1 - pair.libs2)).toBeLessThanOrEqual(2)
     })
 
     it('sets questionVertex to null in comparison mode', () => {
@@ -605,14 +604,14 @@ describe('QuizEngine', () => {
       expect(engine.comparisonPair).toBe(null)
     })
 
-    it('filters out pairs where both libs > 2', () => {
-      // Two adjacent center stones: both have 3+ liberties
-      let sgf = '(;SZ[9];B[ee];W[fe])'
+    it('finds pairs for groups sharing a liberty with diff ≤ 2', () => {
+      // B[ba]=[1,0] and W[ab]=[0,1] share liberty [0,0] and [1,1]
+      // After B[ba]: B has 3 libs. Then W[ab]: W has 3 libs, B has 2 libs. diff=1
+      let sgf = '(;SZ[9];B[ba];W[ab])'
       let engine = new QuizEngine(sgf, 'comparison')
-      engine.advance() // B[ee] — 4 libs
-      engine.advance() // W[fe] — 3 libs each, both > 2
-      // Should find no pairs (both have 3+ libs)
-      expect(engine.questions.length).toBe(0)
+      engine.advance() // B[ba]
+      engine.advance() // W[ab] — share liberties [0,0] and [1,1]
+      expect(engine.questions.length).toBeGreaterThanOrEqual(1)
     })
 
     it('fromReplay works with comparison mode', () => {
