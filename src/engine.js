@@ -166,25 +166,27 @@ export class QuizEngine {
 
       let libs = this.trueBoard.getLiberties(vertex).length
 
-      // Flux bonus: +2 if group's liberty count changed after current move
+      // Flux penalty: -1 if group's liberty count did NOT change after current move
       // Exclude current move's group if it's a single stone (just placed)
       let isSingleCurrent = chain.length === 1 && currentMoveKey === vertexKey(chain[0])
-      let fluxBonus = 0
+      let fluxPenalty = 0
       if (!isSingleCurrent) {
+        let libsChanged = false
         for (let v of groupVertices) {
           let prev = this.prevLibs.get(vertexKey(v))
           if (prev !== undefined && prev !== libs) {
-            fluxBonus = 2
+            libsChanged = true
             break
           }
         }
+        if (!libsChanged) fluxPenalty = -1
       }
 
       // Just-played single stone: no bonuses (you just saw it placed)
       let score = isSingleCurrent
         ? maxStaleness
-        : maxStaleness + libertyBonus(libs) + fluxBonus
-      groups.push({ vertices: groupVertices, score, liberties: libs, fluxBonus })
+        : maxStaleness + libertyBonus(libs) + fluxPenalty
+      groups.push({ vertices: groupVertices, score, liberties: libs, fluxPenalty })
     }
     return groups
   }

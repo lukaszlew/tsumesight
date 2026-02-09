@@ -172,7 +172,7 @@ function ScoringRules() {
       <div>4 libs: +1</div>
       <div>5+ libs: +0</div>
       <hr />
-      <div>libs changed: +2</div>
+      <div>libs unchanged: -1</div>
     </div>
   )
 }

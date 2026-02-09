@@ -299,8 +299,8 @@ describe('QuizEngine', () => {
       engine.advance() // W[ii] — B[aa] aged: -1 → 0
       // Use peekGroupScores (snapshot before staleness reset)
       let blackGroup = engine.peekGroupScores.find(g => g.vertices.some(v => v[0] === 0 && v[1] === 0))
-      // staleness(0) + libertyBonus(2) = 2
-      expect(blackGroup.score).toBe(2)
+      // staleness(0) + libertyBonus(2) + fluxPenalty(-1) = 1
+      expect(blackGroup.score).toBe(1)
     })
 
     it('getGroupScores gives no bonus for 5+ liberties', () => {
@@ -326,37 +326,37 @@ describe('QuizEngine', () => {
       expect(engine.questionVertex).toEqual([0, 0])
     })
 
-    it('gives flux bonus when move changes adjacent group liberties', () => {
+    it('no flux penalty when move changes adjacent group liberties', () => {
       // B[ee] center, then W[de] adjacent — reduces B[ee] libs from 4 to 3
       let engine = new QuizEngine('(;SZ[9];B[ee];W[de])')
       engine.advance() // B[ee]
       engine.advance() // W[de] — B[ee] libs: 4→3
       let groups = engine.getGroupScores()
       let blackGroup = groups.find(g => g.vertices.some(v => v[0] === 4 && v[1] === 4))
-      expect(blackGroup.fluxBonus).toBe(2)
+      expect(blackGroup.fluxPenalty).toBe(0)
     })
 
-    it('no flux bonus for single-stone current group', () => {
+    it('no flux penalty for single-stone current group', () => {
       // W[aa] is single-stone current, placed far from B[ee]
       let engine = new QuizEngine('(;SZ[9];B[ee];W[aa])')
       engine.advance() // B[ee]
       engine.advance() // W[aa]
       let groups = engine.getGroupScores()
       let whiteGroup = groups.find(g => g.vertices.some(v => v[0] === 0 && v[1] === 0))
-      expect(whiteGroup.fluxBonus).toBe(0)
+      expect(whiteGroup.fluxPenalty).toBe(0)
     })
 
-    it('no flux bonus for non-adjacent group', () => {
-      // B[aa] corner, then W[ii] far corner — B[aa] libs unchanged
+    it('flux penalty for non-adjacent group with unchanged libs', () => {
+      // B[aa] corner, then W[ii] far corner — B[aa] libs unchanged → -1
       let engine = new QuizEngine('(;SZ[9];B[aa];W[ii])')
       engine.advance() // B[aa]
       engine.advance() // W[ii]
       let groups = engine.getGroupScores()
       let blackGroup = groups.find(g => g.vertices.some(v => v[0] === 0 && v[1] === 0))
-      expect(blackGroup.fluxBonus).toBe(0)
+      expect(blackGroup.fluxPenalty).toBe(-1)
     })
 
-    it('flux bonus when current move joins existing chain', () => {
+    it('no flux penalty when current move joins existing chain', () => {
       // B[ee], W[aa], B[fe] — B[fe] joins B[ee], chain libs change 4→6
       let engine = new QuizEngine('(;SZ[9];B[ee];W[aa];B[fe])')
       engine.advance() // B[ee]
@@ -364,7 +364,7 @@ describe('QuizEngine', () => {
       engine.advance() // B[fe] joins B[ee]
       let groups = engine.getGroupScores()
       let bigGroup = groups.find(g => g.liberties === 6)
-      expect(bigGroup.fluxBonus).toBe(2)
+      expect(bigGroup.fluxPenalty).toBe(0)
     })
 
     it('two identical center stones have different scores', () => {
@@ -375,16 +375,18 @@ describe('QuizEngine', () => {
       engine.advance() // W[cc]
       engine.answer(4) // correct (question is B[ee])
 
-      // Move 2 peek scores: B[ee]=2, W[cc]=0 (single current)
+      // Move 2 peek scores: B[ee]=0+1-1=0, W[cc]=0 (single current)
+      // Tie is OK — both are fresh (one just questioned, one just placed)
       let m2 = engine.peekGroupScores
       let m2black = m2.find(g => g.vertices.some(v => v[0] === 4 && v[1] === 4))
       let m2white = m2.find(g => g.vertices.some(v => v[0] === 2 && v[1] === 2))
-      expect(m2black.score).toBeGreaterThan(m2white.score)
+      expect(m2black.score).toBe(0)
+      expect(m2white.score).toBe(0)
 
       engine.advance() // B[gg]
-      // Now B[ee] staleness was reset to 0, W[cc] was 0 (unchosen), both aged to 1
-      // Without fix: both score 1+1=2 — EVEN! With fix: questioned → -1, ages to 0
-      // B[ee]: 0 + 1 = 1, W[cc]: 1 + 1 = 2, B[gg]: 0 (single current)
+      // B[ee]: staleness 0 + libBonus(1) + flux(-1) = 0
+      // W[cc]: staleness 1 + libBonus(1) + flux(-1) = 1
+      // B[gg]: single current = 0
       let m3 = engine.peekGroupScores
       let m3black = m3.find(g => g.vertices.some(v => v[0] === 4 && v[1] === 4))
       let m3white = m3.find(g => g.vertices.some(v => v[0] === 2 && v[1] === 2))
