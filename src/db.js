@@ -1,4 +1,4 @@
-const DB_NAME = 'govis'
+const DB_NAME = 'tsumesight'
 const DB_VERSION = 1
 const STORE_NAME = 'sgfs'
 

@@ -115,7 +115,7 @@ export function Library({ onSelect, initialPath = '' }) {
 
   return (
     <div class="library">
-      <h1>Go Reading Trainer</h1>
+      <h1>TsumeSight</h1>
 
       <div class="upload-row">
         <label class="upload-btn">
