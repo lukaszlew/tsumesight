@@ -31,11 +31,34 @@ function playTone(freq, duration, type = 'sine') {
   osc.stop(c.currentTime + duration)
 }
 
+function playChord(baseFreq) {
+  if (!enabled) return
+  let c = getCtx()
+  // Major triad: root, major third, fifth
+  for (let ratio of [1, 5/4, 3/2]) {
+    let osc = c.createOscillator()
+    let gain = c.createGain()
+    osc.frequency.value = baseFreq * ratio
+    gain.gain.setValueAtTime(0.001, c.currentTime)
+    gain.gain.linearRampToValueAtTime(0.06, c.currentTime + 0.05)
+    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.6)
+    osc.connect(gain)
+    gain.connect(c.destination)
+    osc.start()
+    osc.stop(c.currentTime + 0.6)
+  }
+}
+
 export function playCorrect() {
-  // Each consecutive correct raises pitch by a semitone (ratio 2^(1/12))
-  let freq = 330 * Math.pow(2, streak / 12)
-  playTone(freq, 0.35)
   streak++
+  // Milestone every 5 streak: play a chord
+  if (streak % 5 === 0) {
+    playChord(330 * Math.pow(2, streak / 12))
+    return
+  }
+  // Each consecutive correct raises pitch by a semitone
+  let freq = 330 * Math.pow(2, (streak - 1) / 12)
+  playTone(freq, 0.35)
 }
 
 export function playWrong() {
