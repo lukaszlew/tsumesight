@@ -301,6 +301,11 @@ body {
   background: transparent;
   font-size: .7em;
 }
+/* Comparison labels on stones */
+.shudan-vertex.shudan-marker_label:not(.shudan-sign_0) .shudan-marker {
+  font-size: .85em;
+  text-shadow: 0 0 4px rgba(0,0,0,0.7);
+}
 
 /* Answer buttons */
 

@@ -173,8 +173,8 @@ export function Quiz({ sgf, quizKey, onBack, onSolved, onProgress, onLoadError, 
     let { v1, v2 } = engine.comparisonPair
     let [x1, y1] = v1
     let [x2, y2] = v2
-    markerMap[y1][x1] = { type: 'label', label: '1' }
-    markerMap[y2][x2] = { type: 'label', label: '3' }
+    markerMap[y1][x1] = { type: 'label', label: '❶' }
+    markerMap[y2][x2] = { type: 'label', label: '❸' }
   } else if (engine.questionVertex) {
     let [x, y] = engine.questionVertex
     markerMap[y][x] = { type: 'label', label: '❓' }
