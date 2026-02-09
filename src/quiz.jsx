@@ -13,7 +13,9 @@ export function Quiz({ sgf, onBack, onSolved, onLoadError, onPrev, onNext, onNex
   let rerender = () => forceRender(n => n + 1)
   let [peeking, setPeeking] = useState(false)
   let [soundOn, setSoundOn] = useState(isSoundEnabled())
+  let [mounted, setMounted] = useState(false)
   let [error, setError] = useState(null)
+  useEffect(() => { setMounted(true) }, [])
 
   // Initialize engine once
   if (!engineRef.current && !error) {
@@ -132,7 +134,7 @@ export function Quiz({ sgf, onBack, onSolved, onLoadError, onPrev, onNext, onNex
           onPointerUp={() => setPeeking(false)}
           onPointerLeave={() => setPeeking(false)}
         >
-          <BoundedGoban
+          {mounted && <BoundedGoban
             maxWidth={560}
             maxHeight={560}
             signMap={signMap}
@@ -143,7 +145,7 @@ export function Quiz({ sgf, onBack, onSolved, onLoadError, onPrev, onNext, onNex
             showCoordinates={false}
             fuzzyStonePlacement={false}
             animateStonePlacement={false}
-          />
+          />}
         </div>
 
         {engine.finished && <SummaryPanel engine={engine} onBack={onBack} onRetry={onRetry} onNextUnsolved={onNextUnsolved} />}
