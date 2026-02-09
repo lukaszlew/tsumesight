@@ -212,7 +212,7 @@ function FeedbackStrip({ results }) {
     <div class="feedback-strip">
       {pips.map(p => (
         <span key={p.key} class={`pip pip-${p.type}`}>
-          {p.type === 'wrong' ? '✗' : p.type === 'fat' ? '✓' : '✓'}
+          {p.type === 'wrong' ? '✗' : p.type === 'fat' ? '5' : '✓'}
         </span>
       ))}
     </div>
