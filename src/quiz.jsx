@@ -87,8 +87,8 @@ export function Quiz({ sgf, onBack, onSolved, onLoadError, onPrev, onNext, onNex
   }, [submitAnswer])
 
   // Compute vertex size from container
-  let rangeX = engine.boardRange && [engine.boardRange[0], engine.boardRange[2]]
-  let rangeY = engine.boardRange && [engine.boardRange[1], engine.boardRange[3]]
+  let rangeX = engine.boardRange ? [engine.boardRange[0], engine.boardRange[2]] : undefined
+  let rangeY = engine.boardRange ? [engine.boardRange[1], engine.boardRange[3]] : undefined
   let cols = rangeX ? rangeX[1] - rangeX[0] + 1 : engine.boardSize
   let rows = rangeY ? rangeY[1] - rangeY[0] + 1 : engine.boardSize
   useEffect(() => {
