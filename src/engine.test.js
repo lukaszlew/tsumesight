@@ -318,6 +318,47 @@ describe('QuizEngine', () => {
       expect(engine.questionVertex).toEqual([0, 0])
     })
 
+    it('gives flux bonus when move changes adjacent group liberties', () => {
+      // B[ee] center, then W[de] adjacent — reduces B[ee] libs from 4 to 3
+      let engine = new QuizEngine('(;SZ[9];B[ee];W[de])')
+      engine.advance() // B[ee]
+      engine.advance() // W[de] — B[ee] libs: 4→3
+      let groups = engine.getGroupScores()
+      let blackGroup = groups.find(g => g.vertices.some(v => v[0] === 4 && v[1] === 4))
+      expect(blackGroup.fluxBonus).toBe(2)
+    })
+
+    it('no flux bonus for single-stone current group', () => {
+      // W[aa] is single-stone current, placed far from B[ee]
+      let engine = new QuizEngine('(;SZ[9];B[ee];W[aa])')
+      engine.advance() // B[ee]
+      engine.advance() // W[aa]
+      let groups = engine.getGroupScores()
+      let whiteGroup = groups.find(g => g.vertices.some(v => v[0] === 0 && v[1] === 0))
+      expect(whiteGroup.fluxBonus).toBe(0)
+    })
+
+    it('no flux bonus for non-adjacent group', () => {
+      // B[aa] corner, then W[ii] far corner — B[aa] libs unchanged
+      let engine = new QuizEngine('(;SZ[9];B[aa];W[ii])')
+      engine.advance() // B[aa]
+      engine.advance() // W[ii]
+      let groups = engine.getGroupScores()
+      let blackGroup = groups.find(g => g.vertices.some(v => v[0] === 0 && v[1] === 0))
+      expect(blackGroup.fluxBonus).toBe(0)
+    })
+
+    it('flux bonus when current move joins existing chain', () => {
+      // B[ee], W[aa], B[fe] — B[fe] joins B[ee], chain libs change 4→6
+      let engine = new QuizEngine('(;SZ[9];B[ee];W[aa];B[fe])')
+      engine.advance() // B[ee]
+      engine.advance() // W[aa]
+      engine.advance() // B[fe] joins B[ee]
+      let groups = engine.getGroupScores()
+      let bigGroup = groups.find(g => g.liberties === 6)
+      expect(bigGroup.fluxBonus).toBe(2)
+    })
+
     it('clears staleness on materialize', () => {
       let engine = new QuizEngine(simpleSgf)
       engine.advance()

@@ -140,14 +140,46 @@ body {
   color: #c44;
 }
 
+.board-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
 .board-container {
-  margin: 0 auto 1rem;
+  flex-shrink: 0;
+}
+
+.scoring-rules {
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 0.75rem;
+  font-size: 0.8rem;
+  color: #ccc;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+.scoring-rules hr {
+  border: none;
+  border-top: 1px solid #444;
+  margin: 0.3rem 0;
+}
+.scoring-title {
+  font-weight: bold;
+  color: #eee;
+  margin-bottom: 0.25rem;
 }
 
 /* Shudan overrides */
 .shudan-goban {
   --shudan-board-background-color: #dcb35c;
   --shudan-board-border-color: #b8923a;
+}
+.shudan-vertex.shudan-marker_label.shudan-sign_0 .shudan-marker {
+  background: transparent;
+  font-size: 1em;
 }
 
 /* Answer buttons */

@@ -29,6 +29,7 @@ export class QuizEngine {
     // Tracking
     this.invisibleStones = new Map() // vertexKey → {sign, vertex}
     this.staleness = new Map() // vertexKey → number (turns since last questioned, cap 4)
+    this.prevLibs = new Map() // vertexKey → liberty count before current move
     this.moveIndex = 0
     this.currentMove = null
     this.questionVertex = null
@@ -53,6 +54,14 @@ export class QuizEngine {
     // Age all existing invisible stones (before adding the new one)
     for (let [key, val] of this.staleness) {
       this.staleness.set(key, Math.min(val + 1, 4))
+    }
+
+    // Snapshot liberty counts before the move (for flux bonus)
+    this.prevLibs = new Map()
+    for (let [key, { vertex }] of this.invisibleStones) {
+      if (this.trueBoard.get(vertex) !== 0) {
+        this.prevLibs.set(key, this.trueBoard.getLiberties(vertex).length)
+      }
     }
 
     // Play on true board
@@ -130,6 +139,8 @@ export class QuizEngine {
   getGroupScores() {
     let visited = new Set()
     let groups = []
+    let currentMoveKey = this.currentMove ? vertexKey(this.currentMove.vertex) : null
+
     for (let [, { vertex }] of this.invisibleStones) {
       let k = vertexKey(vertex)
       if (visited.has(k)) continue
@@ -149,8 +160,23 @@ export class QuizEngine {
       if (groupVertices.length === 0) continue
 
       let libs = this.trueBoard.getLiberties(vertex).length
-      let score = maxStaleness + libertyBonus(libs)
-      groups.push({ vertices: groupVertices, score, liberties: libs })
+
+      // Flux bonus: +2 if group's liberty count changed after current move
+      // Exclude current move's group if it's a single stone (just placed)
+      let isSingleCurrent = chain.length === 1 && currentMoveKey === vertexKey(chain[0])
+      let fluxBonus = 0
+      if (!isSingleCurrent) {
+        for (let v of groupVertices) {
+          let prev = this.prevLibs.get(vertexKey(v))
+          if (prev !== undefined && prev !== libs) {
+            fluxBonus = 2
+            break
+          }
+        }
+      }
+
+      let score = maxStaleness + libertyBonus(libs) + fluxBonus
+      groups.push({ vertices: groupVertices, score, liberties: libs, fluxBonus })
     }
     return groups
   }

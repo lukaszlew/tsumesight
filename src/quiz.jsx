@@ -108,22 +108,26 @@ export function Quiz({ sgf, onBack }) {
         onBack={onBack}
       />
 
-      <div
-        class="board-container"
-        onPointerDown={() => setPeeking(true)}
-        onPointerUp={() => setPeeking(false)}
-        onPointerLeave={() => setPeeking(false)}
-      >
-        <BoundedGoban
-          maxWidth={560}
-          maxHeight={560}
-          signMap={signMap}
-          markerMap={markerMap}
-          ghostStoneMap={ghostStoneMap}
-          showCoordinates={false}
-          fuzzyStonePlacement={false}
-          animateStonePlacement={false}
-        />
+      <div class="board-row">
+        <div
+          class="board-container"
+          onPointerDown={() => setPeeking(true)}
+          onPointerUp={() => setPeeking(false)}
+          onPointerLeave={() => setPeeking(false)}
+        >
+          <BoundedGoban
+            maxWidth={560}
+            maxHeight={560}
+            signMap={signMap}
+            markerMap={markerMap}
+            ghostStoneMap={ghostStoneMap}
+            showCoordinates={false}
+            fuzzyStonePlacement={false}
+            animateStonePlacement={false}
+          />
+        </div>
+
+        {peeking && <ScoringRules />}
       </div>
 
       <AnswerButtons onLiberties={submitAnswer} />
@@ -147,6 +151,24 @@ function TopBar({ moveIndex, totalMoves, correct, wrong, onBack }) {
       <button class="sound-toggle" onClick={() => setSoundOn(toggleSound())}>
         {soundOn ? '🔊' : '🔇'}
       </button>
+    </div>
+  )
+}
+
+function ScoringRules() {
+  return (
+    <div class="scoring-rules">
+      <div class="scoring-title">Group Score</div>
+      <div>staleness + lib bonus + flux</div>
+      <hr />
+      <div>+1/turn not asked</div>
+      <div>(max +4)</div>
+      <hr />
+      <div>1-3 libs: +2</div>
+      <div>4 libs: +1</div>
+      <div>5+ libs: +0</div>
+      <hr />
+      <div>libs changed: +2</div>
     </div>
   )
 }
