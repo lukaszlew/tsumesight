@@ -6,7 +6,9 @@ import { getAllSgfs, updateSgf } from './db.js'
 export function App() {
   const [active, setActive] = useState(() => {
     let stored = sessionStorage.getItem('activeSgf')
-    return stored ? JSON.parse(stored) : null
+    if (!stored) return null
+    try { return JSON.parse(stored) }
+    catch { sessionStorage.removeItem('activeSgf'); return null }
   })
 
   function selectSgf({ id, content, path }) {
