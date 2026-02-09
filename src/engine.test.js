@@ -604,13 +604,14 @@ describe('QuizEngine', () => {
       expect(engine.comparisonPair).toBe(null)
     })
 
-    it('finds pairs for groups sharing a liberty with diff ≤ 2', () => {
-      // B[ba]=[1,0] and W[ab]=[0,1] share liberty [0,0] and [1,1]
-      // After B[ba]: B has 3 libs. Then W[ab]: W has 3 libs, B has 2 libs. diff=1
-      let sgf = '(;SZ[9];B[ba];W[ab])'
+    it('finds pairs for directly adjacent different-color groups', () => {
+      // B[ee]=[4,4] then W[de]=[3,4] — directly adjacent, different colors
+      // They share no liberty (adjacent stones), but are directly adjacent
+      // B has 3 libs, W has 3 libs, diff=0, both libsChanged
+      let sgf = '(;SZ[9];B[ee];W[de])'
       let engine = new QuizEngine(sgf, 'comparison')
-      engine.advance() // B[ba]
-      engine.advance() // W[ab] — share liberties [0,0] and [1,1]
+      engine.advance() // B[ee]
+      engine.advance() // W[de] — directly adjacent to B[ee]
       expect(engine.questions.length).toBeGreaterThanOrEqual(1)
     })
 

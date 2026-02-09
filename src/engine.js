@@ -371,34 +371,32 @@ export class QuizEngine {
   _findComparisonPairs() {
     let groups = this.getGroupScores()
 
-    // Build map: liberty vertex key → list of group indices that have it as a liberty
-    let libToGroups = new Map()
-    for (let i = 0; i < groups.length; i++) {
-      let rep = groups[i].vertices[0]
-      let libs = this.trueBoard.getLiberties(rep)
-      for (let lv of libs) {
-        let k = vertexKey(lv)
-        if (!libToGroups.has(k)) libToGroups.set(k, [])
-        libToGroups.get(k).push(i)
-      }
-    }
+    // Map vertex → group index
+    let vertexToGroup = new Map()
+    for (let i = 0; i < groups.length; i++)
+      for (let v of groups[i].vertices)
+        vertexToGroup.set(vertexKey(v), i)
 
-    // Collect pairs sharing a liberty
+    // Find adjacent pairs of different color
     let seen = new Set()
     let pairs = []
-    for (let [, gis] of libToGroups) {
-      if (gis.length < 2) continue
-      for (let a = 0; a < gis.length; a++) {
-        for (let b = a + 1; b < gis.length; b++) {
-          let pairKey = gis[a] < gis[b] ? `${gis[a]}-${gis[b]}` : `${gis[b]}-${gis[a]}`
+    for (let i = 0; i < groups.length; i++) {
+      let ga = groups[i]
+      let signA = this.trueBoard.get(ga.vertices[0])
+      for (let [x, y] of ga.vertices) {
+        for (let [nx, ny] of [[x-1,y],[x+1,y],[x,y-1],[x,y+1]]) {
+          let j = vertexToGroup.get(vertexKey([nx, ny]))
+          if (j === undefined || j === i) continue
+          let pairKey = i < j ? `${i}-${j}` : `${j}-${i}`
           if (seen.has(pairKey)) continue
           seen.add(pairKey)
-          let ga = groups[gis[a]], gb = groups[gis[b]]
-          let libsA = ga.liberties, libsB = gb.liberties
+          let gb = groups[j]
+          // Filter: different colors
+          if (this.trueBoard.get(gb.vertices[0]) === signA) continue
           // Filter: |diff| ≤ 2, at least one group's libs changed
+          let libsA = ga.liberties, libsB = gb.liberties
           if (Math.abs(libsA - libsB) > 2) continue
           if (!ga.libsChanged && !gb.libsChanged) continue
-          // Pick representative vertex from each group
           let v1 = ga.vertices[Math.floor(this.random() * ga.vertices.length)]
           let v2 = gb.vertices[Math.floor(this.random() * gb.vertices.length)]
           pairs.push({ v1, v2, libs1: libsA, libs2: libsB })
