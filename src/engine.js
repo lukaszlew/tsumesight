@@ -16,7 +16,7 @@ function libertyBonus(libCount) {
 }
 
 export class QuizEngine {
-  constructor(sgfString) {
+  constructor(sgfString, _precompute = true) {
     let parsed = parseSgf(sgfString)
     this.boardSize = parsed.boardSize
     this.moves = parsed.moves.filter(m => m.vertex != null) // skip passes
@@ -43,8 +43,18 @@ export class QuizEngine {
     this.correct = 0
     this.wrong = 0
     this.results = []
+    this.moveProgress = [] // [{total, correct}] per played move
     this.retrying = false
     this.finished = false
+
+    // Precompute question counts per move (ideal play, no wrong answers)
+    if (_precompute) {
+      let sim = new QuizEngine(sgfString, false)
+      while (!sim.finished) sim.advance()
+      this.questionsPerMove = sim.moveProgress.map(m => m.total)
+    } else {
+      this.questionsPerMove = []
+    }
   }
 
   advance() {
@@ -105,8 +115,15 @@ export class QuizEngine {
     this.questions = pool.map(g =>
       g.vertices[Math.floor(Math.random() * g.vertices.length)]
     )
+
+    // Always ask about just-played stone first
+    let moveChainKeys = new Set(this.trueBoard.getChain(move.vertex).map(vertexKey))
+    this.questions = this.questions.filter(q => !moveChainKeys.has(vertexKey(q)))
+    this.questions.unshift(move.vertex)
+
     this.questionIndex = 0
     this.questionVertex = this.questions[0] || null
+    this.moveProgress.push({ total: this.questions.length, correct: 0 })
 
     // Reset staleness for all questioned groups
     for (let qv of this.questions) {
@@ -151,6 +168,7 @@ export class QuizEngine {
     }
 
     this.correct++
+    this.moveProgress[this.moveProgress.length - 1].correct++
     this.questionIndex++
     this.questionVertex = this.questionIndex < this.questions.length
       ? this.questions[this.questionIndex]

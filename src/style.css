@@ -167,6 +167,43 @@ body {
   margin-bottom: 1rem;
 }
 
+/* Progress column (left of board) */
+.progress-col {
+  position: absolute;
+  right: 100%;
+  top: 0;
+  bottom: 0;
+  margin-right: 0.5rem;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.progress-col::-webkit-scrollbar {
+  display: none;
+}
+.progress-row {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  min-height: 10px;
+  padding: 1px 2px;
+}
+.progress-row.current {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+}
+.check-empty, .check-done {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.check-empty {
+  border: 1px solid #555;
+}
+.check-done {
+  background: #4c4;
+}
+
 .scoring-rules {
   position: absolute;
   left: 100%;

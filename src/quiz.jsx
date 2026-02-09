@@ -124,6 +124,7 @@ export function Quiz({ sgf, onBack, onSolved, onPrev, onNext, onNextUnsolved, on
       />
 
       <div class="board-row">
+        <ProgressColumn questionsPerMove={engine.questionsPerMove} moveProgress={engine.moveProgress} />
         <div
           class="board-container"
           onPointerDown={() => setPeeking(true)}
@@ -188,6 +189,32 @@ function SummaryPanel({ engine, onBack, onRetry, onNextUnsolved }) {
       <button class="back-btn" onClick={onBack}>Back</button>
       <button class="back-btn" onClick={onRetry}>Retry</button>
       <button class="back-btn" onClick={onNextUnsolved}>Next Unsolved</button>
+    </div>
+  )
+}
+
+function ProgressColumn({ questionsPerMove, moveProgress }) {
+  let colRef = useRef(null)
+  let played = moveProgress.length
+
+  useEffect(() => {
+    if (!colRef.current || played === 0) return
+    let row = colRef.current.children[played - 1]
+    if (row) row.scrollIntoView({ block: 'nearest' })
+  })
+
+  return (
+    <div class="progress-col" ref={colRef}>
+      {questionsPerMove.map((total, i) => {
+        let correct = moveProgress[i] ? moveProgress[i].correct : 0
+        return (
+          <div key={i} class={`progress-row${i === played - 1 ? ' current' : ''}`}>
+            {Array.from({ length: total }, (_, j) => (
+              <span key={j} class={j < correct ? 'check-done' : 'check-empty'} />
+            ))}
+          </div>
+        )
+      })}
     </div>
   )
 }

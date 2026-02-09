@@ -313,15 +313,14 @@ describe('QuizEngine', () => {
       expect(bigGroup.score).toBeLessThanOrEqual(4)
     })
 
-    it('prefers older affected group over just-played single stone', () => {
+    it('asks about just-played stone first, then older affected group', () => {
       // B[ba] edge stone, then W[aa] adjacent — B[ba] libs change
-      // Both libsChanged=true, B[ba] has higher score
+      // Both libsChanged=true, but just-played W[aa] always comes first
       let engine = new QuizEngine('(;SZ[9];B[ba];W[aa])')
       engine.advance() // B[ba] questioned (only stone)
       engine.advance() // W[aa] — adjacent, B[ba] libs: 3→2
-      // B[ba]: staleness 0 + libBonus(2)=2 = 2, libsChanged=true
-      // W[aa]: single current = 0, libsChanged=true
-      expect(engine.questionVertex).toEqual([1, 0])
+      expect(engine.questionVertex).toEqual([0, 0]) // just-played first
+      expect(engine.questions[1]).toEqual([1, 0])    // then B[ba]
     })
 
     it('libsChanged true when move affects adjacent group', () => {
@@ -364,19 +363,18 @@ describe('QuizEngine', () => {
       expect(bigGroup.libsChanged).toBe(true)
     })
 
-    it('picks from libsChanged groups over unchanged ones', () => {
+    it('picks just-played stone first, then libsChanged over unchanged', () => {
       // B[aa] corner (2 libs), W[ii] far corner (2 libs)
-      // Then B[bi] adjacent to W[ii] — W[ii] libs change, B[aa] unchanged
-      // W[ii] should be picked despite lower staleness
+      // Then B[hi] adjacent to W[ii] — W[ii] libs change, B[aa] unchanged
       let engine = new QuizEngine('(;SZ[9];B[aa];W[ii];B[hi])')
       engine.advance() // B[aa]
       engine.advance() // W[ii]
       engine.advance() // B[hi] — adjacent to W[ii], changes its libs
-      // B[aa]: libsChanged=false (masked out)
-      // W[ii]: libsChanged=true
-      // B[hi]: libsChanged=true (single current)
-      // Among changed: W[ii] has staleness+bonus, B[hi] has 0
-      expect(engine.questionVertex).toEqual([8, 8])
+      // B[hi] is just-played → first question
+      // W[ii]: libsChanged=true → second question
+      // B[aa]: libsChanged=false → masked out
+      expect(engine.questionVertex).toEqual([7, 8]) // just-played first
+      expect(engine.questions[1]).toEqual([8, 8])    // then W[ii]
     })
 
     it('two non-adjacent center stones: unchanged masked out', () => {
