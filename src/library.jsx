@@ -2,10 +2,18 @@ import { useState, useEffect } from 'preact/hooks'
 import { getAllSgfs, addSgf, deleteSgf } from './db.js'
 import { parseSgf } from './sgf-utils.js'
 
-function dirOf(path) {
-  if (!path) return ''
-  let i = path.lastIndexOf('/')
-  return i === -1 ? '' : path.slice(0, i)
+async function collectSgfFiles(dirHandle, path) {
+  let results = []
+  for await (let [name, handle] of dirHandle) {
+    if (handle.kind === 'file' && name.endsWith('.sgf')) {
+      let file = await handle.getFile()
+      results.push({ file, path })
+    } else if (handle.kind === 'directory') {
+      let sub = path ? path + '/' + name : name
+      results.push(...await collectSgfFiles(handle, sub))
+    }
+  }
+  return results
 }
 
 export function Library({ onSelect }) {
@@ -21,25 +29,31 @@ export function Library({ onSelect }) {
 
   useEffect(() => { refresh() }, [])
 
+  let addParsedFile = async (file, path) => {
+    let content = await file.text()
+    let parsed = parseSgf(content)
+    await addSgf({
+      filename: file.name,
+      path,
+      content,
+      boardSize: parsed.boardSize,
+      moveCount: parsed.moveCount,
+      playerBlack: parsed.playerBlack,
+      playerWhite: parsed.playerWhite,
+    })
+  }
+
   let handleFiles = async (e) => {
     let files = Array.from(e.target.files).filter(f => f.name.endsWith('.sgf'))
-    for (let file of files) {
-      let content = await file.text()
-      let parsed = parseSgf(content)
-      // webkitRelativePath: "dir/sub/file.sgf" — strip the filename to get dir
-      let rel = file.webkitRelativePath || ''
-      let path = rel ? dirOf(rel) : ''
-      await addSgf({
-        filename: file.name,
-        path,
-        content,
-        boardSize: parsed.boardSize,
-        moveCount: parsed.moveCount,
-        playerBlack: parsed.playerBlack,
-        playerWhite: parsed.playerWhite,
-      })
-    }
+    for (let file of files) await addParsedFile(file, '')
     e.target.value = ''
+    refresh()
+  }
+
+  let handleFolder = async () => {
+    let dirHandle = await window.showDirectoryPicker()
+    let entries = await collectSgfFiles(dirHandle, dirHandle.name)
+    for (let { file, path } of entries) await addParsedFile(file, path)
     refresh()
   }
 
@@ -77,10 +91,9 @@ export function Library({ onSelect }) {
           Upload SGF files
           <input type="file" accept=".sgf" multiple onChange={handleFiles} hidden />
         </label>
-        <label class="upload-btn">
+        <button class="upload-btn" onClick={handleFolder}>
           Upload folder
-          <input type="file" webkitdirectory="" onChange={handleFiles} hidden />
-        </label>
+        </button>
       </div>
 
       {cwd && (
