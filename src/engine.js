@@ -33,6 +33,10 @@ export class QuizEngine {
     // Tracking
     this.invisibleStones = new Map() // vertexKey → {sign, vertex}
     this.staleness = new Map() // vertexKey → number (turns since last questioned, cap 4)
+    for (let y = 0; y < this.boardSize; y++)
+      for (let x = 0; x < this.boardSize; x++)
+        if (this.trueBoard.get([x, y]) !== 0)
+          this.staleness.set(vertexKey([x, y]), 0)
     this.prevLibs = new Map() // vertexKey → liberty count before current move
     this.peekGroupScores = [] // snapshot of scores used for question selection
     this.moveIndex = 0
@@ -72,17 +76,17 @@ export class QuizEngine {
     this.moveIndex++
     this.currentMove = move
 
-    // Age all existing invisible stones (before adding the new one)
+    // Age all tracked stones (before adding the new one)
     for (let [key, val] of this.staleness) {
       this.staleness.set(key, Math.min(val + 1, 4))
     }
 
     // Snapshot liberty sets before the move (to detect changed libs)
     this.prevLibs = new Map()
-    for (let [key, { vertex }] of this.invisibleStones) {
-      if (this.trueBoard.get(vertex) !== 0) {
-        this.prevLibs.set(key, libertySetKey(this.trueBoard.getLiberties(vertex)))
-      }
+    for (let [key] of this.staleness) {
+      let [x, y] = key.split(',').map(Number)
+      if (this.trueBoard.get([x, y]) !== 0)
+        this.prevLibs.set(key, libertySetKey(this.trueBoard.getLiberties([x, y])))
     }
 
     // Play on true board (may fail on illegal positions in problem SGFs)
@@ -104,8 +108,8 @@ export class QuizEngine {
     this.invisibleStones.set(key, { sign: move.sign, vertex: move.vertex })
     this.staleness.set(key, 0)
 
-    // Remove captured invisible stones (they died on trueBoard)
-    this._pruneDeadInvisible()
+    // Remove captured stones from tracking
+    this._pruneCaptured()
 
     // Build question queue: all groups with changed liberties
     this.peekGroupScores = this.getGroupScores()
@@ -209,63 +213,61 @@ export class QuizEngine {
     return this.baseSignMap.map(row => [...row])
   }
 
-  // Returns groups of invisible stones with their scores
-  // Each group: { vertices: [[x,y]...], score, liberties }
+  // Returns all groups on the board with their scores
+  // Each group: { vertices: [[x,y]...], score, liberties, libsChanged }
   getGroupScores() {
     let visited = new Set()
     let groups = []
     let currentMoveKey = this.currentMove ? vertexKey(this.currentMove.vertex) : null
 
-    for (let [, { vertex }] of this.invisibleStones) {
-      let k = vertexKey(vertex)
-      if (visited.has(k)) continue
-      if (this.trueBoard.get(vertex) === 0) continue
+    for (let y = 0; y < this.boardSize; y++) {
+      for (let x = 0; x < this.boardSize; x++) {
+        let vertex = [x, y]
+        let k = vertexKey(vertex)
+        if (visited.has(k)) continue
+        if (this.trueBoard.get(vertex) === 0) continue
 
-      let chain = this.trueBoard.getChain(vertex)
-      let groupVertices = []
-      let maxStaleness = 0
-      for (let v of chain) {
-        let vk = vertexKey(v)
-        visited.add(vk)
-        if (this.invisibleStones.has(vk)) {
-          groupVertices.push(v)
-          maxStaleness = Math.max(maxStaleness, this.staleness.get(vk) || 0)
+        let chain = this.trueBoard.getChain(vertex)
+        let maxStaleness = 0
+        for (let v of chain) {
+          visited.add(vertexKey(v))
+          maxStaleness = Math.max(maxStaleness, this.staleness.get(vertexKey(v)) || 0)
         }
-      }
-      if (groupVertices.length === 0) continue
 
-      let libs = this.trueBoard.getLiberties(vertex).length
-      let containsCurrentMove = groupVertices.some(v => vertexKey(v) === currentMoveKey)
+        let libs = this.trueBoard.getLiberties(vertex).length
+        let containsCurrentMove = chain.some(v => vertexKey(v) === currentMoveKey)
 
-      // Did this group's liberty set change after the current move?
-      // Current move's group always counts as "changed"
-      let currentLibsKey = libertySetKey(this.trueBoard.getLiberties(vertex))
-      let libsChanged = containsCurrentMove
-      if (!libsChanged) {
-        for (let v of groupVertices) {
-          let prev = this.prevLibs.get(vertexKey(v))
-          if (prev !== undefined && prev !== currentLibsKey) {
-            libsChanged = true
-            break
+        // Did this group's liberty set change after the current move?
+        // Current move's group always counts as "changed"
+        let currentLibsKey = libertySetKey(this.trueBoard.getLiberties(vertex))
+        let libsChanged = containsCurrentMove
+        if (!libsChanged) {
+          for (let v of chain) {
+            let prev = this.prevLibs.get(vertexKey(v))
+            if (prev !== undefined && prev !== currentLibsKey) {
+              libsChanged = true
+              break
+            }
           }
         }
-      }
 
-      // Just-played single stone: no bonuses (you just saw it placed)
-      let isSingleCurrent = chain.length === 1 && containsCurrentMove
-      let score = isSingleCurrent
-        ? maxStaleness
-        : maxStaleness + libertyBonus(libs)
-      groups.push({ vertices: groupVertices, score, liberties: libs, libsChanged })
+        // Just-played single stone: no bonuses (you just saw it placed)
+        let isSingleCurrent = chain.length === 1 && containsCurrentMove
+        let score = isSingleCurrent
+          ? maxStaleness
+          : maxStaleness + libertyBonus(libs)
+        groups.push({ vertices: chain, score, liberties: libs, libsChanged })
+      }
     }
     return groups
   }
 
-  _pruneDeadInvisible() {
-    for (let [key, { vertex }] of this.invisibleStones) {
-      if (this.trueBoard.get(vertex) === 0) {
-        this.invisibleStones.delete(key)
+  _pruneCaptured() {
+    for (let [key] of this.staleness) {
+      let [x, y] = key.split(',').map(Number)
+      if (this.trueBoard.get([x, y]) === 0) {
         this.staleness.delete(key)
+        this.invisibleStones.delete(key)
       }
     }
   }
