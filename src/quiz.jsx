@@ -98,7 +98,7 @@ export function Quiz({ sgf, onBack }) {
     // Last wrong answer: show correct liberty count on that stone
     if (engine.lastWrong) {
       let [x, y] = engine.lastWrong.vertex
-      markerMap[y][x] = { type: 'label', label: String(engine.lastWrong.trueLiberties) }
+      markerMap[y][x] = { type: 'label', label: ['', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'][engine.lastWrong.trueLiberties] }
     }
   }
 
