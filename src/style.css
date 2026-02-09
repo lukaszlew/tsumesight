@@ -300,24 +300,12 @@ body {
 .shudan-vertex.shudan-marker_label.shudan-sign_0 .shudan-marker {
   background: transparent;
   font-size: .7em;
-  color: #fff;
+}
+/* Comparison labels: single color on all backgrounds */
+.shudan-vertex.shudan-marker_label .shudan-marker {
+  color: #f80;
   font-weight: bold;
-  text-shadow: 0 0 3px rgba(0,0,0,0.8);
-}
-/* Comparison labels on stones and ghost stones: inverted text color */
-.shudan-vertex.shudan-marker_label:not(.shudan-sign_0) .shudan-marker,
-.shudan-vertex.shudan-marker_label.shudan-ghost_1 .shudan-marker,
-.shudan-vertex.shudan-marker_label.shudan-ghost_-1 .shudan-marker {
-  font-size: .55em;
-  font-weight: bold;
-}
-.shudan-vertex.shudan-sign_1.shudan-marker_label .shudan-marker,
-.shudan-vertex.shudan-ghost_1.shudan-marker_label .shudan-marker {
-  color: #fff;
-}
-.shudan-vertex.shudan-sign_-1.shudan-marker_label .shudan-marker,
-.shudan-vertex.shudan-ghost_-1.shudan-marker_label .shudan-marker {
-  color: #000;
+  text-shadow: 0 0 3px rgba(0,0,0,0.6);
 }
 
 /* Answer buttons */
