@@ -88,10 +88,10 @@ export function Quiz({ sgf, onBack }) {
   let markerMap = makeEmptyMap(size)
   let ghostStoneMap = makeEmptyMap(size)
 
-  // Current move: circle marker (standard "last move" indicator)
+  // Current move: ghost stone (semi-transparent last move indicator)
   if (engine.currentMove) {
     let [x, y] = engine.currentMove.vertex
-    markerMap[y][x] = { type: 'circle' }
+    ghostStoneMap[y][x] = { sign: engine.currentMove.sign, faint: true }
   }
 
   if (peeking) {

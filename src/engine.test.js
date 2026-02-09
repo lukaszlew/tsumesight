@@ -172,13 +172,11 @@ describe('QuizEngine', () => {
   })
 
   describe('getDisplaySignMap()', () => {
-    it('shows base position plus current move', () => {
+    it('does not show current move (shown as ghost stone by UI)', () => {
       let engine = new QuizEngine(simpleSgf)
       engine.advance() // B[ee]
       let display = engine.getDisplaySignMap()
-      // Current move should be visible
-      expect(display[4][4]).toBe(1)
-      // Base should still be clean
+      expect(display[4][4]).toBe(0)
       expect(engine.baseSignMap[4][4]).toBe(0)
     })
 

@@ -182,6 +182,11 @@ body {
   --shudan-board-background-color: #dcb35c;
   --shudan-board-border-color: #b8923a;
 }
+.shudan-vertex .shudan-ghost,
+.shudan-vertex .shudan-ghost::before {
+  width: .88em;
+  height: .88em;
+}
 .shudan-vertex.shudan-marker_label.shudan-sign_0 .shudan-marker {
   background: transparent;
   font-size: .7em;

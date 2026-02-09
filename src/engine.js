@@ -164,12 +164,7 @@ export class QuizEngine {
   }
 
   getDisplaySignMap() {
-    let display = this.baseSignMap.map(row => [...row])
-    if (this.currentMove && this.currentMove.vertex) {
-      let [x, y] = this.currentMove.vertex
-      display[y][x] = this.currentMove.sign
-    }
-    return display
+    return this.baseSignMap.map(row => [...row])
   }
 
   // Returns groups of invisible stones with their scores
