@@ -1,7 +1,32 @@
 import { useState, useEffect } from 'preact/hooks'
+import { Component } from 'preact'
 import { Library } from './library.jsx'
 import { Quiz } from './quiz.jsx'
 import { getAllSgfs, updateSgf } from './db.js'
+
+class ErrorBoundary extends Component {
+  state = { error: null }
+  componentDidCatch(error) {
+    sessionStorage.removeItem('activeSgf')
+    this.setState({ error: error.message })
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div class="quiz">
+          <div class="summary-overlay">
+            <h2>Something went wrong</h2>
+            <p>{this.state.error}</p>
+            <button class="back-btn" onClick={() => { this.setState({ error: null }); this.props.onReset() }}>
+              Back to Library
+            </button>
+          </div>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 export function App() {
   const [attempt, setAttempt] = useState(0)
@@ -69,13 +94,21 @@ export function App() {
     clearSgf()
   }
 
+  function handleLoadError() {
+    clearSgf()
+  }
+
   if (active) {
-    return <Quiz key={`${active.id}:${attempt}`} sgf={active.content}
-      onBack={clearSgf} onSolved={markSolved}
-      onPrev={() => goStep(-1)} onNext={() => goStep(1)}
-      onNextUnsolved={goNextUnsolved}
-      onRetry={() => setAttempt(a => a + 1)}
-      fileIndex={position?.index} fileTotal={position?.total} />
+    return (
+      <ErrorBoundary onReset={clearSgf}>
+        <Quiz key={`${active.id}:${attempt}`} sgf={active.content}
+          onBack={clearSgf} onSolved={markSolved} onLoadError={handleLoadError}
+          onPrev={() => goStep(-1)} onNext={() => goStep(1)}
+          onNextUnsolved={goNextUnsolved}
+          onRetry={() => setAttempt(a => a + 1)}
+          fileIndex={position?.index} fileTotal={position?.total} />
+      </ErrorBoundary>
+    )
   }
   return <Library onSelect={selectSgf} initialPath={sessionStorage.getItem('lastPath') || ''} />
 }

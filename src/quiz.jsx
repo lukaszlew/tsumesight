@@ -7,7 +7,7 @@ function makeEmptyMap(size, fill = null) {
   return Array.from({ length: size }, () => Array(size).fill(fill))
 }
 
-export function Quiz({ sgf, onBack, onSolved, onPrev, onNext, onNextUnsolved, onRetry, fileIndex, fileTotal }) {
+export function Quiz({ sgf, onBack, onSolved, onLoadError, onPrev, onNext, onNextUnsolved, onRetry, fileIndex, fileTotal }) {
   let engineRef = useRef(null)
   let [, forceRender] = useState(0)
   let rerender = () => forceRender(n => n + 1)
@@ -32,7 +32,7 @@ export function Quiz({ sgf, onBack, onSolved, onPrev, onNext, onNextUnsolved, on
         <div class="summary-overlay">
           <h2>Cannot load SGF</h2>
           <p>{error}</p>
-          <button class="back-btn" onClick={onBack}>Back to Library</button>
+          <button class="back-btn" onClick={onLoadError || onBack}>Back to Library</button>
         </div>
       </div>
     )
