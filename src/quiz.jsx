@@ -95,6 +95,11 @@ export function Quiz({ sgf, onBack }) {
       let [x, y] = engine.questionVertex
       markerMap[y][x] = { type: 'label', label: '❓' }
     }
+    // Last wrong answer: show correct liberty count on that stone
+    if (engine.lastWrong) {
+      let [x, y] = engine.lastWrong.vertex
+      markerMap[y][x] = { type: 'label', label: String(engine.lastWrong.trueLiberties) }
+    }
   }
 
   return (

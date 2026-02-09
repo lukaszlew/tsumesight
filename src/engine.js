@@ -37,6 +37,7 @@ export class QuizEngine {
     this.correct = 0
     this.wrong = 0
     this.results = []
+    this.lastWrong = null // { vertex, trueLiberties } — shown until next answer
     this.finished = false
   }
 
@@ -98,6 +99,7 @@ export class QuizEngine {
   }
 
   answer(liberties) {
+    this.lastWrong = null
     let v = this.questionVertex
     assert(v != null, 'No question to answer')
 
@@ -108,6 +110,7 @@ export class QuizEngine {
       this.correct++
     } else {
       this.wrong++
+      this.lastWrong = { vertex: v, trueLiberties }
       this.materialize()
     }
     this.results.push(isCorrect)
