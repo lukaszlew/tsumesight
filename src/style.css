@@ -111,15 +111,6 @@ body {
   align-items: center;
 }
 
-.top-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 0.5rem 0;
-  margin-bottom: 0.5rem;
-}
-
 .back-btn {
   background: #444;
   color: #ddd;
@@ -132,9 +123,19 @@ body {
 .back-btn:hover {
   background: #555;
 }
-.back-btn.small {
-  padding: 0.3rem 0.6rem;
-  font-size: 1.1rem;
+
+.bar-btn {
+  background: #2a2a2a;
+  color: #ddd;
+  border: 1px solid #555;
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.bar-btn:hover {
+  border-color: #888;
+  background: #333;
 }
 
 .nav-group {
@@ -149,51 +150,63 @@ body {
   text-align: center;
 }
 
-.move-counter {
-  font-size: 1rem;
-  color: #ccc;
-}
-
-.sound-toggle {
-  background: none;
-  border: none;
-  font-size: 1.2rem;
-  cursor: pointer;
-  padding: 0.2rem;
-}
 
 .board-row {
   position: relative;
   margin-bottom: 1rem;
 }
 
-/* Progress column (left of board) */
-.progress-col {
-  position: absolute;
-  right: 100%;
-  top: 0;
-  bottom: 0;
-  margin-right: 0.5rem;
-  overflow-y: auto;
-  scrollbar-width: none;
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.5rem 0;
 }
-.progress-col::-webkit-scrollbar {
+
+.board-section {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.bottom-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Progress bar (below board) */
+.progress-bar {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 1px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 0.25rem 0;
+}
+.progress-bar::-webkit-scrollbar {
   display: none;
 }
-.progress-row {
+.progress-move {
   display: flex;
+  flex-direction: column;
   gap: 2px;
   align-items: center;
-  min-height: 10px;
-  padding: 1px 2px;
+  padding: 1px;
 }
-.progress-row.current {
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 2px;
+.progress-move.current {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  padding: 2px;
 }
-.check-empty, .check-done {
-  width: 7px;
-  height: 7px;
+.check-empty, .check-done, .check-fail {
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -203,26 +216,10 @@ body {
 .check-done {
   background: #4c4;
 }
+.check-fail {
+  background: #c44;
+}
 
-.scoring-rules {
-  position: absolute;
-  left: 100%;
-  top: 0;
-  margin-left: 0.75rem;
-  background: #2a2a2a;
-  border: 1px solid #444;
-  border-radius: 6px;
-  padding: 0.75rem;
-  font-size: 0.8rem;
-  color: #ccc;
-  line-height: 1.6;
-  white-space: nowrap;
-}
-.scoring-rules hr {
-  border: none;
-  border-top: 1px solid #444;
-  margin: 0.3rem 0;
-}
 .scoring-title {
   font-weight: bold;
   color: #eee;
@@ -247,74 +244,17 @@ body {
 /* Answer buttons */
 
 .answer-buttons {
-  width: 100%;
-  max-width: 400px;
-  margin-bottom: 0.75rem;
-}
-
-.button-row {
   display: flex;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-  justify-content: center;
-}
-
-.ans-btn {
-  flex: 1;
-  max-width: 5rem;
-  padding: 0.6rem 0;
-  font-size: 1rem;
-  border: 2px solid #555;
-  background: #2a2a2a;
-  color: #ddd;
+  gap: 0.4rem;
+  background: #222;
+  border: 1px solid #444;
   border-radius: 6px;
-  cursor: pointer;
+  padding: 0.3rem;
 }
-.ans-btn:hover {
-  border-color: #888;
-  background: #333;
-}
-
-/* Feedback strip */
-
-.feedback-strip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
-  justify-content: center;
-  padding: 0.5rem 0;
-  max-width: 560px;
-}
-
-.pip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  font-size: 0.7rem;
-  border-radius: 3px;
-  font-weight: bold;
-}
-.pip-correct {
-  background: #2a5a2a;
-  color: #4c4;
-}
-.pip-fat {
-  background: #1a6a1a;
-  color: #6f6;
-  width: 28px;
-  height: 28px;
+.ans-btn {
+  padding: 0.4rem 0.7rem;
   font-size: 1rem;
-  font-weight: 900;
-}
-.pip-streak {
-  background: #2a3a2a;
-  color: #8a8;
-  width: 28px;
-  height: 28px;
-  font-size: 0.85rem;
-  font-weight: 700;
+  font-weight: bold;
 }
 
 /* Summary panel (side of board) */

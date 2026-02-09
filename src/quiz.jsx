@@ -12,6 +12,7 @@ export function Quiz({ sgf, onBack, onSolved, onPrev, onNext, onNextUnsolved, on
   let [, forceRender] = useState(0)
   let rerender = () => forceRender(n => n + 1)
   let [peeking, setPeeking] = useState(false)
+  let [soundOn, setSoundOn] = useState(isSoundEnabled())
   let [error, setError] = useState(null)
 
   // Initialize engine once
@@ -60,10 +61,16 @@ export function Quiz({ sgf, onBack, onSolved, onPrev, onNext, onNextUnsolved, on
     rerender()
   }, [])
 
-  // Keyboard shortcuts + hold space to peek
+  // Keyboard shortcuts
   useEffect(() => {
     function onKeyDown(e) {
-      if (e.key === ' ') { e.preventDefault(); setPeeking(true) }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); onPrev() }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); onNext() }
+      else if (e.key === ' ') {
+        e.preventDefault()
+        if (engine.finished) onNextUnsolved()
+        else setPeeking(true)
+      }
       else if (e.key >= '1' && e.key <= '5') submitAnswer(parseInt(e.key))
     }
     function onKeyUp(e) {
@@ -90,16 +97,11 @@ export function Quiz({ sgf, onBack, onSolved, onPrev, onNext, onNextUnsolved, on
   }
 
   if (peeking) {
-    // Show invisible stones as ghost stones + group scores as labels
-    let groups = engine.peekGroupScores
-    for (let group of groups) {
-      for (let [x, y] of group.vertices) {
-        let sign = engine.trueBoard.get([x, y])
-        ghostStoneMap[y][x] = { sign, faint: true }
-      }
-      // Show score on first vertex of each group
-      let [x, y] = group.vertices[0]
-      markerMap[y][x] = { type: 'label', label: String(group.score) }
+    // Show invisible stones as ghost stones
+    for (let [, { vertex }] of engine.invisibleStones) {
+      let [x, y] = vertex
+      let sign = engine.trueBoard.get(vertex)
+      if (sign !== 0) ghostStoneMap[y][x] = { sign, faint: true }
     }
   } else {
     // Show all pending question vertices
@@ -111,20 +113,19 @@ export function Quiz({ sgf, onBack, onSolved, onPrev, onNext, onNextUnsolved, on
 
   return (
     <div class="quiz">
-      <TopBar
-        moveIndex={engine.moveIndex}
-        totalMoves={engine.totalMoves}
-        questionIndex={engine.questionIndex}
-        questionCount={engine.questions.length}
-        onBack={onBack}
-        onPrev={onPrev}
-        onNext={onNext}
-        fileIndex={fileIndex}
-        fileTotal={fileTotal}
-      />
-
+      <div class="board-section">
+      <div class="top-bar">
+        <button class="bar-btn" onClick={onBack}>☰</button>
+        <div class="nav-group">
+          <button class="bar-btn" onClick={onPrev}>◀</button>
+          {fileTotal && <span class="file-counter">{fileIndex}/{fileTotal}</span>}
+          <button class="bar-btn" onClick={onNext}>▶</button>
+        </div>
+        <button class="bar-btn" onClick={() => setSoundOn(toggleSound())}>
+          {soundOn ? '🔊' : '🔇'}
+        </button>
+      </div>
       <div class="board-row">
-        <ProgressColumn questionsPerMove={engine.questionsPerMove} moveProgress={engine.moveProgress} />
         <div
           class="board-container"
           onPointerDown={() => setPeeking(true)}
@@ -137,40 +138,22 @@ export function Quiz({ sgf, onBack, onSolved, onPrev, onNext, onNextUnsolved, on
             signMap={signMap}
             markerMap={markerMap}
             ghostStoneMap={ghostStoneMap}
+            rangeX={engine.boardRange && [engine.boardRange[0], engine.boardRange[2]]}
+            rangeY={engine.boardRange && [engine.boardRange[1], engine.boardRange[3]]}
             showCoordinates={false}
             fuzzyStonePlacement={false}
             animateStonePlacement={false}
           />
         </div>
 
-        {peeking && !engine.finished && <ScoringRules />}
         {engine.finished && <SummaryPanel engine={engine} onBack={onBack} onRetry={onRetry} onNextUnsolved={onNextUnsolved} />}
       </div>
 
-      {!engine.finished && <AnswerButtons onLiberties={submitAnswer} />}
-
-      <FeedbackStrip results={engine.results} />
-    </div>
-  )
-}
-
-function TopBar({ moveIndex, totalMoves, questionIndex, questionCount, onBack, onPrev, onNext, fileIndex, fileTotal }) {
-  let [soundOn, setSoundOn] = useState(isSoundEnabled())
-  return (
-    <div class="top-bar">
-      <button class="back-btn small" onClick={onBack}>←</button>
-      <div class="nav-group">
-        <button class="back-btn small" onClick={onPrev}>◀</button>
-        {fileTotal && <span class="file-counter">{fileIndex}/{fileTotal}</span>}
-        <button class="back-btn small" onClick={onNext}>▶</button>
+      <div class="bottom-bar">
+        <ProgressBar questionsPerMove={engine.questionsPerMove} moveProgress={engine.moveProgress} />
+        {!engine.finished && <AnswerButtons onLiberties={submitAnswer} />}
       </div>
-      <span class="move-counter">
-        Move {moveIndex} / {totalMoves}
-        {questionCount > 1 && ` · Q ${questionIndex + 1}/${questionCount}`}
-      </span>
-      <button class="sound-toggle" onClick={() => setSoundOn(toggleSound())}>
-        {soundOn ? '🔊' : '🔇'}
-      </button>
+      </div>
     </div>
   )
 }
@@ -193,24 +176,24 @@ function SummaryPanel({ engine, onBack, onRetry, onNextUnsolved }) {
   )
 }
 
-function ProgressColumn({ questionsPerMove, moveProgress }) {
-  let colRef = useRef(null)
+function ProgressBar({ questionsPerMove, moveProgress }) {
+  let ref = useRef(null)
   let played = moveProgress.length
 
   useEffect(() => {
-    if (!colRef.current || played === 0) return
-    let row = colRef.current.children[played - 1]
-    if (row) row.scrollIntoView({ block: 'nearest' })
+    if (!ref.current || played === 0) return
+    let col = ref.current.children[played - 1]
+    if (col) col.scrollIntoView({ inline: 'nearest', block: 'nearest' })
   })
 
   return (
-    <div class="progress-col" ref={colRef}>
+    <div class="progress-bar" ref={ref}>
       {questionsPerMove.map((total, i) => {
-        let correct = moveProgress[i] ? moveProgress[i].correct : 0
+        let results = moveProgress[i] ? moveProgress[i].results : []
         return (
-          <div key={i} class={`progress-row${i === played - 1 ? ' current' : ''}`}>
+          <div key={i} class={`progress-move${i === played - 1 ? ' current' : ''}`}>
             {Array.from({ length: total }, (_, j) => (
-              <span key={j} class={j < correct ? 'check-done' : 'check-empty'} />
+              <span key={j} class={results[j] === 'correct' ? 'check-done' : results[j] === 'failed' ? 'check-fail' : 'check-empty'} />
             ))}
           </div>
         )
@@ -219,67 +202,15 @@ function ProgressColumn({ questionsPerMove, moveProgress }) {
   )
 }
 
-function ScoringRules() {
-  return (
-    <div class="scoring-rules">
-      <div class="scoring-title">Group Score</div>
-      <div>staleness + lib bonus</div>
-      <hr />
-      <div>+1/turn not asked</div>
-      <div>(max +4)</div>
-      <hr />
-      <div>1-3 libs: +2</div>
-      <div>4 libs: +1</div>
-      <div>5+ libs: +0</div>
-      <hr />
-      <div>libs changed → priority</div>
-    </div>
-  )
-}
-
 function AnswerButtons({ onLiberties }) {
-  let libertyValues = [1, 2, 3, 4, 5]
-
   return (
     <div class="answer-buttons">
-      <div class="button-row">
-        {libertyValues.map(l => (
-          <button key={l} class="ans-btn" onClick={() => onLiberties(l)}>
-            {l === 5 ? '5+' : l}
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function FeedbackStrip({ results }) {
-  if (results.length === 0) return null
-
-  // Split into completed streaks (ended by wrong) + ongoing streak
-  let completed = []
-  let current = 0
-  for (let r of results) {
-    if (r) current++
-    else { if (current > 0) completed.push(current); current = 0 }
-  }
-
-  let pips = []
-  let key = 0
-  // Completed streaks: single numbered box each
-  for (let count of completed) pips.push({ type: 'streak', count, key: key++ })
-  // Ongoing streak: fold every 5 + individual ✓
-  for (let f = 0; f < Math.floor(current / 5); f++) pips.push({ type: 'fat', key: key++ })
-  for (let r = 0; r < current % 5; r++) pips.push({ type: 'correct', key: key++ })
-
-  if (pips.length === 0) return null
-  return (
-    <div class="feedback-strip">
-      {pips.map(p => (
-        <span key={p.key} class={`pip pip-${p.type}`}>
-          {p.type === 'streak' ? p.count : p.type === 'fat' ? '5' : '✓'}
-        </span>
+      {[1, 2, 3, 4, 5].map(l => (
+        <button key={l} class="bar-btn ans-btn" onClick={() => onLiberties(l)}>
+          {l === 5 ? '5+' : l}
+        </button>
       ))}
     </div>
   )
 }
+

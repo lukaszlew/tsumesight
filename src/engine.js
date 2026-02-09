@@ -1,5 +1,5 @@
 import Board from '@sabaki/go-board'
-import { parseSgf } from './sgf-utils.js'
+import { parseSgf, computeRange } from './sgf-utils.js'
 
 function vertexKey([x, y]) {
   return `${x},${y}`
@@ -44,6 +44,7 @@ export class QuizEngine {
     this.wrong = 0
     this.results = []
     this.moveProgress = [] // [{total, correct}] per played move
+    this.boardRange = computeRange(sgfString) // [minX, minY, maxX, maxY] or null
     this.retrying = false
     this.finished = false
 
@@ -109,7 +110,6 @@ export class QuizEngine {
     // Build question queue: all groups with changed liberties
     this.peekGroupScores = this.getGroupScores()
     let pool = this.peekGroupScores.filter(g => g.libsChanged)
-    if (pool.length === 0) pool = [...this.peekGroupScores]
     pool.sort((a, b) => b.score - a.score)
 
     this.questions = pool.map(g =>
@@ -123,7 +123,7 @@ export class QuizEngine {
 
     this.questionIndex = 0
     this.questionVertex = this.questions[0] || null
-    this.moveProgress.push({ total: this.questions.length, correct: 0 })
+    this.moveProgress.push({ total: this.questions.length, results: [] })
 
     // Reset staleness for all questioned groups
     for (let qv of this.questions) {
@@ -149,26 +149,42 @@ export class QuizEngine {
     let trueLiberties = Math.min(this.trueBoard.getLiberties(v).length, 5)
     let isCorrect = liberties === trueLiberties
 
-    // Retry after wrong — don't record, just wait for correct answer
+    // Retry after wrong — don't record, restore hidden state on correct
     if (this.retrying) {
       if (!isCorrect) return { correct: false, trueLiberties, done: false }
       this.retrying = false
-      this.questionVertex = null
-      return { correct: true, trueLiberties, done: true }
+      this.baseSignMap = this._savedBaseSignMap
+      this.invisibleStones = this._savedInvisibleStones
+      this.staleness = this._savedStaleness
+      this._savedBaseSignMap = null
+      this._savedInvisibleStones = null
+      this._savedStaleness = null
+      // Continue with remaining questions
+      this.questionIndex++
+      this.questionVertex = this.questionIndex < this.questions.length
+        ? this.questions[this.questionIndex]
+        : null
+      let done = this.questionIndex >= this.questions.length
+      return { correct: true, trueLiberties, done }
     }
 
     this.results.push(isCorrect)
+    let mp = this.moveProgress[this.moveProgress.length - 1]
 
     if (!isCorrect) {
       this.wrong++
+      mp.results.push('failed')
+      // Save state before materialize so we can restore after retry
+      this._savedBaseSignMap = this.baseSignMap.map(row => [...row])
+      this._savedInvisibleStones = new Map(this.invisibleStones)
+      this._savedStaleness = new Map(this.staleness)
       this.materialize()
       this.retrying = true
-      // Keep questionVertex — user retries with revealed stones
       return { correct: false, trueLiberties, done: false }
     }
 
     this.correct++
-    this.moveProgress[this.moveProgress.length - 1].correct++
+    mp.results.push('correct')
     this.questionIndex++
     this.questionVertex = this.questionIndex < this.questions.length
       ? this.questions[this.questionIndex]
@@ -219,12 +235,12 @@ export class QuizEngine {
       if (groupVertices.length === 0) continue
 
       let libs = this.trueBoard.getLiberties(vertex).length
-      let isSingleCurrent = chain.length === 1 && currentMoveKey === vertexKey(chain[0])
+      let containsCurrentMove = groupVertices.some(v => vertexKey(v) === currentMoveKey)
 
       // Did this group's liberty set change after the current move?
       // Current move's group always counts as "changed"
       let currentLibsKey = libertySetKey(this.trueBoard.getLiberties(vertex))
-      let libsChanged = isSingleCurrent
+      let libsChanged = containsCurrentMove
       if (!libsChanged) {
         for (let v of groupVertices) {
           let prev = this.prevLibs.get(vertexKey(v))
@@ -236,6 +252,7 @@ export class QuizEngine {
       }
 
       // Just-played single stone: no bonuses (you just saw it placed)
+      let isSingleCurrent = chain.length === 1 && containsCurrentMove
       let score = isSingleCurrent
         ? maxStaleness
         : maxStaleness + libertyBonus(libs)

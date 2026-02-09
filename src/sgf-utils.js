@@ -80,6 +80,58 @@ export function parseSgf(sgfString) {
   }
 }
 
+// Walk entire tree collecting all stone coordinates (setup + moves in all variations)
+function collectAllVertices(node) {
+  let vertices = []
+  if (node.data.AB) {
+    for (let v of node.data.AB)
+      for (let vertex of sgf.parseCompressedVertices(v)) vertices.push(vertex)
+  }
+  if (node.data.AW) {
+    for (let v of node.data.AW)
+      for (let vertex of sgf.parseCompressedVertices(v)) vertices.push(vertex)
+  }
+  if (node.data.B && node.data.B[0] && node.data.B[0] !== 'tt')
+    vertices.push(sgf.parseVertex(node.data.B[0]))
+  if (node.data.W && node.data.W[0] && node.data.W[0] !== 'tt')
+    vertices.push(sgf.parseVertex(node.data.W[0]))
+  if (node.children) {
+    for (let child of node.children) vertices.push(...collectAllVertices(child))
+  }
+  return vertices
+}
+
+// For problems (have setup stones): compute bounding box of all stones + 1 margin
+// Returns [minX, minY, maxX, maxY] or null for full games
+export function computeRange(sgfString) {
+  let trees = sgf.parse(sgfString)
+  let root = trees[0]
+  if (!root.data.AB && !root.data.AW) return null
+
+  let size = root.data.SZ ? parseInt(root.data.SZ[0]) : 19
+  let vertices = collectAllVertices(root)
+  if (vertices.length === 0) return null
+
+  let minX = size, maxX = 0, minY = size, maxY = 0
+  for (let [x, y] of vertices) {
+    minX = Math.min(minX, x)
+    maxX = Math.max(maxX, x)
+    minY = Math.min(minY, y)
+    maxY = Math.max(maxY, y)
+  }
+
+  // Add 1 margin, clamped to board
+  minX = Math.max(0, minX - 1)
+  maxX = Math.min(size - 1, maxX + 1)
+  minY = Math.max(0, minY - 1)
+  maxY = Math.min(size - 1, maxY + 1)
+
+  // If range covers nearly the full board, just show full
+  if (maxX - minX >= size - 2 && maxY - minY >= size - 2) return null
+
+  return [minX, minY, maxX, maxY]
+}
+
 function assert(condition, msg) {
   if (!condition) throw new Error(msg)
 }
