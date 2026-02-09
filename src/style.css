@@ -300,6 +300,9 @@ body {
 .shudan-vertex.shudan-marker_label.shudan-sign_0 .shudan-marker {
   background: transparent;
   font-size: .7em;
+  color: #fff;
+  font-weight: bold;
+  text-shadow: 0 0 3px rgba(0,0,0,0.8);
 }
 /* Comparison labels on stones and ghost stones: inverted text color */
 .shudan-vertex.shudan-marker_label:not(.shudan-sign_0) .shudan-marker,
