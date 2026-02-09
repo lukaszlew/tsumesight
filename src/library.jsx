@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'preact/hooks'
-import { getAllSgfs, addSgf, deleteSgf, deleteSgfsByPrefix } from './db.js'
+import { getAllSgfs, addSgfBatch, deleteSgf, deleteSgfsByPrefix } from './db.js'
 import { parseSgf } from './sgf-utils.js'
 import { isArchive, extractSgfs } from './archive.js'
 
@@ -29,6 +29,7 @@ function ScoreCells({ correct, done, total }) {
 export function Library({ onSelect, initialPath = '' }) {
   let [sgfs, setSgfs] = useState([])
   let [loading, setLoading] = useState(true)
+  let [importing, setImporting] = useState(null) // { done, total } or null
   let [cwd, setCwd] = useState(initialPath)
 
   let refresh = async () => {
@@ -39,51 +40,70 @@ export function Library({ onSelect, initialPath = '' }) {
 
   useEffect(() => { refresh() }, [])
 
-  let addParsedContent = async (filename, path, content, uploadedAt) => {
-    try {
-      let parsed = parseSgf(content)
-      await addSgf({
-        filename, path, content,
-        boardSize: parsed.boardSize,
-        moveCount: parsed.moveCount,
-        playerBlack: parsed.playerBlack,
-        playerWhite: parsed.playerWhite,
-        uploadedAt,
-      })
-    } catch {
-      console.warn('Skipping unparseable SGF:', filename)
+  let parseAndCollect = (entries, pathPrefix, uploadedAt) => {
+    let records = []
+    for (let { name, content } of entries) {
+      try {
+        let parts = name.split('/')
+        let filename = parts.pop()
+        let path = pathPrefix + (parts.length ? '/' + parts.join('/') : '')
+        let parsed = parseSgf(content)
+        records.push({
+          filename, path, content,
+          boardSize: parsed.boardSize,
+          moveCount: parsed.moveCount,
+          playerBlack: parsed.playerBlack,
+          playerWhite: parsed.playerWhite,
+          uploadedAt,
+        })
+      } catch {
+        console.warn('Skipping unparseable SGF:', name)
+      }
     }
+    return records
+  }
+
+  let importBatch = async (records) => {
+    setImporting({ done: 0, total: records.length })
+    let BATCH = 500
+    for (let i = 0; i < records.length; i += BATCH) {
+      await addSgfBatch(records.slice(i, i + BATCH))
+      setImporting({ done: Math.min(i + BATCH, records.length), total: records.length })
+      await new Promise(r => setTimeout(r, 0)) // yield to UI
+    }
+    setImporting(null)
   }
 
   let handleFiles = async (e) => {
     let now = Date.now()
+    let allRecords = []
     for (let file of Array.from(e.target.files)) {
       if (isArchive(file.name)) {
+        setImporting({ done: 0, total: 0 })
         let entries = await extractSgfs(file)
         let archiveName = file.name.replace(/\.(zip|tar\.gz|tgz|tar)$/i, '')
-        for (let { name, content } of entries) {
-          let parts = name.split('/')
-          let filename = parts.pop()
-          let path = archiveName + (parts.length ? '/' + parts.join('/') : '')
-          await addParsedContent(filename, path, content, now)
-        }
+        allRecords.push(...parseAndCollect(entries, archiveName, now))
       } else if (file.name.toLowerCase().endsWith('.sgf')) {
         let content = await file.text()
-        await addParsedContent(file.name, '', content, now)
+        allRecords.push(...parseAndCollect([{ name: file.name, content }], '', now))
       }
     }
+    if (allRecords.length > 0) await importBatch(allRecords)
     e.target.value = ''
     refresh()
   }
 
   let handleFolder = async () => {
     let dirHandle = await window.showDirectoryPicker()
-    let entries = await collectSgfFiles(dirHandle, dirHandle.name)
+    let collected = await collectSgfFiles(dirHandle, dirHandle.name)
     let now = Date.now()
-    for (let { file, path } of entries) {
+    let entries = []
+    for (let { file, path } of collected) {
       let content = await file.text()
-      await addParsedContent(file.name, path, content, now)
+      entries.push({ name: path + '/' + file.name, content })
     }
+    let records = parseAndCollect(entries, '', now)
+    if (records.length > 0) await importBatch(records)
     refresh()
   }
 
@@ -99,22 +119,21 @@ export function Library({ onSelect, initialPath = '' }) {
       let blob = await resp.blob()
       let file = new File([blob], filename)
       let now = Date.now()
+      let allRecords = []
       if (isArchive(filename)) {
+        setImporting({ done: 0, total: 0 })
         let entries = await extractSgfs(file)
         let archiveName = filename.replace(/\.(zip|tar\.gz|tgz|tar)$/i, '')
-        for (let { name, content } of entries) {
-          let parts = name.split('/')
-          let fname = parts.pop()
-          let path = archiveName + (parts.length ? '/' + parts.join('/') : '')
-          await addParsedContent(fname, path, content, now)
-        }
+        allRecords = parseAndCollect(entries, archiveName, now)
       } else {
         let content = await file.text()
-        await addParsedContent(filename, '', content, now)
+        allRecords = parseAndCollect([{ name: filename, content }], '', now)
       }
+      if (allRecords.length > 0) await importBatch(allRecords)
       input.value = ''
       refresh()
     } catch (err) {
+      setImporting(null)
       alert(`Failed to fetch: ${err.message}\n\nThe server may block cross-origin requests. Try downloading the file and uploading it instead.`)
     }
   }
@@ -187,6 +206,10 @@ export function Library({ onSelect, initialPath = '' }) {
         <input class="url-input" type="text" placeholder="Paste URL to SGF or archive..." name="url" />
         <button class="upload-btn" type="submit">Fetch</button>
       </form>
+
+      {importing && (
+        <p class="loading">Importing {importing.done}/{importing.total}...</p>
+      )}
 
       {cwd && (
         <div class="breadcrumbs">

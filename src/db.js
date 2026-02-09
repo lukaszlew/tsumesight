@@ -37,6 +37,16 @@ export async function addSgf(record) {
   return promisify(tx(db, 'readwrite').add(record))
 }
 
+export async function addSgfBatch(records) {
+  let db = await openDb()
+  let store = tx(db, 'readwrite')
+  for (let r of records) store.add(r)
+  return new Promise((resolve, reject) => {
+    store.transaction.oncomplete = () => resolve(records.length)
+    store.transaction.onerror = () => reject(store.transaction.error)
+  })
+}
+
 export async function updateSgf(id, fields) {
   let db = await openDb()
   let store = tx(db, 'readwrite')
