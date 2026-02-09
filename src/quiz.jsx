@@ -7,7 +7,7 @@ function makeEmptyMap(size, fill = null) {
   return Array.from({ length: size }, () => Array(size).fill(fill))
 }
 
-export function Quiz({ sgf, onBack, onSolved, onNext }) {
+export function Quiz({ sgf, onBack, onSolved, onNext, onRetry }) {
   let engineRef = useRef(null)
   let [, forceRender] = useState(0)
   let rerender = () => forceRender(n => n + 1)
@@ -138,7 +138,7 @@ export function Quiz({ sgf, onBack, onSolved, onNext }) {
         </div>
 
         {peeking && !engine.finished && <ScoringRules />}
-        {engine.finished && <SummaryPanel engine={engine} onBack={onBack} onNext={onNext} />}
+        {engine.finished && <SummaryPanel engine={engine} onBack={onBack} onNext={onNext} onRetry={onRetry} />}
       </div>
 
       {!engine.finished && <AnswerButtons onLiberties={submitAnswer} />}
@@ -164,7 +164,7 @@ function TopBar({ moveIndex, totalMoves, questionIndex, questionCount, onBack })
   )
 }
 
-function SummaryPanel({ engine, onBack, onNext }) {
+function SummaryPanel({ engine, onBack, onNext, onRetry }) {
   let total = engine.results.length
   let pct = total > 0 ? Math.round(engine.correct / total * 100) : 0
   return (
@@ -176,6 +176,7 @@ function SummaryPanel({ engine, onBack, onNext }) {
       <div>Accuracy: {pct}%</div>
       <hr />
       <button class="back-btn" onClick={onBack}>Back</button>
+      <button class="back-btn" onClick={onRetry}>Retry</button>
       {onNext && <button class="back-btn" onClick={onNext}>Next</button>}
     </div>
   )

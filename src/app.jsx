@@ -4,6 +4,8 @@ import { Quiz } from './quiz.jsx'
 import { getAllSgfs, updateSgf } from './db.js'
 
 export function App() {
+  const [attempt, setAttempt] = useState(0)
+
   const [active, setActive] = useState(() => {
     let stored = sessionStorage.getItem('activeSgf')
     if (!stored) return null
@@ -45,7 +47,7 @@ export function App() {
   }
 
   if (active) {
-    return <Quiz key={active.id} sgf={active.content} onBack={clearSgf} onSolved={markSolved} onNext={goNext} />
+    return <Quiz key={`${active.id}:${attempt}`} sgf={active.content} onBack={clearSgf} onSolved={markSolved} onNext={goNext} onRetry={() => setAttempt(a => a + 1)} />
   }
   return <Library onSelect={selectSgf} />
 }
