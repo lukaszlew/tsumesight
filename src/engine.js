@@ -5,6 +5,10 @@ function vertexKey([x, y]) {
   return `${x},${y}`
 }
 
+function libertySetKey(libs) {
+  return libs.map(vertexKey).sort().join(';')
+}
+
 function libertyBonus(libCount) {
   if (libCount <= 3) return 2
   if (libCount === 4) return 1
@@ -58,11 +62,11 @@ export class QuizEngine {
       this.staleness.set(key, Math.min(val + 1, 4))
     }
 
-    // Snapshot liberty counts before the move (to detect changed libs)
+    // Snapshot liberty sets before the move (to detect changed libs)
     this.prevLibs = new Map()
     for (let [key, { vertex }] of this.invisibleStones) {
       if (this.trueBoard.get(vertex) !== 0) {
-        this.prevLibs.set(key, this.trueBoard.getLiberties(vertex).length)
+        this.prevLibs.set(key, libertySetKey(this.trueBoard.getLiberties(vertex)))
       }
     }
 
@@ -167,13 +171,14 @@ export class QuizEngine {
       let libs = this.trueBoard.getLiberties(vertex).length
       let isSingleCurrent = chain.length === 1 && currentMoveKey === vertexKey(chain[0])
 
-      // Did this group's liberty count change after the current move?
+      // Did this group's liberty set change after the current move?
       // Current move's group always counts as "changed"
+      let currentLibsKey = libertySetKey(this.trueBoard.getLiberties(vertex))
       let libsChanged = isSingleCurrent
       if (!libsChanged) {
         for (let v of groupVertices) {
           let prev = this.prevLibs.get(vertexKey(v))
-          if (prev !== undefined && prev !== libs) {
+          if (prev !== undefined && prev !== currentLibsKey) {
             libsChanged = true
             break
           }
