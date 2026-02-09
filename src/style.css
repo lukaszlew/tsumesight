@@ -298,7 +298,8 @@ body {
   height: .88em;
 }
 .shudan-vertex.shudan-marker_label.shudan-sign_0 .shudan-marker {
-  background: transparent;
+  background: var(--shudan-board-background-color, #dcb35c);
+  border-radius: 50%;
   font-size: .77em;
 }
 /* Comparison labels: single color on all backgrounds */
