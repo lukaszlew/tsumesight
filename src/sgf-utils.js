@@ -1,17 +1,26 @@
 import sgf from '@sabaki/sgf'
 
-// Walk main line: root → children[0] → children[0] → ...
+// Depth of the longest path from this node (counting nodes with moves)
+function longestDepth(node) {
+  if (!node.children || node.children.length === 0) return 0
+  let best = 0
+  for (let child of node.children) {
+    let d = longestDepth(child) + (child.data.B || child.data.W ? 1 : 0)
+    if (d > best) best = d
+  }
+  return best
+}
+
+// Walk the longest variation through the tree
 function walkMainLine(node) {
   let nodes = [node]
   while (node.children && node.children.length > 0) {
-    // Prefer children[0], but if it has no move, find one that does
-    // (some tsumego SGFs put a comment-only node as children[0])
-    let next = node.children[0]
-    if (!next.data.B && !next.data.W) {
-      let moveChild = node.children.find(c => c.data.B || c.data.W)
-      if (moveChild) next = moveChild
+    let best = node.children[0], bestDepth = longestDepth(best)
+    for (let i = 1; i < node.children.length; i++) {
+      let d = longestDepth(node.children[i])
+      if (d > bestDepth) { best = node.children[i]; bestDepth = d }
     }
-    node = next
+    node = best
     nodes.push(node)
   }
   return nodes
