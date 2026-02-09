@@ -301,12 +301,17 @@ body {
   background: transparent;
   font-size: .7em;
 }
-/* Comparison labels on stones */
-.shudan-vertex.shudan-marker_label:not(.shudan-sign_0) .shudan-marker {
+/* Comparison labels on stones: inverted text color */
+.shudan-vertex.shudan-sign_1.shudan-marker_label .shudan-marker,
+.shudan-vertex.shudan-sign_-1.shudan-marker_label .shudan-marker {
   font-size: .55em;
   font-weight: bold;
-  color: #f44;
-  text-shadow: 0 0 3px rgba(0,0,0,0.8);
+}
+.shudan-vertex.shudan-sign_1.shudan-marker_label .shudan-marker {
+  color: #fff;
+}
+.shudan-vertex.shudan-sign_-1.shudan-marker_label .shudan-marker {
+  color: #000;
 }
 
 /* Answer buttons */
