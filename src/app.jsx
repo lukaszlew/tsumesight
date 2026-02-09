@@ -63,8 +63,12 @@ export function App() {
     if (active) refreshPosition(active.id, active.path)
   }, [])
 
-  function markSolved(correct, total) {
-    if (active.id) updateSgf(active.id, { solved: true, correct, total })
+  function saveProgress({ correct, done, total }) {
+    if (active.id) updateSgf(active.id, { correct, done, total })
+  }
+
+  function markSolved(correct, done) {
+    if (active.id) updateSgf(active.id, { solved: true, correct, done })
   }
 
   async function getSiblings(path) {
@@ -102,7 +106,7 @@ export function App() {
     return (
       <ErrorBoundary onReset={clearSgf}>
         <Quiz key={`${active.id}:${attempt}`} quizKey={`${active.id}:${attempt}`} sgf={active.content}
-          onBack={clearSgf} onSolved={markSolved} onLoadError={handleLoadError}
+          onBack={clearSgf} onSolved={markSolved} onProgress={saveProgress} onLoadError={handleLoadError}
           onPrev={() => goStep(-1)} onNext={() => goStep(1)}
           onNextUnsolved={goNextUnsolved}
           onRetry={() => setAttempt(a => a + 1)}

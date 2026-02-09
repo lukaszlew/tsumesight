@@ -22,7 +22,7 @@ function makeEmptyMap(size, fill = null) {
   return Array.from({ length: size }, () => Array(size).fill(fill))
 }
 
-export function Quiz({ sgf, quizKey, onBack, onSolved, onLoadError, onPrev, onNext, onNextUnsolved, onRetry, fileIndex, fileTotal }) {
+export function Quiz({ sgf, quizKey, onBack, onSolved, onProgress, onLoadError, onPrev, onNext, onNextUnsolved, onRetry, fileIndex, fileTotal }) {
   let engineRef = useRef(null)
   let historyRef = useRef([])
   let solvedRef = useRef(false)
@@ -86,6 +86,8 @@ export function Quiz({ sgf, quizKey, onBack, onSolved, onLoadError, onPrev, onNe
       saveHistory(quizKey, historyRef.current)
       playCorrect()
       if (result.done) engine.advance()
+      let total = engine.questionsPerMove.reduce((a, b) => a + b, 0)
+      onProgress({ correct: engine.correct, done: engine.results.length, total })
     } else {
       playWrong()
     }

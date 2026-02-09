@@ -17,6 +17,15 @@ async function collectSgfFiles(dirHandle, path) {
   return results
 }
 
+function ScoreCells({ correct, done, total }) {
+  if (!done && !total) return <><td></td><td></td><td></td></>
+  return <>
+    <td class="score-good">{correct || 0}</td>
+    <td>{done || 0}</td>
+    <td>{total}</td>
+  </>
+}
+
 export function Library({ onSelect, initialPath = '' }) {
   let [sgfs, setSgfs] = useState([])
   let [loading, setLoading] = useState(true)
@@ -141,19 +150,20 @@ export function Library({ onSelect, initialPath = '' }) {
   }
   let sortedDirs = [...subdirs].sort()
 
-  // Directory stats: total and solved counts
+  // Directory stats: total, solved, and started counts
   let dirStats = {}
   for (let d of sortedDirs) {
     let dirPrefix = prefix + d
-    let total = 0, solved = 0
+    let total = 0, solved = 0, started = 0
     for (let s of sgfs) {
       let p = s.path || ''
       if (p === dirPrefix || p.startsWith(dirPrefix + '/')) {
         total++
         if (s.solved) solved++
+        else if (s.done > 0) started++
       }
     }
-    dirStats[d] = { total, solved }
+    dirStats[d] = { total, solved, started }
   }
 
   // Breadcrumb parts
@@ -190,7 +200,11 @@ export function Library({ onSelect, initialPath = '' }) {
               </span>
             </span>
           ))}
-          <span class="dir-stats">{filesHere.filter(s => s.solved).length}/{filesHere.length}</span>
+          <span class="dir-stats">
+            <span class="score-good">{filesHere.filter(s => s.solved).length}</span>
+            {filesHere.some(s => !s.solved && s.done > 0) ? '/' + filesHere.filter(s => !s.solved && s.done > 0).length : ''}
+            /{filesHere.length}
+          </span>
         </div>
       )}
 
@@ -205,30 +219,34 @@ export function Library({ onSelect, initialPath = '' }) {
           <thead>
             <tr>
               <th>Name</th>
-              <th>Size</th>
               <th>Moves</th>
-              <th>Score</th>
+              <th class="score-good">Good</th>
+              <th>Done</th>
+              <th>Total</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
-            {sortedDirs.map(d => (
-              <tr key={'d:' + d} onClick={() => setCwd(prefix + d)} class="sgf-row dir-row">
-                <td>📁 {d}</td>
-                <td></td>
-                <td></td>
-                <td>{dirStats[d].solved}/{dirStats[d].total}</td>
-                <td>
-                  <button class="delete-btn" onClick={(e) => handleDeleteDir(e, prefix + d, d)}>🗑</button>
-                </td>
-              </tr>
-            ))}
+            {sortedDirs.map(d => {
+              let { solved, started, total } = dirStats[d]
+              return (
+                <tr key={'d:' + d} onClick={() => setCwd(prefix + d)} class="sgf-row dir-row">
+                  <td>📁 {d}</td>
+                  <td></td>
+                  <td class="score-good">{solved}</td>
+                  <td>{started || ''}</td>
+                  <td>{total}</td>
+                  <td>
+                    <button class="delete-btn" onClick={(e) => handleDeleteDir(e, prefix + d, d)}>🗑</button>
+                  </td>
+                </tr>
+              )
+            })}
             {filesHere.map(s => (
               <tr key={s.id} onClick={() => onSelect({ id: s.id, content: s.content, path: s.path || '' })} class={`sgf-row${s.solved ? ' solved-row' : ''}`}>
                 <td>{s.solved ? '✓ ' : ''}{s.filename}</td>
-                <td>{s.boardSize}×{s.boardSize}</td>
                 <td>{s.moveCount}</td>
-                <td>{s.total ? `${s.correct}/${s.total}` : '—'}</td>
+                <ScoreCells correct={s.correct} done={s.done} total={s.total} />
                 <td>
                   <button class="delete-btn" onClick={(e) => handleDelete(e, s.id, s.filename)}>🗑</button>
                 </td>

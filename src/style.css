@@ -136,6 +136,9 @@ body {
 .solved-row td {
   color: #686;
 }
+.score-good {
+  color: #4c4;
+}
 
 .delete-btn {
   background: none;
