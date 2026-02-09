@@ -30,6 +30,7 @@ export class QuizEngine {
     this.invisibleStones = new Map() // vertexKey → {sign, vertex}
     this.staleness = new Map() // vertexKey → number (turns since last questioned, cap 4)
     this.prevLibs = new Map() // vertexKey → liberty count before current move
+    this.peekGroupScores = [] // snapshot of scores used for question selection
     this.moveIndex = 0
     this.currentMove = null
     this.questionVertex = null
@@ -75,8 +76,9 @@ export class QuizEngine {
     // Remove captured invisible stones (they died on trueBoard)
     this._pruneDeadInvisible()
 
-    // Pick question by group scoring
-    this.questionVertex = this._pickQuestion()
+    // Pick question by group scoring (snapshot scores before staleness reset)
+    this.peekGroupScores = this.getGroupScores()
+    this.questionVertex = this._pickQuestionFrom(this.peekGroupScores)
 
     // Reset staleness for the chosen group
     if (this.questionVertex) {
@@ -190,8 +192,7 @@ export class QuizEngine {
     }
   }
 
-  _pickQuestion() {
-    let groups = this.getGroupScores()
+  _pickQuestionFrom(groups) {
     if (groups.length === 0) return null
 
     let maxScore = Math.max(...groups.map(g => g.score))

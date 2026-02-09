@@ -80,7 +80,7 @@ export function Quiz({ sgf, onBack }) {
 
   if (peeking) {
     // Show invisible stones as ghost stones + group scores as labels
-    let groups = engine.getGroupScores()
+    let groups = engine.peekGroupScores
     for (let group of groups) {
       for (let [x, y] of group.vertices) {
         let sign = engine.trueBoard.get([x, y])
