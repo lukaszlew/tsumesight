@@ -409,6 +409,121 @@ describe('QuizEngine', () => {
     })
   })
 
+  describe('deterministic questions (seeded PRNG)', () => {
+    it('same SGF produces same questions every time', () => {
+      let sgf = '(;SZ[9];B[ba];W[aa];B[ee];W[de])'
+      let runs = Array.from({ length: 5 }, () => {
+        let engine = new QuizEngine(sgf)
+        let questions = []
+        while (!engine.finished) {
+          engine.advance()
+          questions.push([...engine.questions])
+          for (let q of engine.questions) {
+            let libs = Math.min(engine.trueBoard.getLiberties(q).length, 5)
+            let result = engine.answer(libs)
+            if (result.done) break
+          }
+        }
+        return questions
+      })
+      for (let i = 1; i < runs.length; i++) {
+        expect(runs[i]).toEqual(runs[0])
+      }
+    })
+  })
+
+  describe('fromReplay()', () => {
+    it('replays correct answers to match normal play-through', () => {
+      let sgf = '(;SZ[9];B[ba];W[aa];B[ee];W[de])'
+      let engine = new QuizEngine(sgf)
+      let history = []
+      engine.advance()
+      while (!engine.finished) {
+        if (!engine.questionVertex) { engine.advance(); continue }
+        let libs = Math.min(engine.trueBoard.getLiberties(engine.questionVertex).length, 5)
+        let result = engine.answer(libs)
+        history.push(true)
+        if (result.done) engine.advance()
+      }
+      let replayed = QuizEngine.fromReplay(sgf, history)
+      expect(replayed.finished).toBe(true)
+      expect(replayed.correct).toBe(engine.correct)
+      expect(replayed.wrong).toBe(engine.wrong)
+      expect(replayed.results).toEqual(engine.results)
+      expect(replayed.moveProgress.length).toBe(engine.moveProgress.length)
+    })
+
+    it('replays wrong answers correctly', () => {
+      let sgf = '(;SZ[9];B[ba];W[aa])'
+      let engine = new QuizEngine(sgf)
+      engine.advance()
+      // Wrong answer on first question
+      let libs = Math.min(engine.trueBoard.getLiberties(engine.questionVertex).length, 5)
+      let wrongAnswer = libs === 1 ? 2 : 1
+      engine.answer(wrongAnswer)
+      engine.answer(libs) // retry correct
+      // Now answer remaining questions correctly
+      let history = [false]
+      while (engine.questionVertex) {
+        let l = Math.min(engine.trueBoard.getLiberties(engine.questionVertex).length, 5)
+        let result = engine.answer(l)
+        history.push(true)
+        if (result.done) break
+      }
+      engine.advance()
+      // Replay
+      let replayed = QuizEngine.fromReplay(sgf, history)
+      expect(replayed.correct).toBe(engine.correct)
+      expect(replayed.wrong).toBe(engine.wrong)
+      expect(replayed.moveIndex).toBe(engine.moveIndex)
+    })
+
+    it('replays partial history to restore mid-quiz state', () => {
+      let sgf = '(;SZ[9];B[ba];W[aa];B[ee];W[de])'
+      // Play through first move's questions, then advance to second move
+      let engine = new QuizEngine(sgf)
+      engine.advance() // move 1: B[ba], 1 question
+      let libs = Math.min(engine.trueBoard.getLiberties(engine.questionVertex).length, 5)
+      let result = engine.answer(libs)
+      expect(result.done).toBe(true)
+      engine.advance() // move 2: W[aa], 2 questions
+      // Answer first question of move 2
+      let libs2 = Math.min(engine.trueBoard.getLiberties(engine.questionVertex).length, 5)
+      engine.answer(libs2)
+      let moveIdx = engine.moveIndex
+      let correct = engine.correct
+      let qVertex = engine.questionVertex
+
+      // Replay: [true] for move 1 q1, [true] for move 2 q1
+      let replayed = QuizEngine.fromReplay(sgf, [true, true])
+      expect(replayed.moveIndex).toBe(moveIdx)
+      expect(replayed.correct).toBe(correct)
+      expect(replayed.questionVertex).toEqual(qVertex)
+    })
+
+    it('returns finished engine for complete history', () => {
+      let sgf = '(;SZ[9];B[ee])'
+      let engine = new QuizEngine(sgf)
+      engine.advance()
+      let libs = Math.min(engine.trueBoard.getLiberties(engine.questionVertex).length, 5)
+      engine.answer(libs)
+      engine.advance()
+      expect(engine.finished).toBe(true)
+
+      let replayed = QuizEngine.fromReplay(sgf, [true])
+      expect(replayed.finished).toBe(true)
+    })
+
+    it('handles empty history (same as fresh engine after advance)', () => {
+      let sgf = '(;SZ[9];B[ee];W[dd])'
+      let fresh = new QuizEngine(sgf)
+      fresh.advance()
+      let replayed = QuizEngine.fromReplay(sgf, [])
+      expect(replayed.moveIndex).toBe(fresh.moveIndex)
+      expect(replayed.questionVertex).toEqual(fresh.questionVertex)
+    })
+  })
+
   describe('multi-question per move', () => {
     it('asks about all groups with changed liberties', () => {
       // B[ba] then W[aa] — adjacent, both groups change libs

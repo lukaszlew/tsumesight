@@ -3,12 +3,29 @@ import { Goban } from '@sabaki/shudan'
 import { QuizEngine } from './engine.js'
 import { playCorrect, playWrong, playComplete, isSoundEnabled, toggleSound } from './sounds.js'
 
+const HISTORY_KEY = 'quizHistory'
+
+function loadHistory(quizKey) {
+  let saved = sessionStorage.getItem(HISTORY_KEY)
+  if (!saved) return null
+  try {
+    let data = JSON.parse(saved)
+    return data.key === quizKey ? data.history : null
+  } catch { return null }
+}
+
+function saveHistory(quizKey, history) {
+  sessionStorage.setItem(HISTORY_KEY, JSON.stringify({ key: quizKey, history }))
+}
+
 function makeEmptyMap(size, fill = null) {
   return Array.from({ length: size }, () => Array(size).fill(fill))
 }
 
-export function Quiz({ sgf, onBack, onSolved, onLoadError, onPrev, onNext, onNextUnsolved, onRetry, fileIndex, fileTotal }) {
+export function Quiz({ sgf, quizKey, onBack, onSolved, onLoadError, onPrev, onNext, onNextUnsolved, onRetry, fileIndex, fileTotal }) {
   let engineRef = useRef(null)
+  let historyRef = useRef([])
+  let solvedRef = useRef(false)
   let [, forceRender] = useState(0)
   let rerender = () => forceRender(n => n + 1)
   let [peeking, setPeeking] = useState(false)
@@ -17,12 +34,23 @@ export function Quiz({ sgf, onBack, onSolved, onLoadError, onPrev, onNext, onNex
   let boardContainerRef = useRef(null)
   let [error, setError] = useState(null)
 
-  // Initialize engine once
+  // Initialize engine once (possibly replaying saved history)
   if (!engineRef.current && !error) {
     try {
-      engineRef.current = new QuizEngine(sgf)
-      engineRef.current.advance()
+      let saved = loadHistory(quizKey)
+      if (saved && saved.length > 0) {
+        engineRef.current = QuizEngine.fromReplay(sgf, saved)
+        historyRef.current = [...saved]
+        if (engineRef.current.finished) {
+          solvedRef.current = true
+          onSolved(engineRef.current.correct, engineRef.current.results.length)
+        }
+      } else {
+        engineRef.current = new QuizEngine(sgf)
+        engineRef.current.advance()
+      }
     } catch (e) {
+      sessionStorage.removeItem(HISTORY_KEY)
       setError(e.message)
     }
   }
@@ -40,8 +68,6 @@ export function Quiz({ sgf, onBack, onSolved, onLoadError, onPrev, onNext, onNex
     )
   }
 
-  let solvedRef = useRef(false)
-
   let checkFinished = () => {
     if (engine.finished && !solvedRef.current) {
       solvedRef.current = true
@@ -52,8 +78,11 @@ export function Quiz({ sgf, onBack, onSolved, onLoadError, onPrev, onNext, onNex
 
   let submitAnswer = useCallback((liberties) => {
     if (!engine.questionVertex) return
+    let wasRetrying = engine.retrying
     let result = engine.answer(liberties)
     if (result.correct) {
+      historyRef.current.push(!wasRetrying)
+      saveHistory(quizKey, historyRef.current)
       playCorrect()
       if (result.done) engine.advance()
     } else {

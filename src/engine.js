@@ -1,6 +1,22 @@
 import Board from '@sabaki/go-board'
 import { parseSgf, computeRange } from './sgf-utils.js'
 
+function mulberry32(seed) {
+  return function() {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed)
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t
+    return ((t ^ t >>> 14) >>> 0) / 4294967296
+  }
+}
+
+function hashString(str) {
+  let hash = 0
+  for (let i = 0; i < str.length; i++)
+    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0
+  return hash
+}
+
 function vertexKey([x, y]) {
   return `${x},${y}`
 }
@@ -17,6 +33,7 @@ function libertyBonus(libCount) {
 
 export class QuizEngine {
   constructor(sgfString, _precompute = true) {
+    this.random = mulberry32(hashString(sgfString))
     let parsed = parseSgf(sgfString)
     this.boardSize = parsed.boardSize
     this.moves = parsed.moves.filter(m => m.vertex != null) // skip passes
@@ -117,7 +134,7 @@ export class QuizEngine {
     pool.sort((a, b) => b.score - a.score)
 
     this.questions = pool.map(g =>
-      g.vertices[Math.floor(Math.random() * g.vertices.length)]
+      g.vertices[Math.floor(this.random() * g.vertices.length)]
     )
 
     // Always ask about just-played stone first
@@ -270,6 +287,25 @@ export class QuizEngine {
         this.invisibleStones.delete(key)
       }
     }
+  }
+
+  static fromReplay(sgfString, history) {
+    let engine = new QuizEngine(sgfString)
+    engine.advance()
+    for (let wasCorrectFirst of history) {
+      if (!engine.questionVertex) break
+      let trueLiberties = Math.min(engine.trueBoard.getLiberties(engine.questionVertex).length, 5)
+      if (wasCorrectFirst) {
+        let result = engine.answer(trueLiberties)
+        if (result.done) engine.advance()
+      } else {
+        let wrongAnswer = trueLiberties === 1 ? 2 : 1
+        engine.answer(wrongAnswer)
+        let result = engine.answer(trueLiberties)
+        if (result.done) engine.advance()
+      }
+    }
+    return engine
   }
 
 }
