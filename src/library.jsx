@@ -16,10 +16,10 @@ async function collectSgfFiles(dirHandle, path) {
   return results
 }
 
-export function Library({ onSelect }) {
+export function Library({ onSelect, initialPath = '' }) {
   let [sgfs, setSgfs] = useState([])
   let [loading, setLoading] = useState(true)
-  let [cwd, setCwd] = useState('')
+  let [cwd, setCwd] = useState(initialPath)
 
   let refresh = async () => {
     let all = await getAllSgfs()
@@ -29,7 +29,7 @@ export function Library({ onSelect }) {
 
   useEffect(() => { refresh() }, [])
 
-  let addParsedFile = async (file, path) => {
+  let addParsedFile = async (file, path, uploadedAt) => {
     try {
       let content = await file.text()
       let parsed = parseSgf(content)
@@ -41,6 +41,7 @@ export function Library({ onSelect }) {
         moveCount: parsed.moveCount,
         playerBlack: parsed.playerBlack,
         playerWhite: parsed.playerWhite,
+        uploadedAt,
       })
     } catch {
       console.warn('Skipping unparseable SGF:', file.name)
@@ -49,7 +50,8 @@ export function Library({ onSelect }) {
 
   let handleFiles = async (e) => {
     let files = Array.from(e.target.files).filter(f => f.name.endsWith('.sgf'))
-    for (let file of files) await addParsedFile(file, '')
+    let now = Date.now()
+    for (let file of files) await addParsedFile(file, '', now)
     e.target.value = ''
     refresh()
   }
@@ -57,7 +59,8 @@ export function Library({ onSelect }) {
   let handleFolder = async () => {
     let dirHandle = await window.showDirectoryPicker()
     let entries = await collectSgfFiles(dirHandle, dirHandle.name)
-    for (let { file, path } of entries) await addParsedFile(file, path)
+    let now = Date.now()
+    for (let { file, path } of entries) await addParsedFile(file, path, now)
     refresh()
   }
 
@@ -75,8 +78,9 @@ export function Library({ onSelect }) {
     refresh()
   }
 
-  // Files in current directory
+  // Files in current directory, sorted by upload date then filename
   let filesHere = sgfs.filter(s => (s.path || '') === cwd)
+    .sort((a, b) => (a.uploadedAt || 0) - (b.uploadedAt || 0) || a.filename.localeCompare(b.filename))
 
   // Subdirectories of current directory
   let subdirs = new Set()
@@ -125,13 +129,17 @@ export function Library({ onSelect }) {
 
       {cwd && (
         <div class="breadcrumbs">
-          <span class="crumb" onClick={() => setCwd('')}>root</span>
+          <span class="crumb" onClick={() => setCwd('')}>⌂</span>
           {crumbs.map((c, i) => (
             <span key={i}>
-              {' / '}
-              <span class="crumb" onClick={() => setCwd(crumbs.slice(0, i + 1).join('/'))}>{c}</span>
+              <span class="crumb-sep">›</span>
+              <span class={i === crumbs.length - 1 ? 'crumb-current' : 'crumb'}
+                onClick={() => setCwd(crumbs.slice(0, i + 1).join('/'))}>
+                {c}
+              </span>
             </span>
           ))}
+          <span class="dir-stats">{filesHere.filter(s => s.solved).length}/{filesHere.length}</span>
         </div>
       )}
 
@@ -148,8 +156,7 @@ export function Library({ onSelect }) {
               <th>Name</th>
               <th>Size</th>
               <th>Moves</th>
-              <th>Black</th>
-              <th>White</th>
+              <th>Score</th>
               <th></th>
             </tr>
           </thead>
@@ -158,10 +165,10 @@ export function Library({ onSelect }) {
               <tr key={'d:' + d} onClick={() => setCwd(prefix + d)} class="sgf-row dir-row">
                 <td>📁 {d}</td>
                 <td></td>
+                <td></td>
                 <td>{dirStats[d].solved}/{dirStats[d].total}</td>
-                <td></td><td></td>
                 <td>
-                  <button class="delete-btn" onClick={(e) => handleDeleteDir(e, prefix + d, d)}>✕</button>
+                  <button class="delete-btn" onClick={(e) => handleDeleteDir(e, prefix + d, d)}>🗑</button>
                 </td>
               </tr>
             ))}
@@ -170,10 +177,9 @@ export function Library({ onSelect }) {
                 <td>{s.solved ? '✓ ' : ''}{s.filename}</td>
                 <td>{s.boardSize}×{s.boardSize}</td>
                 <td>{s.moveCount}</td>
-                <td>{s.playerBlack || '—'}</td>
-                <td>{s.playerWhite || '—'}</td>
+                <td>{s.total ? `${s.correct}/${s.total}` : '—'}</td>
                 <td>
-                  <button class="delete-btn" onClick={(e) => handleDelete(e, s.id, s.filename)}>✕</button>
+                  <button class="delete-btn" onClick={(e) => handleDelete(e, s.id, s.filename)}>🗑</button>
                 </td>
               </tr>
             ))}

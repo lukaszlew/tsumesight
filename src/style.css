@@ -74,15 +74,38 @@ body {
 
 .breadcrumbs {
   margin-bottom: 1rem;
-  font-size: 0.9rem;
-  color: #888;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
-.crumb {
+.breadcrumbs .crumb,
+.breadcrumbs .crumb-current {
+  padding: 0.2rem 0.5rem;
+  border-radius: 3px;
   cursor: pointer;
-  color: #6af;
 }
-.crumb:hover {
-  text-decoration: underline;
+.breadcrumbs .crumb {
+  color: #6af;
+  background: #1a2a3a;
+}
+.breadcrumbs .crumb:hover {
+  background: #253d54;
+}
+.breadcrumbs .crumb-current {
+  color: #ddd;
+  background: #333;
+}
+.breadcrumbs .crumb-current:hover {
+  background: #444;
+}
+.crumb-sep {
+  color: #555;
+  margin: 0 0.1rem;
+}
+.dir-stats {
+  margin-left: auto;
+  color: #999;
 }
 .dir-row td {
   color: #aaa;

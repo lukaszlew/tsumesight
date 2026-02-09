@@ -23,6 +23,7 @@ export function App() {
   function selectSgf({ id, content, path }) {
     let val = { id, content, path }
     sessionStorage.setItem('activeSgf', JSON.stringify(val))
+    sessionStorage.setItem('lastPath', path)
     setActive(val)
     refreshPosition(id, path)
   }
@@ -37,15 +38,15 @@ export function App() {
     if (active) refreshPosition(active.id, active.path)
   }, [])
 
-  function markSolved() {
-    if (active.id) updateSgf(active.id, { solved: true })
+  function markSolved(correct, total) {
+    if (active.id) updateSgf(active.id, { solved: true, correct, total })
   }
 
   async function getSiblings(path) {
     let all = await getAllSgfs()
     return all
       .filter(s => (s.path || '') === (path || ''))
-      .sort((a, b) => a.filename.localeCompare(b.filename))
+      .sort((a, b) => (a.uploadedAt || 0) - (b.uploadedAt || 0) || a.filename.localeCompare(b.filename))
   }
 
   async function goStep(delta) {
@@ -76,5 +77,5 @@ export function App() {
       onRetry={() => setAttempt(a => a + 1)}
       fileIndex={position?.index} fileTotal={position?.total} />
   }
-  return <Library onSelect={selectSgf} />
+  return <Library onSelect={selectSgf} initialPath={sessionStorage.getItem('lastPath') || ''} />
 }

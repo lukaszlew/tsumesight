@@ -43,7 +43,7 @@ export function Quiz({ sgf, onBack, onSolved, onPrev, onNext, onNextUnsolved, on
   let checkFinished = () => {
     if (engine.finished && !solvedRef.current) {
       solvedRef.current = true
-      onSolved()
+      onSolved(engine.correct, engine.results.length)
       playComplete()
     }
   }
@@ -169,7 +169,6 @@ function SummaryPanel({ engine, onBack, onRetry, onNextUnsolved }) {
       <div class="summary-wrong">Wrong: {engine.wrong}</div>
       <div>Accuracy: {pct}%</div>
       <hr />
-      <button class="back-btn" onClick={onBack}>Back</button>
       <button class="back-btn" onClick={onRetry}>Retry</button>
       <button class="back-btn" onClick={onNextUnsolved}>Next Unsolved</button>
     </div>
