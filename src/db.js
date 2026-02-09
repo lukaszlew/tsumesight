@@ -41,3 +41,21 @@ export async function deleteSgf(id) {
   let db = await openDb()
   return promisify(tx(db, 'readwrite').delete(id))
 }
+
+export async function deleteSgfsByPrefix(prefix) {
+  let db = await openDb()
+  let all = await promisify(tx(db, 'readonly').getAll())
+  let store = tx(db, 'readwrite')
+  let count = 0
+  for (let s of all) {
+    let p = s.path || ''
+    if (p === prefix || p.startsWith(prefix + '/')) {
+      store.delete(s.id)
+      count++
+    }
+  }
+  return new Promise((resolve, reject) => {
+    store.transaction.oncomplete = () => resolve(count)
+    store.transaction.onerror = () => reject(store.transaction.error)
+  })
+}

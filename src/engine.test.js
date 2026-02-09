@@ -412,4 +412,57 @@ describe('QuizEngine', () => {
       expect(engine.staleness.size).toBe(0)
     })
   })
+
+  describe('multi-question per move', () => {
+    it('asks about all groups with changed liberties', () => {
+      // B[ba] then W[aa] — adjacent, both groups change libs
+      let engine = new QuizEngine('(;SZ[9];B[ba];W[aa])')
+      engine.advance() // B[ba] — 1 question (only stone)
+      expect(engine.questions.length).toBe(1)
+      engine.advance() // W[aa] — adjacent to B[ba], both changed libs
+      expect(engine.questions.length).toBe(2)
+    })
+
+    it('answer returns done only after last question', () => {
+      let engine = new QuizEngine('(;SZ[9];B[ba];W[aa])')
+      engine.advance() // B[ba]
+      let r1 = engine.answer(3) // B[ba] has 3 libs
+      expect(r1.done).toBe(true)
+      engine.advance() // W[aa] — 2 questions
+      // First answer
+      let r2 = engine.answer(engine.trueBoard.getLiberties(engine.questionVertex).length)
+      expect(r2.done).toBe(false)
+      // Second answer
+      let r3 = engine.answer(engine.trueBoard.getLiberties(engine.questionVertex).length)
+      expect(r3.done).toBe(true)
+    })
+
+    it('advances questionVertex through the queue', () => {
+      let engine = new QuizEngine('(;SZ[9];B[ba];W[aa])')
+      engine.advance() // B[ba]
+      engine.advance() // W[aa] — 2 questions
+      let q1 = engine.questionVertex
+      engine.answer(engine.trueBoard.getLiberties(q1).length)
+      let q2 = engine.questionVertex
+      expect(q1).not.toEqual(q2)
+      expect(q2).not.toBe(null)
+    })
+
+    it('non-adjacent moves produce single question', () => {
+      let engine = new QuizEngine('(;SZ[9];B[aa];W[ii])')
+      engine.advance() // B[aa]
+      expect(engine.questions.length).toBe(1)
+      engine.advance() // W[ii] — far away
+      expect(engine.questions.length).toBe(1)
+    })
+
+    it('resets staleness for all questioned groups', () => {
+      let engine = new QuizEngine('(;SZ[9];B[ba];W[aa])')
+      engine.advance() // B[ba]
+      engine.advance() // W[aa] — 2 questions, both get staleness -1
+      expect(engine.staleness.get('1,0')).toBe(-1) // B[ba]
+      expect(engine.staleness.get('0,0')).toBe(-1) // W[aa]
+    })
+  })
+
 })

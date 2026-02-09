@@ -37,6 +37,8 @@ export class QuizEngine {
     this.peekGroupScores = [] // snapshot of scores used for question selection
     this.moveIndex = 0
     this.currentMove = null
+    this.questions = []
+    this.questionIndex = 0
     this.questionVertex = null
     this.correct = 0
     this.wrong = 0
@@ -49,6 +51,8 @@ export class QuizEngine {
     if (this.moveIndex >= this.totalMoves) {
       this.finished = true
       this.currentMove = null
+      this.questions = []
+      this.questionIndex = 0
       this.questionVertex = null
       return null
     }
@@ -78,6 +82,8 @@ export class QuizEngine {
       this.moveIndex = this.totalMoves
       this.finished = true
       this.currentMove = null
+      this.questions = []
+      this.questionIndex = 0
       this.questionVertex = null
       return null
     }
@@ -90,13 +96,21 @@ export class QuizEngine {
     // Remove captured invisible stones (they died on trueBoard)
     this._pruneDeadInvisible()
 
-    // Pick question by group scoring (snapshot scores before staleness reset)
+    // Build question queue: all groups with changed liberties
     this.peekGroupScores = this.getGroupScores()
-    this.questionVertex = this._pickQuestionFrom(this.peekGroupScores)
+    let pool = this.peekGroupScores.filter(g => g.libsChanged)
+    if (pool.length === 0) pool = [...this.peekGroupScores]
+    pool.sort((a, b) => b.score - a.score)
 
-    // Reset staleness for the chosen group
-    if (this.questionVertex) {
-      let chain = this.trueBoard.getChain(this.questionVertex)
+    this.questions = pool.map(g =>
+      g.vertices[Math.floor(Math.random() * g.vertices.length)]
+    )
+    this.questionIndex = 0
+    this.questionVertex = this.questions[0] || null
+
+    // Reset staleness for all questioned groups
+    for (let qv of this.questions) {
+      let chain = this.trueBoard.getChain(qv)
       for (let v of chain) {
         let k = vertexKey(v)
         if (this.staleness.has(k)) this.staleness.set(k, -1)
@@ -128,7 +142,13 @@ export class QuizEngine {
     }
     this.results.push(isCorrect)
 
-    return { correct: isCorrect, trueLiberties }
+    this.questionIndex++
+    this.questionVertex = this.questionIndex < this.questions.length
+      ? this.questions[this.questionIndex]
+      : null
+    let done = this.questionIndex >= this.questions.length
+
+    return { correct: isCorrect, trueLiberties, done }
   }
 
   materialize() {
@@ -212,19 +232,6 @@ export class QuizEngine {
     }
   }
 
-  _pickQuestionFrom(groups) {
-    if (groups.length === 0) return null
-
-    // Only consider groups whose libs changed (current move always qualifies)
-    // If current move was captured, pool may be empty — use all groups
-    let pool = groups.filter(g => g.libsChanged)
-    if (pool.length === 0) pool = groups
-
-    let maxScore = Math.max(...pool.map(g => g.score))
-    let best = pool.filter(g => g.score === maxScore)
-    let chosen = best[Math.floor(Math.random() * best.length)]
-    return chosen.vertices[Math.floor(Math.random() * chosen.vertices.length)]
-  }
 }
 
 function assert(condition, msg) {

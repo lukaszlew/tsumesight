@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'preact/hooks'
-import { getAllSgfs, addSgf, deleteSgf } from './db.js'
+import { getAllSgfs, addSgf, deleteSgf, deleteSgfsByPrefix } from './db.js'
 import { parseSgf } from './sgf-utils.js'
 
 async function collectSgfFiles(dirHandle, path) {
@@ -61,9 +61,17 @@ export function Library({ onSelect }) {
     refresh()
   }
 
-  let handleDelete = async (e, id) => {
+  let handleDelete = async (e, id, name) => {
     e.stopPropagation()
+    if (!confirm(`Delete "${name}"?`)) return
     await deleteSgf(id)
+    refresh()
+  }
+
+  let handleDeleteDir = async (e, dirPath, dirName) => {
+    e.stopPropagation()
+    if (!confirm(`Delete folder "${dirName}" and all its contents?`)) return
+    await deleteSgfsByPrefix(dirPath)
     refresh()
   }
 
@@ -134,7 +142,10 @@ export function Library({ onSelect }) {
             {sortedDirs.map(d => (
               <tr key={'d:' + d} onClick={() => setCwd(prefix + d)} class="sgf-row dir-row">
                 <td>📁 {d}</td>
-                <td></td><td></td><td></td><td></td><td></td>
+                <td></td><td></td><td></td><td></td>
+                <td>
+                  <button class="delete-btn" onClick={(e) => handleDeleteDir(e, prefix + d, d)}>✕</button>
+                </td>
               </tr>
             ))}
             {filesHere.map(s => (
@@ -145,7 +156,7 @@ export function Library({ onSelect }) {
                 <td>{s.playerBlack || '—'}</td>
                 <td>{s.playerWhite || '—'}</td>
                 <td>
-                  <button class="delete-btn" onClick={(e) => handleDelete(e, s.id)}>✕</button>
+                  <button class="delete-btn" onClick={(e) => handleDelete(e, s.id, s.filename)}>✕</button>
                 </td>
               </tr>
             ))}

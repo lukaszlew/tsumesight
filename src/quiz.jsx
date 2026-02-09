@@ -41,7 +41,7 @@ export function Quiz({ sgf, onBack }) {
     let result = engine.answer(liberties)
     if (result.correct) playCorrect()
     else playWrong()
-    engine.advance()
+    if (result.done) engine.advance()
     rerender()
   }, [])
 
@@ -107,10 +107,12 @@ export function Quiz({ sgf, onBack }) {
       markerMap[y][x] = { type: 'label', label: String(group.score) }
     }
   } else {
-    // Question vertex: ❓ marker
-    if (engine.questionVertex) {
-      let [x, y] = engine.questionVertex
-      markerMap[y][x] = { type: 'label', label: '❓' }
+    // Show all pending question vertices
+    for (let i = engine.questionIndex; i < engine.questions.length; i++) {
+      let [x, y] = engine.questions[i]
+      markerMap[y][x] = i === engine.questionIndex
+        ? { type: 'label', label: '❓' }
+        : { type: 'point' }
     }
     // Last wrong answer: show correct liberty count on that stone
     if (engine.lastWrong) {
@@ -124,6 +126,8 @@ export function Quiz({ sgf, onBack }) {
       <TopBar
         moveIndex={engine.moveIndex}
         totalMoves={engine.totalMoves}
+        questionIndex={engine.questionIndex}
+        questionCount={engine.questions.length}
         onBack={onBack}
       />
 
@@ -156,12 +160,15 @@ export function Quiz({ sgf, onBack }) {
   )
 }
 
-function TopBar({ moveIndex, totalMoves, onBack }) {
+function TopBar({ moveIndex, totalMoves, questionIndex, questionCount, onBack }) {
   let [soundOn, setSoundOn] = useState(isSoundEnabled())
   return (
     <div class="top-bar">
       <button class="back-btn small" onClick={onBack}>←</button>
-      <span class="move-counter">Move {moveIndex} / {totalMoves}</span>
+      <span class="move-counter">
+        Move {moveIndex} / {totalMoves}
+        {questionCount > 1 && ` · Q ${questionIndex + 1}/${questionCount}`}
+      </span>
       <button class="sound-toggle" onClick={() => setSoundOn(toggleSound())}>
         {soundOn ? '🔊' : '🔇'}
       </button>

@@ -4,7 +4,14 @@ import sgf from '@sabaki/sgf'
 function walkMainLine(node) {
   let nodes = [node]
   while (node.children && node.children.length > 0) {
-    node = node.children[0]
+    // Prefer children[0], but if it has no move, find one that does
+    // (some tsumego SGFs put a comment-only node as children[0])
+    let next = node.children[0]
+    if (!next.data.B && !next.data.W) {
+      let moveChild = node.children.find(c => c.data.B || c.data.W)
+      if (moveChild) next = moveChild
+    }
+    node = next
     nodes.push(node)
   }
   return nodes

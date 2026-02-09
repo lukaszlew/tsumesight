@@ -66,4 +66,12 @@ describe('parseSgf', () => {
   it('throws on empty input', () => {
     expect(() => parseSgf('')).toThrow()
   })
+
+  it('follows first move-bearing child when children[0] is comment-only (Maeda format)', () => {
+    // Maeda-style: root has setup, children[0] is comment-only, children[1] has moves
+    let maedaSgf = '(;SZ[19]AB[dj][dk]AW[bk][ck](;C[Problem description])(;B[aj];W[ag];B[ai]))'
+    let result = parseSgf(maedaSgf)
+    expect(result.moveCount).toBe(3)
+    expect(result.moves[0]).toEqual({ sign: 1, vertex: expect.any(Array) })
+  })
 })
