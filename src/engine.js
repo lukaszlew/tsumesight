@@ -371,22 +371,38 @@ export class QuizEngine {
   _findComparisonPairs() {
     let groups = this.getGroupScores()
 
+    // Mark permanent groups (adjacent to empty buffer at edge of boardRange)
+    let permanent = new Set()
+    let r = this.boardRange
+    if (r) {
+      let [minX, minY, maxX, maxY] = r
+      let s = this.boardSize
+      for (let i = 0; i < groups.length; i++) {
+        if (groups[i].vertices.some(([x, y]) =>
+          (x === minX + 1 && minX > 0) || (x === maxX - 1 && maxX < s - 1) ||
+          (y === minY + 1 && minY > 0) || (y === maxY - 1 && maxY < s - 1)
+        )) permanent.add(i)
+      }
+    }
+
     // Map vertex → group index
     let vertexToGroup = new Map()
     for (let i = 0; i < groups.length; i++)
       for (let v of groups[i].vertices)
         vertexToGroup.set(vertexKey(v), i)
 
-    // Find adjacent pairs of different color
+    // Find adjacent pairs of different color, excluding permanent groups
     let seen = new Set()
     let pairs = []
     for (let i = 0; i < groups.length; i++) {
+      if (permanent.has(i)) continue
       let ga = groups[i]
       let signA = this.trueBoard.get(ga.vertices[0])
       for (let [x, y] of ga.vertices) {
         for (let [nx, ny] of [[x-1,y],[x+1,y],[x,y-1],[x,y+1]]) {
           let j = vertexToGroup.get(vertexKey([nx, ny]))
           if (j === undefined || j === i) continue
+          if (permanent.has(j)) continue
           let pairKey = i < j ? `${i}-${j}` : `${j}-${i}`
           if (seen.has(pairKey)) continue
           seen.add(pairKey)
@@ -397,9 +413,13 @@ export class QuizEngine {
           let libsA = ga.liberties, libsB = gb.liberties
           if (Math.abs(libsA - libsB) > 2) continue
           if (!ga.libsChanged && !gb.libsChanged) continue
-          let v1 = ga.vertices[Math.floor(this.random() * ga.vertices.length)]
-          let v2 = gb.vertices[Math.floor(this.random() * gb.vertices.length)]
-          pairs.push({ v1, v2, libs1: libsA, libs2: libsB })
+          let va = ga.vertices[Math.floor(this.random() * ga.vertices.length)]
+          let vb = gb.vertices[Math.floor(this.random() * gb.vertices.length)]
+          // Label "1" left/above, "3" right/below
+          let swap = vb[0] < va[0] || (vb[0] === va[0] && vb[1] < va[1])
+          let [v1, v2] = swap ? [vb, va] : [va, vb]
+          let [libs1, libs2] = swap ? [libsB, libsA] : [libsA, libsB]
+          pairs.push({ v1, v2, libs1, libs2 })
         }
       }
     }

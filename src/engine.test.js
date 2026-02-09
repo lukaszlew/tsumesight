@@ -525,9 +525,9 @@ describe('QuizEngine', () => {
   })
 
   describe('comparison mode', () => {
-    // After W[aa]: W chain [0,0]+[0,1] has 2 libs, B[ba]=[1,0] has 2 libs
-    // They share liberty [1,1]
-    let compSgf = '(;SZ[9]AW[ab];B[ba];W[aa])'
+    // B[ee]=[4,4] then W[de]=[3,4]: directly adjacent, different colors
+    // No setup stones → boardRange=null → no permanent filter
+    let compSgf = '(;SZ[9];B[ee];W[de])'
 
     it('constructor accepts mode parameter', () => {
       let engine = new QuizEngine(compSgf, 'comparison')
