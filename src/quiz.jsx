@@ -62,29 +62,9 @@ export function Quiz({ sgf, onBack }) {
     }
   }, [submitAnswer])
 
-  // End of game summary
-  if (engine.finished) {
-    let total = engine.results.length
-    let pct = total > 0 ? Math.round(engine.correct / total * 100) : 0
-    return (
-      <div class="quiz">
-        <div class="summary-overlay">
-          <h2>Quiz Complete</h2>
-          <div class="summary-stats">
-            <div>Total moves: {total}</div>
-            <div class="summary-correct">Correct: {engine.correct}</div>
-            <div class="summary-wrong">Wrong: {engine.wrong}</div>
-            <div>Accuracy: {pct}%</div>
-          </div>
-          <button class="back-btn" onClick={onBack}>Back to Library</button>
-        </div>
-      </div>
-    )
-  }
-
   // Build display maps
   let size = engine.boardSize
-  let signMap = engine.getDisplaySignMap()
+  let signMap = engine.finished ? engine.trueBoard.signMap : engine.getDisplaySignMap()
   let markerMap = makeEmptyMap(size)
   let ghostStoneMap = makeEmptyMap(size)
 
@@ -150,10 +130,11 @@ export function Quiz({ sgf, onBack }) {
           />
         </div>
 
-        {peeking && <ScoringRules />}
+        {peeking && !engine.finished && <ScoringRules />}
+        {engine.finished && <SummaryPanel engine={engine} onBack={onBack} />}
       </div>
 
-      <AnswerButtons onLiberties={submitAnswer} />
+      {!engine.finished && <AnswerButtons onLiberties={submitAnswer} />}
 
       <FeedbackStrip results={engine.results} />
     </div>
@@ -172,6 +153,22 @@ function TopBar({ moveIndex, totalMoves, questionIndex, questionCount, onBack })
       <button class="sound-toggle" onClick={() => setSoundOn(toggleSound())}>
         {soundOn ? '🔊' : '🔇'}
       </button>
+    </div>
+  )
+}
+
+function SummaryPanel({ engine, onBack }) {
+  let total = engine.results.length
+  let pct = total > 0 ? Math.round(engine.correct / total * 100) : 0
+  return (
+    <div class="summary-panel">
+      <div class="scoring-title">Quiz Complete</div>
+      <div>Moves: {total}</div>
+      <div class="summary-correct">Correct: {engine.correct}</div>
+      <div class="summary-wrong">Wrong: {engine.wrong}</div>
+      <div>Accuracy: {pct}%</div>
+      <hr />
+      <button class="back-btn" onClick={onBack}>Back</button>
     </div>
   )
 }

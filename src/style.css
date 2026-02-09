@@ -265,19 +265,26 @@ body {
   font-weight: 700;
 }
 
-/* Summary overlay */
+/* Summary panel (side of board) */
 
-.summary-overlay {
-  text-align: center;
-  padding: 3rem 2rem;
+.summary-panel {
+  position: absolute;
+  left: 100%;
+  top: 0;
+  margin-left: 0.75rem;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 0.75rem;
+  font-size: 0.9rem;
+  color: #ccc;
+  line-height: 1.8;
+  white-space: nowrap;
 }
-.summary-overlay h2 {
-  margin-bottom: 1.5rem;
-}
-.summary-stats {
-  font-size: 1.2rem;
-  line-height: 2;
-  margin-bottom: 2rem;
+.summary-panel hr {
+  border: none;
+  border-top: 1px solid #444;
+  margin: 0.4rem 0;
 }
 .summary-correct {
   color: #4c4;
