@@ -78,6 +78,38 @@ export function Library({ onSelect, initialPath = '' }) {
     refresh()
   }
 
+  let handleUrl = async (e) => {
+    e.preventDefault()
+    let input = e.target.elements.url
+    let url = input.value.trim()
+    if (!url) return
+    try {
+      let resp = await fetch(url)
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+      let filename = url.split('/').pop().split('?')[0] || 'download.sgf'
+      let blob = await resp.blob()
+      let file = new File([blob], filename)
+      let now = Date.now()
+      if (isArchive(filename)) {
+        let entries = await extractSgfs(file)
+        let archiveName = filename.replace(/\.(zip|tar\.gz|tgz|tar)$/i, '')
+        for (let { name, content } of entries) {
+          let parts = name.split('/')
+          let fname = parts.pop()
+          let path = archiveName + (parts.length ? '/' + parts.join('/') : '')
+          await addParsedContent(fname, path, content, now)
+        }
+      } else {
+        let content = await file.text()
+        await addParsedContent(filename, '', content, now)
+      }
+      input.value = ''
+      refresh()
+    } catch (err) {
+      alert(`Failed to fetch: ${err.message}\n\nThe server may block cross-origin requests. Try downloading the file and uploading it instead.`)
+    }
+  }
+
   let handleDelete = async (e, id, name) => {
     e.stopPropagation()
     if (!confirm(`Delete "${name}"?`)) return
@@ -139,7 +171,12 @@ export function Library({ onSelect, initialPath = '' }) {
         <button class="upload-btn" onClick={handleFolder}>
           Upload folder
         </button>
+        <span class="upload-hint">SGF, ZIP, tar.gz</span>
       </div>
+      <form class="url-row" onSubmit={handleUrl}>
+        <input class="url-input" type="text" placeholder="Paste URL to SGF or archive..." name="url" />
+        <button class="upload-btn" type="submit">Fetch</button>
+      </form>
 
       {cwd && (
         <div class="breadcrumbs">
