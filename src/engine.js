@@ -423,6 +423,18 @@ export class QuizEngine {
         }
       }
     }
+    // If >3 pairs, drop random diff-2 pairs until ≤3
+    if (pairs.length > 3) {
+      let diff2 = pairs.filter(p => Math.abs(p.libs1 - p.libs2) === 2)
+      let keep = pairs.filter(p => Math.abs(p.libs1 - p.libs2) <= 1)
+      // Shuffle diff2 and add back until we hit 3
+      for (let i = diff2.length - 1; i > 0; i--) {
+        let j = Math.floor(this.random() * (i + 1));
+        [diff2[i], diff2[j]] = [diff2[j], diff2[i]]
+      }
+      while (keep.length < 3 && diff2.length > 0) keep.push(diff2.pop())
+      pairs = keep
+    }
     return pairs
   }
 

@@ -274,6 +274,32 @@ body {
 .check-empty {
   border: 1px solid #555;
 }
+.check-skip {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  position: relative;
+}
+.check-skip::before,
+.check-skip::after {
+  content: '';
+  position: absolute;
+  background: #555;
+}
+.check-skip::before {
+  width: 8px;
+  height: 1px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+.check-skip::after {
+  width: 8px;
+  height: 1px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
 .check-done {
   background: #4c4;
 }
@@ -292,38 +318,53 @@ body {
   --shudan-board-background-color: #dcb35c;
   --shudan-board-border-color: #b8923a;
 }
+.shudan-goban-image {
+  background-image: none;
+}
 .shudan-vertex .shudan-ghost,
 .shudan-vertex .shudan-ghost::before {
   width: .88em;
   height: .88em;
 }
-.shudan-vertex.shudan-marker_label.shudan-sign_0 .shudan-marker {
-  background: var(--shudan-board-background-color, #dcb35c);
+/* Comparison labels: wood circle only on empty intersections (below grid lines) */
+.shudan-vertex.shudan-marker_label.shudan-sign_0::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: .6em;
+  height: .6em;
+  transform: translate(-50%, -50%);
   border-radius: 50%;
-  font-size: .77em;
+  background: var(--shudan-board-background-color, #dcb35c);
 }
-/* Comparison labels: single color on all backgrounds */
 .shudan-vertex.shudan-marker_label .shudan-marker {
-  color: #f33;
+  color: #f33 !important;
+  background: transparent !important;
   font-weight: bold;
   font-size: .55em;
+  -webkit-text-stroke: .02em rgba(0,0,0,.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translate(-50%, -50%);
 }
 
 /* Answer buttons */
 
 .answer-buttons {
   display: flex;
-  gap: 0.4rem;
-  background: #222;
-  border: 1px solid #444;
-  border-radius: 6px;
-  padding: 0.3rem;
+  gap: 0.5rem;
+  justify-content: center;
 }
 .ans-btn {
-  flex: 1;
-  padding: 0.6rem 0;
-  font-size: 1.2rem;
+  width: 3rem;
+  height: 3rem;
+  font-size: 0.95rem;
   font-weight: bold;
+  color: #f33;
+  -webkit-text-stroke: .02em rgba(0,0,0,.25);
+  border-radius: 50%;
 }
 
 /* Summary panel (side of board) */

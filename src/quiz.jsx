@@ -140,8 +140,8 @@ export function Quiz({ sgf, quizKey, onBack, onSolved, onProgress, onLoadError, 
   useEffect(() => {
     let el = boardContainerRef.current
     if (!el) return
-    let maxW = Math.min(560, el.offsetWidth)
-    let maxH = 560
+    let maxW = Math.min(window.innerWidth - 32, 480)
+    let maxH = maxW
     setVertexSize(Math.max(1, Math.floor(Math.min(maxW / (cols + 1), maxH / (rows + 1)))))
   }, [cols, rows])
 
@@ -189,17 +189,19 @@ export function Quiz({ sgf, quizKey, onBack, onSolved, onProgress, onLoadError, 
           <button class="bar-btn" onClick={onPrev}>◀</button>
           <button class="bar-btn" onClick={onNext}>▶</button>
         </div>
-        <button class="bar-btn" onClick={() => {
-          let next = mode === 'liberty' ? 'comparison' : 'liberty'
-          localStorage.setItem(MODE_KEY, next)
-          setMode(next)
-          engine.mode = next
-        }}>
-          {mode === 'liberty' ? '#' : '><'}
-        </button>
-        <button class="bar-btn" onClick={() => setSoundOn(toggleSound())}>
-          {soundOn ? '🔊' : '🔇'}
-        </button>
+        <div class="nav-group">
+          <button class="bar-btn" onClick={() => {
+            let next = mode === 'liberty' ? 'comparison' : 'liberty'
+            localStorage.setItem(MODE_KEY, next)
+            setMode(next)
+            engine.mode = next
+          }}>
+            {mode === 'liberty' ? '#' : '><'}
+          </button>
+          <button class="bar-btn" onClick={() => setSoundOn(toggleSound())}>
+            {soundOn ? '🔊' : '🔇'}
+          </button>
+        </div>
       </div>
       <div class="board-row">
         <div
@@ -270,9 +272,11 @@ function ProgressBar({ questionsPerMove, moveProgress }) {
         return (
           <div key={i} class={`progress-move${i === current ? ' current' : ''}`}>
             <span class="move-number">{i === current ? i + 1 : ''}</span>
-            {Array.from({ length: qCount }, (_, j) => (
-              <span key={j} class={results[j] === 'correct' ? 'check-done' : results[j] === 'failed' ? 'check-fail' : 'check-empty'} />
-            ))}
+            {qCount === 0
+              ? <span class="check-skip" />
+              : Array.from({ length: qCount }, (_, j) => (
+                <span key={j} class={results[j] === 'correct' ? 'check-done' : results[j] === 'failed' ? 'check-fail' : 'check-empty'} />
+              ))}
           </div>
         )
       })}
