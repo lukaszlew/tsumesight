@@ -101,7 +101,7 @@ export class QuizEngine {
     let v = this.questionVertex
     assert(v != null, 'No question to answer')
 
-    let trueLiberties = Math.min(this.trueBoard.getLiberties(v).length, 6)
+    let trueLiberties = Math.min(this.trueBoard.getLiberties(v).length, 5)
     let isCorrect = liberties === trueLiberties
 
     if (isCorrect) {
@@ -177,7 +177,10 @@ export class QuizEngine {
         }
       }
 
-      let score = maxStaleness + libertyBonus(libs) + fluxBonus
+      // Just-played single stone: no bonuses (you just saw it placed)
+      let score = isSingleCurrent
+        ? maxStaleness
+        : maxStaleness + libertyBonus(libs) + fluxBonus
       groups.push({ vertices: groupVertices, score, liberties: libs, fluxBonus })
     }
     return groups

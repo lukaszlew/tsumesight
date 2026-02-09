@@ -212,8 +212,8 @@ describe('QuizEngine', () => {
       expect(libs.length).toBe(3)
     })
 
-    it('caps at 6 in answer evaluation', () => {
-      // Build a group with >6 liberties: 3 stones in a row on center
+    it('caps at 5 in answer evaluation', () => {
+      // Build a group with >5 liberties: 3 stones in a row on center
       // B[ee] B[fe] B[ge] = [4,4] [5,4] [6,4] — chain has 8 liberties
       let engine = new QuizEngine('(;SZ[9];B[ee];W[aa];B[fe];W[ba];B[ge])')
       engine.advance() // B[ee]
@@ -224,13 +224,13 @@ describe('QuizEngine', () => {
       // All 3 black stones are in one chain with 8 liberties
       let rawLibs = engine.trueBoard.getLiberties([4, 4]).length
       expect(rawLibs).toBe(8)
-      // Engine should cap to 6
-      let result = engine.answer(6)
+      // Engine should cap to 5
+      let result = engine.answer(5)
       // Question might be any invisible stone; check the cap logic directly
-      expect(result.trueLiberties).toBeLessThanOrEqual(6)
+      expect(result.trueLiberties).toBeLessThanOrEqual(5)
     })
 
-    it('does not cap below 6', () => {
+    it('does not cap below 5', () => {
       let engine = new QuizEngine('(;SZ[9];B[ee])')
       engine.advance()
       // ee has 4 liberties exactly
@@ -282,15 +282,25 @@ describe('QuizEngine', () => {
       }
     })
 
-    it('getGroupScores returns correct liberty bonus', () => {
-      // Single stone in corner: 2 liberties → bonus +2
+    it('just-played single stone gets no bonuses', () => {
       let engine = new QuizEngine('(;SZ[9];B[aa])')
       engine.advance()
       let groups = engine.getGroupScores()
       expect(groups.length).toBe(1)
       expect(groups[0].liberties).toBe(2)
-      // score = staleness(0) + libertyBonus(2) = 0 + 2 = 2
-      expect(groups[0].score).toBe(2)
+      // Single-stone current group: score = staleness only = 0
+      expect(groups[0].score).toBe(0)
+    })
+
+    it('getGroupScores returns correct liberty bonus for older group', () => {
+      // After 2 moves, the older stone gets liberty bonus
+      let engine = new QuizEngine('(;SZ[9];B[aa];W[ii])')
+      engine.advance() // B[aa] — single current, score 0
+      engine.advance() // W[ii] — now B[aa] is older with staleness 1
+      // Use peekGroupScores (snapshot before staleness reset)
+      let blackGroup = engine.peekGroupScores.find(g => g.vertices.some(v => v[0] === 0 && v[1] === 0))
+      // staleness(1) + libertyBonus(2) = 3
+      expect(blackGroup.score).toBe(3)
     })
 
     it('getGroupScores gives no bonus for 5+ liberties', () => {
@@ -305,16 +315,14 @@ describe('QuizEngine', () => {
       expect(bigGroup.score).toBeLessThanOrEqual(4)
     })
 
-    it('prefers low-liberty groups over fresh high-liberty groups', () => {
-      // Move 1: B at corner (2 libs, bonus +2)
-      // Move 2: W at center (4 libs, bonus +1)
-      // After move 2, B[aa] has staleness 1 + bonus 2 = 3
-      // W[ee] has staleness 0 + bonus 1 = 1
-      // So B[aa] should be questioned
+    it('prefers older group over just-played single stone', () => {
+      // Move 1: B at corner — questioned, staleness reset to 0
+      // Move 2: W at center — single-stone current, score = 0
+      // B[aa]: staleness 1 + libBonus(2)=2 = 3
+      // W[ee]: single-stone current = 0
       let engine = new QuizEngine('(;SZ[9];B[aa];W[ee])')
       engine.advance() // B[aa] questioned (only stone)
-      engine.advance() // W[ee] — now B[aa] staleness=1, W[ee] staleness=0
-      // B[aa]: 1 + 2(corner) = 3, W[ee]: 0 + 1(4 libs) = 1
+      engine.advance() // W[ee]
       expect(engine.questionVertex).toEqual([0, 0])
     })
 

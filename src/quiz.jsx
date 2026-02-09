@@ -33,7 +33,6 @@ export function Quiz({ sgf, onBack }) {
     function onKeyDown(e) {
       if (e.key === ' ') { e.preventDefault(); setPeeking(true) }
       else if (e.key >= '1' && e.key <= '5') submitAnswer(parseInt(e.key))
-      else if (e.key === '6') submitAnswer(6)
     }
     function onKeyUp(e) {
       if (e.key === ' ') setPeeking(false)
@@ -174,14 +173,14 @@ function ScoringRules() {
 }
 
 function AnswerButtons({ onLiberties }) {
-  let libertyValues = [1, 2, 3, 4, 5, 6]
+  let libertyValues = [1, 2, 3, 4, 5]
 
   return (
     <div class="answer-buttons">
       <div class="button-row">
         {libertyValues.map(l => (
           <button key={l} class="ans-btn" onClick={() => onLiberties(l)}>
-            {l === 6 ? '6+' : l}
+            {l === 5 ? '5+' : l}
           </button>
         ))}
       </div>
