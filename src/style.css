@@ -87,6 +87,9 @@ body {
 .dir-row td {
   color: #aaa;
 }
+.solved-row td {
+  color: #686;
+}
 
 .delete-btn {
   background: none;
@@ -280,6 +283,9 @@ body {
   color: #ccc;
   line-height: 1.8;
   white-space: nowrap;
+}
+.summary-panel .back-btn {
+  margin-right: 0.5rem;
 }
 .summary-panel hr {
   border: none;

@@ -37,6 +37,14 @@ export async function addSgf(record) {
   return promisify(tx(db, 'readwrite').add(record))
 }
 
+export async function updateSgf(id, fields) {
+  let db = await openDb()
+  let store = tx(db, 'readwrite')
+  let record = await promisify(store.get(id))
+  Object.assign(record, fields)
+  return promisify(store.put(record))
+}
+
 export async function deleteSgf(id) {
   let db = await openDb()
   return promisify(tx(db, 'readwrite').delete(id))

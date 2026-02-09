@@ -91,6 +91,21 @@ export function Library({ onSelect }) {
   }
   let sortedDirs = [...subdirs].sort()
 
+  // Directory stats: total and solved counts
+  let dirStats = {}
+  for (let d of sortedDirs) {
+    let dirPrefix = prefix + d
+    let total = 0, solved = 0
+    for (let s of sgfs) {
+      let p = s.path || ''
+      if (p === dirPrefix || p.startsWith(dirPrefix + '/')) {
+        total++
+        if (s.solved) solved++
+      }
+    }
+    dirStats[d] = { total, solved }
+  }
+
   // Breadcrumb parts
   let crumbs = cwd ? cwd.split('/') : []
 
@@ -142,15 +157,17 @@ export function Library({ onSelect }) {
             {sortedDirs.map(d => (
               <tr key={'d:' + d} onClick={() => setCwd(prefix + d)} class="sgf-row dir-row">
                 <td>📁 {d}</td>
-                <td></td><td></td><td></td><td></td>
+                <td></td>
+                <td>{dirStats[d].solved}/{dirStats[d].total}</td>
+                <td></td><td></td>
                 <td>
                   <button class="delete-btn" onClick={(e) => handleDeleteDir(e, prefix + d, d)}>✕</button>
                 </td>
               </tr>
             ))}
             {filesHere.map(s => (
-              <tr key={s.id} onClick={() => onSelect(s.content)} class="sgf-row">
-                <td>{s.filename}</td>
+              <tr key={s.id} onClick={() => onSelect({ id: s.id, content: s.content, path: s.path || '' })} class={`sgf-row${s.solved ? ' solved-row' : ''}`}>
+                <td>{s.solved ? '✓ ' : ''}{s.filename}</td>
                 <td>{s.boardSize}×{s.boardSize}</td>
                 <td>{s.moveCount}</td>
                 <td>{s.playerBlack || '—'}</td>
