@@ -300,13 +300,13 @@ body {
 .shudan-vertex.shudan-marker_label.shudan-sign_0 .shudan-marker {
   background: transparent;
   font-size: .77em;
+  text-shadow: 0 0 3px rgba(0,0,0,0.6);
 }
 /* Comparison labels: single color on all backgrounds */
 .shudan-vertex.shudan-marker_label .shudan-marker {
   color: #f33;
   font-weight: bold;
   font-size: .55em;
-  text-shadow: 0 0 3px rgba(0,0,0,0.6);
 }
 
 /* Answer buttons */
