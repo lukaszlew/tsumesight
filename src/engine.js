@@ -142,6 +142,10 @@ export class QuizEngine {
     this.questions = this.questions.filter(q => !moveChainKeys.has(vertexKey(q)))
     this.questions.unshift(move.vertex)
 
+    // Skip groups with 6+ liberties (answer is always "5+"), keep at least one
+    let filtered = this.questions.filter(q => this.trueBoard.getLiberties(q).length < 6)
+    if (filtered.length > 0) this.questions = filtered
+
     this.questionIndex = 0
     this.questionVertex = this.questions[0] || null
     this.moveProgress.push({ total: this.questions.length, results: [] })

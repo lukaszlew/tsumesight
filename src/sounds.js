@@ -3,6 +3,7 @@ let streak = 0
 let enabled = localStorage.getItem('sound') !== 'off'
 
 export function isSoundEnabled() { return enabled }
+export function resetStreak() { streak = 0 }
 
 export function toggleSound() {
   enabled = !enabled

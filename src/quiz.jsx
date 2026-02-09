@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'preact/hooks'
 import { Goban } from '@sabaki/shudan'
 import { QuizEngine } from './engine.js'
-import { playCorrect, playWrong, playComplete, isSoundEnabled, toggleSound } from './sounds.js'
+import { playCorrect, playWrong, playComplete, isSoundEnabled, toggleSound, resetStreak } from './sounds.js'
 
 const HISTORY_KEY = 'quizHistory'
 
@@ -36,6 +36,7 @@ export function Quiz({ sgf, quizKey, onBack, onSolved, onLoadError, onPrev, onNe
 
   // Initialize engine once (possibly replaying saved history)
   if (!engineRef.current && !error) {
+    resetStreak()
     try {
       let saved = loadHistory(quizKey)
       if (saved && saved.length > 0) {
@@ -229,19 +230,20 @@ function ProgressBar({ questionsPerMove, moveProgress }) {
 
   return (
     <div class="progress-bar">
-      {needsWindow && start > 0 && <span class="progress-ellipsis">…</span>}
+      <span class={`progress-ellipsis${needsWindow && start > 0 ? '' : ' invisible'}`}>…</span>
       {questionsPerMove.slice(start, end).map((qCount, offset) => {
         let i = start + offset
         let results = moveProgress[i] ? moveProgress[i].results : []
         return (
           <div key={i} class={`progress-move${i === current ? ' current' : ''}`}>
+            <span class="move-number">{i === current ? i + 1 : ''}</span>
             {Array.from({ length: qCount }, (_, j) => (
               <span key={j} class={results[j] === 'correct' ? 'check-done' : results[j] === 'failed' ? 'check-fail' : 'check-empty'} />
             ))}
           </div>
         )
       })}
-      {needsWindow && end < total && <span class="progress-ellipsis">…</span>}
+      <span class={`progress-ellipsis${needsWindow && end < total ? '' : ' invisible'}`}>…</span>
     </div>
   )
 }

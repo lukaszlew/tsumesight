@@ -215,6 +215,9 @@ body {
   flex-direction: column;
   align-items: stretch;
 }
+.top-bar, .bottom-bar {
+  overflow: hidden;
+}
 
 .bottom-bar {
   display: flex;
@@ -230,7 +233,7 @@ body {
   min-width: 0;
   display: flex;
   gap: 1px;
-  align-items: center;
+  align-items: flex-start;
   padding: 0.25rem 0;
 }
 .progress-ellipsis {
@@ -238,18 +241,27 @@ body {
   font-size: 0.75rem;
   padding: 0 0.2rem;
 }
+.progress-ellipsis.invisible {
+  visibility: hidden;
+}
 .progress-move {
   display: flex;
   flex-direction: column;
   gap: 2px;
   align-items: center;
-  padding: 1px;
+  padding: 2px;
+  border: 1px solid transparent;
+  border-radius: 3px;
 }
 .progress-move.current {
   background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 3px;
-  padding: 2px;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+.move-number {
+  font-size: 0.6rem;
+  color: #999;
+  line-height: 1;
+  height: 0.6rem;
 }
 .check-empty, .check-done, .check-fail {
   width: 12px;
