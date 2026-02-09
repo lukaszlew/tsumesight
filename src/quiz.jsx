@@ -107,8 +107,6 @@ export function Quiz({ sgf, onBack }) {
       <TopBar
         moveIndex={engine.moveIndex}
         totalMoves={engine.totalMoves}
-        correct={engine.correct}
-        wrong={engine.wrong}
         onBack={onBack}
       />
 
@@ -141,17 +139,12 @@ export function Quiz({ sgf, onBack }) {
   )
 }
 
-function TopBar({ moveIndex, totalMoves, correct, wrong, onBack }) {
+function TopBar({ moveIndex, totalMoves, onBack }) {
   let [soundOn, setSoundOn] = useState(isSoundEnabled())
   return (
     <div class="top-bar">
       <button class="back-btn small" onClick={onBack}>←</button>
       <span class="move-counter">Move {moveIndex} / {totalMoves}</span>
-      <span class="score">
-        <span class="score-correct">✓ {correct}</span>
-        {' '}
-        <span class="score-wrong">✗ {wrong}</span>
-      </span>
       <button class="sound-toggle" onClick={() => setSoundOn(toggleSound())}>
         {soundOn ? '🔊' : '🔇'}
       </button>
@@ -195,11 +188,31 @@ function AnswerButtons({ onLiberties }) {
 
 function FeedbackStrip({ results }) {
   if (results.length === 0) return null
+
+  // Fold runs of 5 consecutive corrects into fat pips
+  let pips = []
+  let i = 0
+  while (i < results.length) {
+    if (!results[i]) {
+      pips.push({ type: 'wrong', key: i })
+      i++
+      continue
+    }
+    // Count consecutive corrects
+    let run = 0
+    while (i + run < results.length && results[i + run]) run++
+    let fat = Math.floor(run / 5)
+    let remainder = run % 5
+    for (let f = 0; f < fat; f++) pips.push({ type: 'fat', key: i + f * 5 })
+    for (let r = 0; r < remainder; r++) pips.push({ type: 'correct', key: i + fat * 5 + r })
+    i += run
+  }
+
   return (
     <div class="feedback-strip">
-      {results.map((r, i) => (
-        <span key={i} class={`pip ${r ? 'pip-correct' : 'pip-wrong'}`}>
-          {r ? '✓' : '✗'}
+      {pips.map(p => (
+        <span key={p.key} class={`pip pip-${p.type}`}>
+          {p.type === 'wrong' ? '✗' : p.type === 'fat' ? '✓' : '✓'}
         </span>
       ))}
     </div>

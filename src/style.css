@@ -123,21 +123,12 @@ body {
   color: #ccc;
 }
 
-.score {
-  font-size: 1rem;
-}
 .sound-toggle {
   background: none;
   border: none;
   font-size: 1.2rem;
   cursor: pointer;
   padding: 0.2rem;
-}
-.score-correct {
-  color: #4c4;
-}
-.score-wrong {
-  color: #c44;
 }
 
 .board-row {
@@ -239,6 +230,14 @@ body {
 .pip-wrong {
   background: #5a2a2a;
   color: #c44;
+}
+.pip-fat {
+  background: #1a6a1a;
+  color: #6f6;
+  width: 28px;
+  height: 28px;
+  font-size: 1rem;
+  font-weight: 900;
 }
 
 /* Summary overlay */
