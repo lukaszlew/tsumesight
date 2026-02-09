@@ -28,13 +28,23 @@ export function App() {
     if (active.id) updateSgf(active.id, { solved: true })
   }
 
-  async function goNext() {
+  async function getSiblings() {
     let all = await getAllSgfs()
-    let siblings = all
+    return all
       .filter(s => (s.path || '') === (active.path || ''))
       .sort((a, b) => a.filename.localeCompare(b.filename))
+  }
+
+  async function goStep(delta) {
+    let siblings = await getSiblings()
     let curIdx = siblings.findIndex(s => s.id === active.id)
-    // Find next unsolved after current, wrapping around
+    let s = siblings[(curIdx + delta + siblings.length) % siblings.length]
+    if (s) selectSgf({ id: s.id, content: s.content, path: s.path || '' })
+  }
+
+  async function goNextUnsolved() {
+    let siblings = await getSiblings()
+    let curIdx = siblings.findIndex(s => s.id === active.id)
     for (let i = 1; i < siblings.length; i++) {
       let s = siblings[(curIdx + i) % siblings.length]
       if (!s.solved) {
@@ -42,12 +52,15 @@ export function App() {
         return
       }
     }
-    // All solved — go back to library
     clearSgf()
   }
 
   if (active) {
-    return <Quiz key={`${active.id}:${attempt}`} sgf={active.content} onBack={clearSgf} onSolved={markSolved} onNext={goNext} onRetry={() => setAttempt(a => a + 1)} />
+    return <Quiz key={`${active.id}:${attempt}`} sgf={active.content}
+      onBack={clearSgf} onSolved={markSolved}
+      onPrev={() => goStep(-1)} onNext={() => goStep(1)}
+      onNextUnsolved={goNextUnsolved}
+      onRetry={() => setAttempt(a => a + 1)} />
   }
   return <Library onSelect={selectSgf} />
 }

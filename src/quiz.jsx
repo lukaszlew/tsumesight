@@ -7,7 +7,7 @@ function makeEmptyMap(size, fill = null) {
   return Array.from({ length: size }, () => Array(size).fill(fill))
 }
 
-export function Quiz({ sgf, onBack, onSolved, onNext, onRetry }) {
+export function Quiz({ sgf, onBack, onSolved, onPrev, onNext, onNextUnsolved, onRetry }) {
   let engineRef = useRef(null)
   let [, forceRender] = useState(0)
   let rerender = () => forceRender(n => n + 1)
@@ -116,6 +116,8 @@ export function Quiz({ sgf, onBack, onSolved, onNext, onRetry }) {
         questionIndex={engine.questionIndex}
         questionCount={engine.questions.length}
         onBack={onBack}
+        onPrev={onPrev}
+        onNext={onNext}
       />
 
       <div class="board-row">
@@ -138,7 +140,7 @@ export function Quiz({ sgf, onBack, onSolved, onNext, onRetry }) {
         </div>
 
         {peeking && !engine.finished && <ScoringRules />}
-        {engine.finished && <SummaryPanel engine={engine} onBack={onBack} onNext={onNext} onRetry={onRetry} />}
+        {engine.finished && <SummaryPanel engine={engine} onBack={onBack} onRetry={onRetry} onNextUnsolved={onNextUnsolved} />}
       </div>
 
       {!engine.finished && <AnswerButtons onLiberties={submitAnswer} />}
@@ -148,15 +150,17 @@ export function Quiz({ sgf, onBack, onSolved, onNext, onRetry }) {
   )
 }
 
-function TopBar({ moveIndex, totalMoves, questionIndex, questionCount, onBack }) {
+function TopBar({ moveIndex, totalMoves, questionIndex, questionCount, onBack, onPrev, onNext }) {
   let [soundOn, setSoundOn] = useState(isSoundEnabled())
   return (
     <div class="top-bar">
       <button class="back-btn small" onClick={onBack}>←</button>
+      <button class="back-btn small" onClick={onPrev}>◀</button>
       <span class="move-counter">
         Move {moveIndex} / {totalMoves}
         {questionCount > 1 && ` · Q ${questionIndex + 1}/${questionCount}`}
       </span>
+      <button class="back-btn small" onClick={onNext}>▶</button>
       <button class="sound-toggle" onClick={() => setSoundOn(toggleSound())}>
         {soundOn ? '🔊' : '🔇'}
       </button>
@@ -164,7 +168,7 @@ function TopBar({ moveIndex, totalMoves, questionIndex, questionCount, onBack })
   )
 }
 
-function SummaryPanel({ engine, onBack, onNext, onRetry }) {
+function SummaryPanel({ engine, onBack, onRetry, onNextUnsolved }) {
   let total = engine.results.length
   let pct = total > 0 ? Math.round(engine.correct / total * 100) : 0
   return (
@@ -177,7 +181,7 @@ function SummaryPanel({ engine, onBack, onNext, onRetry }) {
       <hr />
       <button class="back-btn" onClick={onBack}>Back</button>
       <button class="back-btn" onClick={onRetry}>Retry</button>
-      {onNext && <button class="back-btn" onClick={onNext}>Next</button>}
+      <button class="back-btn" onClick={onNextUnsolved}>Next Unsolved</button>
     </div>
   )
 }
