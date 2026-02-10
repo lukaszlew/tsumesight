@@ -11,9 +11,15 @@ body {
 }
 
 #app {
-  max-width: 640px;
+  max-width: 1280px;
   margin: 0 auto;
   padding: 1rem;
+}
+#app:has(.quiz) {
+  padding: 0;
+  max-width: 100%;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 /* Library */
@@ -155,6 +161,7 @@ body {
 /* Quiz */
 
 .quiz {
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -200,47 +207,54 @@ body {
 }
 
 
+.board-section {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  max-width: 80dvh;
+  height: 80%;
+}
+
 .board-row {
-  position: relative;
-  margin-bottom: 1rem;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
-  height: min(480px, 100vw - 2rem);
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
 }
 
 .top-bar {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 0.5rem 0;
+  padding: 0.5rem;
 }
 
-.board-section {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: stretch;
-}
 .top-bar, .bottom-bar {
   overflow: hidden;
 }
 
 .bottom-bar {
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: 0.4rem;
-  margin-bottom: 0.5rem;
+  padding: 0.5rem;
 }
 
 /* Progress bar (below board) */
 .progress-bar {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
+  padding: 0.5rem 0;
 }
 .progress-pips {
   display: flex;
@@ -384,6 +398,7 @@ body {
   display: flex;
   gap: 1.5rem;
   justify-content: center;
+  align-items: center;
   height: 4rem;
 }
 .ans-btn {
@@ -457,47 +472,10 @@ body {
   color: #c44;
 }
 
-/* Mobile portrait layout */
+/* Portrait: use full height (no bottom spacing needed on phones) */
 @media (orientation: portrait) {
-  #app {
-    padding: 0;
-    max-width: 100%;
-    height: 100dvh;
-    overflow: hidden;
-  }
-  .quiz {
-    height: 100dvh;
-  }
   .board-section {
-    width: 100%;
-    height: 100dvh;
-    display: flex;
-    flex-direction: column;
-  }
-  .board-section > .progress-bar {
-    flex: 0 0 10%;
-    overflow: hidden;
-  }
-  .board-row {
-    flex: 0 0 50%;
-    height: auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 0;
-    overflow: hidden;
-  }
-  .top-bar {
-    flex: 0 0 10%;
-    padding: 0 0.5rem;
-  }
-  .bottom-bar {
-    flex: 0 0 10%;
-    justify-content: center;
-    margin-bottom: 0;
-  }
-  .answer-buttons {
-    height: auto;
-    align-items: center;
+    height: 100%;
   }
 }
+
