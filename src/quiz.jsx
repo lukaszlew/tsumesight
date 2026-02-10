@@ -95,8 +95,13 @@ export function Quiz({ sgf, quizKey, filename, onBack, onSolved, onProgress, onL
   let submitAnswer = useCallback((value) => {
     let hasQuestion = engine.mode === 'comparison' ? engine.comparisonPair : engine.questionVertex
     if (!hasQuestion) {
-      // No question this move (e.g. 0 comparison pairs) — any press advances
-      if (!engine.finished) engine.advance()
+      if (engine.showingMove) {
+        engine.activateQuestions()
+        let activated = engine.mode === 'comparison' ? engine.comparisonPair : engine.questionVertex
+        if (!activated && !engine.finished) engine.advance()
+      } else if (!engine.finished) {
+        engine.advance()
+      }
       checkFinished()
       rerender()
       return

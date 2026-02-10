@@ -71,6 +71,7 @@ export class QuizEngine {
     this.moveProgress = [] // [{total, correct}] per played move
     this.boardRange = computeRange(sgfString) // [minX, minY, maxX, maxY] or null
     this.retrying = false
+    this.showingMove = false
     this.finished = false
 
     // Precompute question counts per move (ideal play, no wrong answers)
@@ -138,11 +139,21 @@ export class QuizEngine {
       this._advanceLiberty(move)
     }
 
+    this.showingMove = true
     return {
       moveIndex: this.moveIndex,
       totalMoves: this.totalMoves,
       currentMove: this.currentMove,
       questionVertex: this.questionVertex,
+    }
+  }
+
+  activateQuestions() {
+    this.showingMove = false
+    if (this.mode === 'comparison') {
+      this.comparisonPair = this.questions[this.questionIndex] || null
+    } else {
+      this.questionVertex = this.questions[this.questionIndex] || null
     }
   }
 
@@ -323,7 +334,7 @@ export class QuizEngine {
       let pairs = this._findComparisonPairs()
       this.questions = pairs
       this.questionIndex = 0
-      this.comparisonPair = pairs[0] || null
+      this.comparisonPair = this.showingMove ? null : (pairs[0] || null)
       this.questionVertex = null
     } else {
       this.peekGroupScores = this.getGroupScores()
@@ -339,7 +350,7 @@ export class QuizEngine {
       if (filtered.length > 0) this.questions = filtered
       this.questions = this.questions.slice(0, this.maxQuestions)
       this.questionIndex = 0
-      this.questionVertex = this.questions[0] || null
+      this.questionVertex = this.showingMove ? null : (this.questions[0] || null)
       this.comparisonPair = null
     }
     this.moveProgress[this.moveProgress.length - 1] = { total: this.questions.length, results: [] }
@@ -367,7 +378,7 @@ export class QuizEngine {
 
     this.questions = this.questions.slice(0, this.maxQuestions)
     this.questionIndex = 0
-    this.questionVertex = this.questions[0] || null
+    this.questionVertex = null
     this.comparisonPair = null
     this.moveProgress.push({ total: this.questions.length, results: [] })
 
@@ -385,7 +396,7 @@ export class QuizEngine {
     let pairs = this._findComparisonPairs()
     this.questions = pairs
     this.questionIndex = 0
-    this.comparisonPair = pairs[0] || null
+    this.comparisonPair = null
     this.questionVertex = null
     this.moveProgress.push({ total: pairs.length, results: [] })
 
@@ -488,35 +499,54 @@ export class QuizEngine {
   static fromReplay(sgfString, history, mode = 'liberty', maxQuestions = 3) {
     let engine = new QuizEngine(sgfString, mode, true, maxQuestions)
     engine.advance()
+    engine.activateQuestions()
     for (let wasCorrectFirst of history) {
       if (engine.finished) break
       if (engine.mode === 'comparison') {
         // Skip moves with no comparison pairs
-        while (!engine.comparisonPair && !engine.finished) engine.advance()
+        while (!engine.comparisonPair && !engine.finished) {
+          engine.advance()
+          engine.activateQuestions()
+        }
         if (!engine.comparisonPair) break
         let pair = engine.comparisonPair
         let trueAnswer = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 2 : 3
         if (wasCorrectFirst) {
           let result = engine.answer(trueAnswer)
-          if (result.done) engine.advance()
+          if (result.done) { engine.advance(); engine.activateQuestions() }
         } else {
           let wrongAnswer = trueAnswer === 1 ? 2 : 1
           engine.answer(wrongAnswer)
           let result = engine.answer(trueAnswer)
-          if (result.done) engine.advance()
+          if (result.done) { engine.advance(); engine.activateQuestions() }
         }
       } else {
+        // Skip moves with no liberty questions
+        while (!engine.questionVertex && !engine.finished) {
+          engine.advance()
+          engine.activateQuestions()
+        }
         if (!engine.questionVertex) break
         let trueLiberties = Math.min(engine.trueBoard.getLiberties(engine.questionVertex).length, 5)
         if (wasCorrectFirst) {
           let result = engine.answer(trueLiberties)
-          if (result.done) engine.advance()
+          if (result.done) { engine.advance(); engine.activateQuestions() }
         } else {
           let wrongAnswer = trueLiberties === 1 ? 2 : 1
           engine.answer(wrongAnswer)
           let result = engine.answer(trueLiberties)
-          if (result.done) engine.advance()
+          if (result.done) { engine.advance(); engine.activateQuestions() }
         }
+      }
+    }
+    // If we landed on a fresh move with no answers yet, show the move first
+    if (!engine.finished && !engine.retrying) {
+      let mp = engine.moveProgress[engine.moveProgress.length - 1]
+      if (mp && mp.results.length === 0) {
+        engine.showingMove = true
+        engine.questionVertex = null
+        engine.comparisonPair = null
+        engine.questionIndex = 0
       }
     }
     return engine
