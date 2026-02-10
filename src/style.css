@@ -78,6 +78,24 @@ body {
   color: #888;
   margin-top: 2rem;
 }
+.welcome {
+  max-width: 540px;
+  margin: 1rem auto;
+  color: #aaa;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+.welcome p {
+  margin: 0.4rem 0;
+}
+.welcome-section {
+  color: #ccc;
+  font-weight: bold;
+  margin-top: 1rem !important;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
 
 .sgf-table {
   width: 100%;
