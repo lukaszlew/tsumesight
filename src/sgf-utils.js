@@ -1,12 +1,27 @@
 import sgf from '@sabaki/sgf'
 
-// Decode SGF bytes using encoding declared in CA property, defaulting to UTF-8
+// Decode SGF bytes using encoding declared in CA property, defaulting to UTF-8.
+// Falls back to CJK encodings when UTF-8 produces replacement chars (U+FFFD),
+// which indicates multi-byte chars whose second bytes could corrupt SGF delimiters.
 export function decodeSgf(bytes) {
   let encoding = detectCaEncoding(bytes)
   if (encoding && encoding !== 'utf-8') {
     try { return new TextDecoder(encoding).decode(bytes) } catch {}
   }
-  return new TextDecoder('utf-8').decode(bytes)
+  let utf8 = new TextDecoder('utf-8').decode(bytes)
+  if (!utf8.includes('\uFFFD')) return utf8
+  // Safe encodings first: second bytes always >= 0xA1, never consume [ or ]
+  for (let enc of ['euc-jp', 'euc-kr']) {
+    let decoded = new TextDecoder(enc).decode(bytes)
+    if (!decoded.includes('\uFFFD')) return decoded
+  }
+  // Dangerous encodings: second bytes can be 0x5B/0x5D ([/]), verify parse works
+  for (let enc of ['gbk', 'big5', 'shift_jis']) {
+    let decoded = new TextDecoder(enc).decode(bytes)
+    if (decoded.includes('\uFFFD')) continue
+    try { parseSgf(decoded); return decoded } catch {}
+  }
+  return utf8
 }
 
 // Scan raw bytes for CA[encoding] property
