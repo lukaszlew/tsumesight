@@ -5,7 +5,7 @@ import { parseSgf } from './sgf-utils.js'
 import { QuizEngine } from './engine.js'
 
 // Test the full pipeline: zip → extract → flatten → parse → engine
-let zipPath = new URL('../sgfs/SGFBooks.zip', import.meta.url).pathname
+let zipPath = new URL('../SGFBooks.zip', import.meta.url).pathname
 let zipBuf = readFileSync(zipPath)
 
 // Inline extraction + flattening (mirrors archive.js logic for Node compat)
