@@ -72,8 +72,8 @@ function pickChild(children) {
   if (candidates.length === 0) candidates = children
   if (candidates[0].data.B || candidates[0].data.W) return candidates[0]
   let withMoves = candidates.filter(c => c.data.B || c.data.W)
-  if (withMoves.length === 0) withMoves = candidates
-  return longestOf(withMoves)
+  if (withMoves.length > 0) return withMoves[0]
+  return longestOf(candidates)
 }
 
 function longestOf(nodes) {
