@@ -32,8 +32,9 @@ function libertyBonus(libCount) {
 }
 
 export class QuizEngine {
-  constructor(sgfString, mode = 'liberty', _precompute = true) {
+  constructor(sgfString, mode = 'liberty', _precompute = true, maxQuestions = 3) {
     this.mode = mode
+    this.maxQuestions = maxQuestions
     this.random = mulberry32(hashString(sgfString))
     let parsed = parseSgf(sgfString)
     this.boardSize = parsed.boardSize
@@ -74,7 +75,7 @@ export class QuizEngine {
 
     // Precompute question counts per move (ideal play, no wrong answers)
     if (_precompute) {
-      let sim = new QuizEngine(sgfString, mode, false)
+      let sim = new QuizEngine(sgfString, mode, false, maxQuestions)
       while (!sim.finished) sim.advance()
       this.questionsPerMove = sim.moveProgress.map(m => m.total)
     } else {
@@ -336,6 +337,7 @@ export class QuizEngine {
       this.questions.unshift(move.vertex)
       let filtered = this.questions.filter(q => this.trueBoard.getLiberties(q).length < 6)
       if (filtered.length > 0) this.questions = filtered
+      this.questions = this.questions.slice(0, this.maxQuestions)
       this.questionIndex = 0
       this.questionVertex = this.questions[0] || null
       this.comparisonPair = null
@@ -363,6 +365,7 @@ export class QuizEngine {
     let filtered = this.questions.filter(q => this.trueBoard.getLiberties(q).length < 6)
     if (filtered.length > 0) this.questions = filtered
 
+    this.questions = this.questions.slice(0, this.maxQuestions)
     this.questionIndex = 0
     this.questionVertex = this.questions[0] || null
     this.comparisonPair = null
@@ -469,7 +472,7 @@ export class QuizEngine {
       p._rand = this.random()
     }
     pairs.sort((a, b) => a._diff - b._diff || a._sub - b._sub || a._justPlayed - b._justPlayed || a._rand - b._rand)
-    return pairs.slice(0, 3)
+    return pairs.slice(0, this.maxQuestions)
   }
 
   _pruneCaptured() {
@@ -482,8 +485,8 @@ export class QuizEngine {
     }
   }
 
-  static fromReplay(sgfString, history, mode = 'liberty') {
-    let engine = new QuizEngine(sgfString, mode)
+  static fromReplay(sgfString, history, mode = 'liberty', maxQuestions = 3) {
+    let engine = new QuizEngine(sgfString, mode, true, maxQuestions)
     engine.advance()
     for (let wasCorrectFirst of history) {
       if (engine.finished) break

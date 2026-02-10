@@ -5,9 +5,14 @@ import { playCorrect, playWrong, playComplete, isSoundEnabled, toggleSound, rese
 
 const HISTORY_KEY = 'quizHistory'
 const MODE_KEY = 'quizMode'
+const MAXQ_KEY = 'quizMaxQ'
 
 function getMode() {
   return localStorage.getItem(MODE_KEY) || 'comparison'
+}
+
+function getMaxQ() {
+  return parseInt(localStorage.getItem(MAXQ_KEY)) || 3
 }
 
 function loadHistory(quizKey) {
@@ -38,6 +43,7 @@ export function Quiz({ sgf, quizKey, filename, onBack, onSolved, onProgress, onL
   let [vertexSize, setVertexSize] = useState(0)
   let boardRowRef = useRef(null)
   let [mode, setMode] = useState(getMode)
+  let [maxQ, setMaxQ] = useState(getMaxQ)
   let [error, setError] = useState(null)
 
   // Initialize engine once (possibly replaying saved history)
@@ -46,14 +52,14 @@ export function Quiz({ sgf, quizKey, filename, onBack, onSolved, onProgress, onL
     try {
       let saved = loadHistory(quizKey)
       if (saved && saved.length > 0) {
-        engineRef.current = QuizEngine.fromReplay(sgf, saved, mode)
+        engineRef.current = QuizEngine.fromReplay(sgf, saved, mode, maxQ)
         historyRef.current = [...saved]
         if (engineRef.current.finished) {
           solvedRef.current = true
           onSolved(engineRef.current.correct, engineRef.current.results.length)
         }
       } else {
-        engineRef.current = new QuizEngine(sgf, mode)
+        engineRef.current = new QuizEngine(sgf, mode, true, maxQ)
         engineRef.current.advance()
       }
     } catch (e) {
@@ -238,6 +244,18 @@ export function Quiz({ sgf, quizKey, filename, onBack, onSolved, onProgress, onL
             }
           }}>
             {mode === 'liberty' ? '①' : '⚖'}
+          </button>
+          <button class="bar-btn" onClick={() => {
+            let next = maxQ % 4 + 1
+            localStorage.setItem(MAXQ_KEY, next)
+            setMaxQ(next)
+            engine.maxQuestions = next
+            if (!engine.finished) {
+              engine.recomputeQuestions()
+              rerender()
+            }
+          }}>
+            Q{maxQ}
           </button>
           <button class="bar-btn" onClick={() => setSoundOn(toggleSound())}>
             {soundOn ? '🔊' : '🔇'}
