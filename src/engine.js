@@ -188,7 +188,7 @@ export class QuizEngine {
     let pair = this.comparisonPair
     assert(pair != null, 'No comparison question to answer')
 
-    let trueAnswer = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 3 : 2
+    let trueAnswer = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 2 : 3
     let isCorrect = value === trueAnswer
 
     if (this.retrying) {
@@ -487,7 +487,7 @@ export class QuizEngine {
         while (!engine.comparisonPair && !engine.finished) engine.advance()
         if (!engine.comparisonPair) break
         let pair = engine.comparisonPair
-        let trueAnswer = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 3 : 2
+        let trueAnswer = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 2 : 3
         if (wasCorrectFirst) {
           let result = engine.answer(trueAnswer)
           if (result.done) engine.advance()

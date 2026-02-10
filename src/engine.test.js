@@ -562,13 +562,13 @@ describe('QuizEngine', () => {
       // Skip first move's questions (may be empty if no pairs)
       while (engine.comparisonPair) {
         let pair = engine.comparisonPair
-        let trueAnswer = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 3 : 2
+        let trueAnswer = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 2 : 3
         engine.answer(trueAnswer)
       }
       engine.advance()
       if (!engine.comparisonPair) return // no pairs on this move
       let pair = engine.comparisonPair
-      let trueAnswer = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 3 : 2
+      let trueAnswer = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 2 : 3
       let result = engine.answer(trueAnswer)
       expect(result.correct).toBe(true)
       expect(result.trueAnswer).toBe(trueAnswer)
@@ -579,14 +579,14 @@ describe('QuizEngine', () => {
       engine.advance() // B[ba] — may or may not have pairs
       while (engine.comparisonPair) {
         let pair = engine.comparisonPair
-        let trueAnswer = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 3 : 2
+        let trueAnswer = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 2 : 3
         engine.answer(trueAnswer)
       }
       engine.advance() // W[aa] — should have pairs
       if (!engine.comparisonPair) return
       let pair = engine.comparisonPair
-      let trueAnswer = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 3 : 2
-      let wrongAnswer = trueAnswer === 1 ? 3 : 1
+      let trueAnswer = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 2 : 3
+      let wrongAnswer = trueAnswer === 1 ? 2 : 1
       let result = engine.answer(wrongAnswer)
       expect(result.correct).toBe(false)
       expect(engine.retrying).toBe(true)
@@ -622,7 +622,7 @@ describe('QuizEngine', () => {
       while (!engine.finished) {
         if (!engine.comparisonPair) { engine.advance(); continue }
         let pair = engine.comparisonPair
-        let trueAnswer = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 3 : 2
+        let trueAnswer = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 2 : 3
         let result = engine.answer(trueAnswer)
         history.push(true)
         if (result.done) engine.advance()
@@ -639,12 +639,12 @@ describe('QuizEngine', () => {
       expect(engine.questionsPerMove.length).toBe(2) // 2 moves in this SGF
     })
 
-    it('equal liberties gives trueAnswer=2', () => {
+    it('equal liberties gives trueAnswer=3', () => {
       let engine = new QuizEngine(compSgf, 'comparison')
       engine.advance()
       while (engine.comparisonPair) {
         let pair = engine.comparisonPair
-        let ta = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 3 : 2
+        let ta = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 2 : 3
         engine.answer(ta)
       }
       engine.advance()
@@ -652,9 +652,9 @@ describe('QuizEngine', () => {
       let pair = engine.comparisonPair
       // Both groups have 2 libs in this SGF
       if (pair.libs1 === pair.libs2) {
-        let result = engine.answer(2)
+        let result = engine.answer(3)
         expect(result.correct).toBe(true)
-        expect(result.trueAnswer).toBe(2)
+        expect(result.trueAnswer).toBe(3)
       }
     })
   })

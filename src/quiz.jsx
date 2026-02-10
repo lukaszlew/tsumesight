@@ -111,18 +111,25 @@ export function Quiz({ sgf, quizKey, onBack, onSolved, onProgress, onLoadError, 
   // Keyboard shortcuts
   useEffect(() => {
     function onKeyDown(e) {
-      if (e.key === 'ArrowLeft') { e.preventDefault(); onPrev() }
+      if (e.key === 'Escape') { e.preventDefault(); onBack() }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); onPrev() }
       else if (e.key === 'ArrowRight') { e.preventDefault(); onNext() }
+      else if (e.key === '?') {
+        e.preventDefault()
+        setPeeking(true)
+      }
       else if (e.key === ' ') {
         e.preventDefault()
+        let hasQuestion = engine.mode === 'comparison' ? engine.comparisonPair : engine.questionVertex
         if (engine.finished) onNextUnsolved()
-        else setPeeking(true)
+        else if (!hasQuestion) submitAnswer(0)
       }
-      else if (engine.mode === 'comparison' && e.key >= '1' && e.key <= '3') submitAnswer(parseInt(e.key))
+      else if (engine.mode === 'comparison' && (e.key === '1' || e.key === '2')) submitAnswer(parseInt(e.key))
+      else if (engine.mode === 'comparison' && (e.key === 'q' || e.key === 'Q')) submitAnswer(3)
       else if (engine.mode !== 'comparison' && e.key >= '1' && e.key <= '5') submitAnswer(parseInt(e.key))
     }
     function onKeyUp(e) {
-      if (e.key === ' ') setPeeking(false)
+      if (e.key === '?') setPeeking(false)
     }
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('keyup', onKeyUp)
@@ -140,9 +147,11 @@ export function Quiz({ sgf, quizKey, onBack, onSolved, onProgress, onLoadError, 
   useEffect(() => {
     let el = boardContainerRef.current
     if (!el) return
-    let maxW = Math.min(window.innerWidth - 32, 480)
-    let maxH = maxW
-    setVertexSize(Math.max(1, Math.floor(Math.min(maxW / (cols + 1), maxH / (rows + 1)))))
+    let isPortrait = window.innerHeight > window.innerWidth
+    let maxW = isPortrait ? window.innerWidth : Math.min(window.innerWidth - 32, 480)
+    let maxH = isPortrait ? window.innerHeight * 0.50 : maxW
+    // Shudan adds ~0.8em border+padding; solve vertexSize * (n + 1.8) ≤ max
+    setVertexSize(Math.max(1, Math.floor(Math.min(maxW / (cols + 1.8), maxH / (rows + 1.8)))))
   }, [cols, rows])
 
   // Build display maps
@@ -173,8 +182,8 @@ export function Quiz({ sgf, quizKey, onBack, onSolved, onProgress, onLoadError, 
     let { v1, v2 } = engine.comparisonPair
     let [x1, y1] = v1
     let [x2, y2] = v2
-    markerMap[y1][x1] = { type: 'label', label: 'A' }
-    markerMap[y2][x2] = { type: 'label', label: 'B' }
+    markerMap[y1][x1] = { type: 'label', label: '1' }
+    markerMap[y2][x2] = { type: 'label', label: '2' }
   } else if (engine.questionVertex) {
     let [x, y] = engine.questionVertex
     markerMap[y][x] = { type: 'label', label: '❓' }
@@ -183,30 +192,7 @@ export function Quiz({ sgf, quizKey, onBack, onSolved, onProgress, onLoadError, 
   return (
     <div class="quiz">
       <div class="board-section">
-      <div class="top-bar">
-        <button class="bar-btn" onClick={onBack}>☰</button>
-        <div class="nav-group">
-          <button class="bar-btn" onClick={onPrev}>◀</button>
-          <button class="bar-btn" onClick={onNext}>▶</button>
-        </div>
-        <div class="nav-group">
-          <button class="bar-btn" onClick={() => {
-            let next = mode === 'liberty' ? 'comparison' : 'liberty'
-            localStorage.setItem(MODE_KEY, next)
-            setMode(next)
-            engine.mode = next
-            if (!engine.finished) {
-              engine.recomputeQuestions()
-              rerender()
-            }
-          }}>
-            {mode === 'liberty' ? '①' : '⚖'}
-          </button>
-          <button class="bar-btn" onClick={() => setSoundOn(toggleSound())}>
-            {soundOn ? '🔊' : '🔇'}
-          </button>
-        </div>
-      </div>
+      <ProgressBar questionsPerMove={engine.questionsPerMove} moveProgress={engine.moveProgress} />
       <div class="board-row">
         <div
           class="board-container"
@@ -231,8 +217,32 @@ export function Quiz({ sgf, quizKey, onBack, onSolved, onProgress, onLoadError, 
         {engine.finished && <SummaryPanel engine={engine} onBack={onBack} onRetry={onRetry} onNextUnsolved={onNextUnsolved} />}
       </div>
 
+      <div class="top-bar">
+        <button class="bar-btn" onClick={onBack}>☰</button>
+        <div class="nav-group">
+          <button class="bar-btn" onClick={onPrev}>◀</button>
+          <button class="bar-btn" onClick={onNext}>▶</button>
+        </div>
+        <div class="nav-group">
+          <button class="bar-btn" onClick={() => {
+            let next = mode === 'liberty' ? 'comparison' : 'liberty'
+            localStorage.setItem(MODE_KEY, next)
+            setMode(next)
+            engine.mode = next
+            if (!engine.finished) {
+              engine.recomputeQuestions()
+              rerender()
+            }
+          }}>
+            {mode === 'liberty' ? '①' : '⚖'}
+          </button>
+          <button class="bar-btn" onClick={() => setSoundOn(toggleSound())}>
+            {soundOn ? '🔊' : '🔇'}
+          </button>
+        </div>
+      </div>
+
       <div class="bottom-bar">
-        <ProgressBar questionsPerMove={engine.questionsPerMove} moveProgress={engine.moveProgress} />
         {(() => {
           if (engine.finished) return <div class="answer-buttons" />
           let hasQuestion = engine.mode === 'comparison' ? engine.comparisonPair : engine.questionVertex
@@ -317,9 +327,9 @@ function NextButton({ onNext }) {
 function ComparisonButtons({ onAnswer }) {
   return (
     <div class="answer-buttons">
-      <button class="bar-btn ans-btn" onClick={() => onAnswer(1)}>A</button>
-      <button class="bar-btn ans-btn" onClick={() => onAnswer(2)}>=</button>
-      <button class="bar-btn ans-btn" onClick={() => onAnswer(3)}>B</button>
+      <button class="bar-btn ans-btn" onClick={() => onAnswer(1)}>1</button>
+      <button class="bar-btn ans-btn eq-btn" onClick={() => onAnswer(3)}>=</button>
+      <button class="bar-btn ans-btn" onClick={() => onAnswer(2)}>2</button>
     </div>
   )
 }
