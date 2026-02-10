@@ -1,6 +1,7 @@
 const DB_NAME = 'tsumesight'
-const DB_VERSION = 1
+const DB_VERSION = 2
 const STORE_NAME = 'sgfs'
+const KV_STORE = 'kv'
 
 function openDb() {
   return new Promise((resolve, reject) => {
@@ -10,14 +11,17 @@ function openDb() {
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true })
       }
+      if (!db.objectStoreNames.contains(KV_STORE)) {
+        db.createObjectStore(KV_STORE)
+      }
     }
     request.onsuccess = () => resolve(request.result)
     request.onerror = () => reject(request.error)
   })
 }
 
-function tx(db, mode) {
-  return db.transaction(STORE_NAME, mode).objectStore(STORE_NAME)
+function tx(db, mode, store = STORE_NAME) {
+  return db.transaction(store, mode).objectStore(store)
 }
 
 function promisify(request) {
@@ -76,4 +80,55 @@ export async function deleteSgfsByPrefix(prefix) {
     store.transaction.oncomplete = () => resolve(count)
     store.transaction.onerror = () => reject(store.transaction.error)
   })
+}
+
+// Key-value store with sync in-memory cache, async IDB persistence
+let kvCache = {}
+
+export async function loadKv() {
+  let db = await openDb()
+  let all = await promisify(tx(db, 'readonly', KV_STORE).getAll())
+  let keys = await promisify(tx(db, 'readonly', KV_STORE).getAllKeys())
+  kvCache = {}
+  for (let i = 0; i < keys.length; i++) kvCache[keys[i]] = all[i]
+  // Migrate from localStorage/sessionStorage
+  let migrations = ['quizMode', 'quizMaxQ', 'quizShowDuration', 'sound', 'quizHistory', 'activeSgf', 'lastPath']
+  let needsMigrate = false
+  for (let key of migrations) {
+    let val = localStorage.getItem(key) ?? sessionStorage.getItem(key)
+    if (val != null && !(key in kvCache)) {
+      kvCache[key] = val
+      needsMigrate = true
+    }
+  }
+  if (needsMigrate) {
+    let store = tx(await openDb(), 'readwrite', KV_STORE)
+    for (let key of migrations) {
+      if (key in kvCache) store.put(kvCache[key], key)
+      localStorage.removeItem(key)
+      sessionStorage.removeItem(key)
+    }
+  }
+}
+
+export function kv(key, fallback) {
+  let val = kvCache[key]
+  return val !== undefined ? val : fallback
+}
+
+export function kvSet(key, value) {
+  kvCache[key] = value
+  openDb().then(db => promisify(tx(db, 'readwrite', KV_STORE).put(value, key)))
+}
+
+export function kvRemove(key) {
+  delete kvCache[key]
+  openDb().then(db => promisify(tx(db, 'readwrite', KV_STORE).delete(key)))
+}
+
+export async function clearAll() {
+  let db = await openDb()
+  await promisify(tx(db, 'readwrite').clear())
+  await promisify(tx(db, 'readwrite', KV_STORE).clear())
+  kvCache = {}
 }

@@ -2,12 +2,12 @@ import { useState, useEffect } from 'preact/hooks'
 import { Component } from 'preact'
 import { Library } from './library.jsx'
 import { Quiz } from './quiz.jsx'
-import { getAllSgfs, updateSgf } from './db.js'
+import { getAllSgfs, updateSgf, kv, kvSet, kvRemove } from './db.js'
 
 class ErrorBoundary extends Component {
   state = { error: null }
   componentDidCatch(error) {
-    sessionStorage.removeItem('activeSgf')
+    kvRemove('activeSgf')
     this.setState({ error: error.message })
   }
   render() {
@@ -33,10 +33,10 @@ export function App() {
   const [position, setPosition] = useState(null)
 
   const [active, setActive] = useState(() => {
-    let stored = sessionStorage.getItem('activeSgf')
+    let stored = kv('activeSgf')
     if (!stored) return null
     try { return JSON.parse(stored) }
-    catch { sessionStorage.removeItem('activeSgf'); return null }
+    catch { kvRemove('activeSgf'); return null }
   })
 
   async function refreshPosition(id, path) {
@@ -47,14 +47,14 @@ export function App() {
 
   function selectSgf({ id, content, path, filename }) {
     let val = { id, content, path, filename }
-    sessionStorage.setItem('activeSgf', JSON.stringify(val))
-    sessionStorage.setItem('lastPath', path)
+    kvSet('activeSgf', JSON.stringify(val))
+    kvSet('lastPath', path)
     setActive(val)
     refreshPosition(id, path)
   }
 
   function clearSgf() {
-    sessionStorage.removeItem('activeSgf')
+    kvRemove('activeSgf')
     setActive(null)
     setPosition(null)
   }
@@ -115,5 +115,5 @@ export function App() {
       </ErrorBoundary>
     )
   }
-  return <Library onSelect={selectSgf} initialPath={sessionStorage.getItem('lastPath') || ''} />
+  return <Library onSelect={selectSgf} initialPath={kv('lastPath', '')} />
 }

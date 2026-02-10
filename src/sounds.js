@@ -1,13 +1,20 @@
+import { kv, kvSet } from './db.js'
+
 let ctx = null
 let streak = 0
-let enabled = localStorage.getItem('sound') !== 'off'
+let enabled = null
 
-export function isSoundEnabled() { return enabled }
+function getEnabled() {
+  if (enabled === null) enabled = kv('sound', 'on') !== 'off'
+  return enabled
+}
+
+export function isSoundEnabled() { return getEnabled() }
 export function resetStreak() { streak = 0 }
 
 export function toggleSound() {
-  enabled = !enabled
-  localStorage.setItem('sound', enabled ? 'on' : 'off')
+  enabled = !getEnabled()
+  kvSet('sound', enabled ? 'on' : 'off')
   return enabled
 }
 

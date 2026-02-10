@@ -661,6 +661,57 @@ describe('QuizEngine', () => {
     })
   })
 
+  describe('maxQuestions parameter', () => {
+    it('maxQuestions=0 produces no questions on any move', () => {
+      let engine = new QuizEngine('(;SZ[9];B[ba];W[aa];B[ee])', 'liberty', true, 0)
+      while (!engine.finished) {
+        engine.advance()
+        expect(engine.questions.length).toBe(0)
+        expect(engine.questionVertex).toBe(null)
+      }
+    })
+
+    it('maxQuestions=0 finishes with 0 correct and 0 wrong', () => {
+      let engine = new QuizEngine('(;SZ[9];B[ba];W[aa];B[ee])', 'liberty', true, 0)
+      while (!engine.finished) engine.advance()
+      expect(engine.correct).toBe(0)
+      expect(engine.wrong).toBe(0)
+      expect(engine.results.length).toBe(0)
+    })
+
+    it('maxQuestions=0 questionsPerMove is all zeros', () => {
+      let engine = new QuizEngine('(;SZ[9];B[ba];W[aa];B[ee])', 'liberty', true, 0)
+      expect(engine.questionsPerMove).toEqual([0, 0, 0])
+    })
+
+    it('maxQuestions=1 limits to 1 question even when multiple groups change', () => {
+      // B[ba] then W[aa] — adjacent, both groups change libs → normally 2 questions
+      let engine = new QuizEngine('(;SZ[9];B[ba];W[aa])', 'liberty', true, 1)
+      engine.advance() // B[ba]
+      expect(engine.questions.length).toBe(1)
+      engine.advance() // W[aa]
+      expect(engine.questions.length).toBe(1)
+    })
+
+    it('maxQuestions=0 in comparison mode produces no pairs', () => {
+      let engine = new QuizEngine('(;SZ[9];B[ee];W[de])', 'comparison', true, 0)
+      while (!engine.finished) {
+        engine.advance()
+        expect(engine.questions.length).toBe(0)
+        expect(engine.comparisonPair).toBe(null)
+      }
+    })
+
+    it('maxQuestions=0 fromReplay with empty history finishes immediately', () => {
+      let sgf = '(;SZ[9];B[ba];W[aa];B[ee])'
+      let engine = QuizEngine.fromReplay(sgf, [], 'liberty', 0)
+      // With 0 questions, all moves are auto-advanced through replay
+      // The engine should be at move 1 with showingMove=true (no questions to answer)
+      expect(engine.correct).toBe(0)
+      expect(engine.wrong).toBe(0)
+    })
+  })
+
   describe('multi-question per move', () => {
     it('asks about all groups with changed liberties', () => {
       // B[ba] then W[aa] — adjacent, both groups change libs

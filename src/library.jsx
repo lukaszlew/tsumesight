@@ -1,8 +1,42 @@
 import { useState, useEffect } from 'preact/hooks'
-import { getAllSgfs, addSgfBatch, deleteSgf, deleteSgfsByPrefix } from './db.js'
+import { getAllSgfs, addSgfBatch, deleteSgf, deleteSgfsByPrefix, clearAll } from './db.js'
 import { parseSgf } from './sgf-utils.js'
 import { isArchive, extractSgfs } from './archive.js'
 import { decodeSgf } from './sgf-utils.js'
+
+const DEFAULT_URL = 'https://files.catbox.moe/il1jz1.zip'
+
+let numInParens = /^(.*\()(\d+)(\)\..+)$/
+
+function padFilenames(records) {
+  // Group by path, find max number per group, zero-pad
+  let byPath = new Map()
+  for (let r of records) {
+    let m = numInParens.exec(r.filename)
+    if (!m) continue
+    let list = byPath.get(r.path)
+    if (!list) { list = []; byPath.set(r.path, list) }
+    list.push({ record: r, prefix: m[1], num: parseInt(m[2]), suffix: m[3] })
+  }
+  for (let entries of byPath.values()) {
+    let maxN = Math.max(...entries.map(e => e.num))
+    let width = String(maxN).length
+    for (let { record, prefix, num, suffix } of entries) {
+      record.filename = prefix + String(num).padStart(width, '0') + suffix
+    }
+  }
+}
+
+function archivePrefix(entries, fallback) {
+  // If all entries are inside directories and there are <10 top-level dirs, skip wrapper
+  let topDirs = new Set()
+  for (let { name } of entries) {
+    let slash = name.indexOf('/')
+    if (slash < 0) return fallback // loose file at root → use wrapper
+    topDirs.add(name.slice(0, slash))
+  }
+  return topDirs.size < 10 ? '' : fallback
+}
 
 async function collectSgfFiles(dirHandle, path) {
   let results = []
@@ -47,7 +81,7 @@ export function Library({ onSelect, initialPath = '' }) {
       try {
         let parts = name.split('/')
         let filename = parts.pop()
-        let path = pathPrefix + (parts.length ? '/' + parts.join('/') : '')
+        let path = [pathPrefix, ...parts].filter(Boolean).join('/')
         let parsed = parseSgf(content)
         records.push({
           filename, path, content,
@@ -61,6 +95,7 @@ export function Library({ onSelect, initialPath = '' }) {
         console.warn('Skipping unparseable SGF:', name)
       }
     }
+    padFilenames(records)
     return records
   }
 
@@ -82,8 +117,8 @@ export function Library({ onSelect, initialPath = '' }) {
       if (isArchive(file.name)) {
         setImporting({ done: 0, total: 0 })
         let entries = await extractSgfs(file)
-        let archiveName = file.name.replace(/\.(zip|tar\.gz|tgz|tar)$/i, '')
-        allRecords.push(...parseAndCollect(entries, archiveName, now))
+        let fallback = file.name.replace(/\.(zip|tar\.gz|tgz|tar)$/i, '')
+        allRecords.push(...parseAndCollect(entries, archivePrefix(entries, fallback), now))
       } else if (file.name.toLowerCase().endsWith('.sgf')) {
         let content = decodeSgf(new Uint8Array(await file.arrayBuffer()))
         allRecords.push(...parseAndCollect([{ name: file.name, content }], '', now))
@@ -124,8 +159,8 @@ export function Library({ onSelect, initialPath = '' }) {
       if (isArchive(filename)) {
         setImporting({ done: 0, total: 0 })
         let entries = await extractSgfs(file)
-        let archiveName = filename.replace(/\.(zip|tar\.gz|tgz|tar)$/i, '')
-        allRecords = parseAndCollect(entries, archiveName, now)
+        let fallback = filename.replace(/\.(zip|tar\.gz|tgz|tar)$/i, '')
+        allRecords = parseAndCollect(entries, archivePrefix(entries, fallback), now)
       } else {
         let content = decodeSgf(new Uint8Array(await file.arrayBuffer()))
         allRecords = parseAndCollect([{ name: filename, content }], '', now)
@@ -151,6 +186,12 @@ export function Library({ onSelect, initialPath = '' }) {
     if (!confirm(`Delete folder "${dirName}" and all its contents?`)) return
     await deleteSgfsByPrefix(dirPath)
     refresh()
+  }
+
+  let handleReset = async () => {
+    if (!confirm('Delete all data and re-download default problems?')) return
+    await clearAll()
+    location.reload()
   }
 
   // Files in current directory, sorted by upload date then filename
@@ -202,9 +243,11 @@ export function Library({ onSelect, initialPath = '' }) {
           Upload folder
         </button>
         <span class="upload-hint">SGF, ZIP, tar.gz</span>
+        <button class="delete-btn" title="Delete all data and re-download defaults" onClick={handleReset}>Reset</button>
       </div>
       <form class="url-row" onSubmit={handleUrl}>
-        <input class="url-input" type="text" placeholder="Paste URL to SGF or archive..." name="url" />
+        <input class="url-input" type="text" placeholder="Paste URL to SGF or archive..." name="url"
+          value={sgfs.length === 0 && !loading ? DEFAULT_URL : undefined} />
         <button class="upload-btn" type="submit">Fetch</button>
       </form>
 

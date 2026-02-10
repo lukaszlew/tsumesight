@@ -2,21 +2,10 @@ import { useState, useEffect, useCallback, useRef } from 'preact/hooks'
 import { Goban } from '@sabaki/shudan'
 import { QuizEngine } from './engine.js'
 import { playCorrect, playWrong, playComplete, isSoundEnabled, toggleSound, resetStreak } from './sounds.js'
-
-const HISTORY_KEY = 'quizHistory'
-const MODE_KEY = 'quizMode'
-const MAXQ_KEY = 'quizMaxQ'
-
-function getMode() {
-  return localStorage.getItem(MODE_KEY) || 'comparison'
-}
-
-function getMaxQ() {
-  return parseInt(localStorage.getItem(MAXQ_KEY)) || 3
-}
+import { kv, kvSet, kvRemove } from './db.js'
 
 function loadHistory(quizKey) {
-  let saved = sessionStorage.getItem(HISTORY_KEY)
+  let saved = kv('quizHistory')
   if (!saved) return null
   try {
     let data = JSON.parse(saved)
@@ -25,7 +14,7 @@ function loadHistory(quizKey) {
 }
 
 function saveHistory(quizKey, history) {
-  sessionStorage.setItem(HISTORY_KEY, JSON.stringify({ key: quizKey, history }))
+  kvSet('quizHistory', JSON.stringify({ key: quizKey, history }))
 }
 
 function makeEmptyMap(size, fill = null) {
@@ -42,12 +31,18 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
   let [soundOn, setSoundOn] = useState(isSoundEnabled())
   let [vertexSize, setVertexSize] = useState(0)
   let boardRowRef = useRef(null)
-  let [mode, setMode] = useState(getMode)
-  let [maxQ, setMaxQ] = useState(getMaxQ)
+  let [mode, setMode] = useState(() => kv('quizMode', 'liberty'))
+  let [maxQ, setMaxQ] = useState(() => parseInt(kv('quizMaxQ', '2')))
   let [error, setError] = useState(null)
   let [showHelp, _setShowHelp] = useState(false)
   let showHelpRef = useRef(false)
   let setShowHelp = (v) => { let next = typeof v === 'function' ? v(showHelpRef.current) : v; showHelpRef.current = next; _setShowHelp(next) }
+  let [showDuration, setShowDuration] = useState(() => kv('quizShowDuration', 'manual'))
+  let questionStartRef = useRef(null)
+  let timesRef = useRef([])
+  let [showConfig, _setShowConfig] = useState(false)
+  let showConfigRef = useRef(false)
+  let setShowConfig = (v) => { let next = typeof v === 'function' ? v(showConfigRef.current) : v; showConfigRef.current = next; _setShowConfig(next) }
 
   // Initialize engine once (possibly replaying saved history)
   if (!engineRef.current && !error) {
@@ -63,10 +58,9 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
         }
       } else {
         engineRef.current = new QuizEngine(sgf, mode, true, maxQ)
-        engineRef.current.advance()
       }
     } catch (e) {
-      sessionStorage.removeItem(HISTORY_KEY)
+      kvRemove('quizHistory')
       setError(e.message)
     }
   }
@@ -109,6 +103,10 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
     let wasRetrying = engine.retrying
     let result = engine.answer(value)
     if (result.correct) {
+      if (questionStartRef.current !== null) {
+        timesRef.current.push(performance.now() - questionStartRef.current)
+        questionStartRef.current = null
+      }
       historyRef.current.push(!wasRetrying)
       saveHistory(quizKey, historyRef.current)
       playCorrect()
@@ -125,7 +123,7 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
   // Keyboard shortcuts
   useEffect(() => {
     function onKeyDown(e) {
-      if (e.key === 'Escape') { e.preventDefault(); if (showHelpRef.current) setShowHelp(false); else onBack() }
+      if (e.key === 'Escape') { e.preventDefault(); if (showConfigRef.current) setShowConfig(false); else if (showHelpRef.current) setShowHelp(false); else onBack() }
       else if (e.key === 'ArrowLeft') { e.preventDefault(); onPrev() }
       else if (e.key === 'ArrowRight') { e.preventDefault(); onNext() }
       else if (e.key === '?') {
@@ -152,6 +150,21 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
       window.removeEventListener('keyup', onKeyUp)
     }
   }, [submitAnswer])
+
+  // Start question timer when a question appears
+  useEffect(() => {
+    if (!engine) return
+    let hasQ = engine.mode === 'comparison' ? engine.comparisonPair : engine.questionVertex
+    if (hasQ && questionStartRef.current === null) questionStartRef.current = performance.now()
+    if (!hasQ) questionStartRef.current = null
+  })
+
+  // Auto-advance after timed show duration
+  useEffect(() => {
+    if (!engine || !engine.showingMove || showDuration === 'manual') return
+    let id = setTimeout(() => submitAnswer(0), parseInt(showDuration))
+    return () => clearTimeout(id)
+  })
 
   // Compute vertex size from container
   let rangeX = engine.boardRange ? [engine.boardRange[0], engine.boardRange[2]] : undefined
@@ -207,7 +220,9 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
   return (
     <div class="quiz">
       <div class="board-section">
-      <ProgressBar questionsPerMove={engine.questionsPerMove} moveProgress={engine.moveProgress} />
+      {engine.finished
+        ? <StatsBar engine={engine} times={timesRef.current} />
+        : <ProgressBar questionsPerMove={engine.questionsPerMove} moveProgress={engine.moveProgress} />}
       <div class="board-row" ref={boardRowRef}>
         <div
           class="board-container"
@@ -229,7 +244,7 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
           />}
         </div>
 
-        {engine.finished && <SummaryPanel engine={engine} onBack={onBack} onRetry={onRetry} onNextUnsolved={onNextUnsolved} />}
+        {engine.finished && <SummaryPanel onRetry={onRetry} onNextUnsolved={onNextUnsolved} />}
       </div>
 
       <div class="top-bar">
@@ -241,44 +256,41 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
           <button class="bar-btn" title="Next problem (→)" onClick={onNext}>▶</button>
         </div>
         <div class="nav-group">
-          <button class="bar-btn" title={mode === 'liberty' ? 'Switch to comparison mode: two groups are marked 1 and 2, answer which has more liberties or if equal' : 'Switch to liberty mode: one group is marked, answer how many liberties it has (1-5+)'} onClick={() => {
-            let next = mode === 'liberty' ? 'comparison' : 'liberty'
-            localStorage.setItem(MODE_KEY, next)
-            setMode(next)
-            engine.mode = next
-            if (!engine.finished) {
-              engine.recomputeQuestions()
-              rerender()
-            }
-          }}>
-            {mode === 'liberty' ? '①' : '⚖'}
-          </button>
-          <button class="bar-btn" title={`Max questions per move: ${maxQ} (click to cycle 1-4)`} onClick={() => {
-            let next = maxQ % 4 + 1
-            localStorage.setItem(MAXQ_KEY, next)
-            setMaxQ(next)
-            engine.maxQuestions = next
-            if (!engine.finished) {
-              engine.recomputeQuestions()
-              rerender()
-            }
-          }}>
-            Q{maxQ}
-          </button>
-          <button class="bar-btn" title={soundOn ? 'Mute sound effects' : 'Enable sound effects'} onClick={() => setSoundOn(toggleSound())}>
-            {soundOn ? '🔊' : '🔇'}
-          </button>
+          <button class="bar-btn" title="Settings (Esc to close)" onClick={() => setShowConfig(c => !c)}>⚙</button>
           <button class="bar-btn" title="Show help" onClick={() => setShowHelp(h => !h)}>?</button>
         </div>
       </div>
 
+      {showConfig && <ConfigPanel
+        mode={mode} maxQ={maxQ} soundOn={soundOn} showDuration={showDuration}
+        onMode={next => {
+          kvSet('quizMode', next)
+          setMode(next)
+          engine.mode = next
+          if (!engine.finished) { engine.recomputeQuestions(); rerender() }
+        }}
+        onMaxQ={next => {
+          kvSet('quizMaxQ', String(next))
+          setMaxQ(next)
+          engine.maxQuestions = next
+          if (!engine.finished) { engine.recomputeQuestions(); rerender() }
+        }}
+        onSound={() => setSoundOn(toggleSound())}
+        onShowDuration={next => {
+          kvSet('quizShowDuration', next)
+          setShowDuration(next)
+        }}
+        onClose={() => setShowConfig(false)}
+      />}
       {showHelp && <HelpOverlay mode={mode} onClose={() => setShowHelp(false)} />}
 
       <div class="bottom-bar">
         {(() => {
           if (engine.finished) return <div class="answer-buttons" />
           let hasQuestion = engine.mode === 'comparison' ? engine.comparisonPair : engine.questionVertex
-          if (!hasQuestion) return <NextButton onNext={() => submitAnswer(0)} />
+          if (!hasQuestion) return engine.showingMove && showDuration !== 'manual'
+            ? <div class="answer-buttons" />
+            : <NextButton label={engine.moveIndex === 0 ? 'Start' : 'Next'} onNext={() => submitAnswer(0)} />
           return engine.mode === 'comparison'
             ? <ComparisonButtons onAnswer={submitAnswer} />
             : <AnswerButtons onAnswer={submitAnswer} />
@@ -289,22 +301,25 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
   )
 }
 
-function SummaryPanel({ engine, onBack, onRetry, onNextUnsolved }) {
-  let total = engine.results.length
-  let pct = total > 0 ? Math.round(engine.correct / total * 100) : 0
+function iqrFilter(times) {
+  if (times.length < 4) return times
+  let sorted = [...times].sort((a, b) => a - b)
+  let q1 = sorted[Math.floor(sorted.length * 0.25)]
+  let q3 = sorted[Math.floor(sorted.length * 0.75)]
+  let fence = q3 + 1.5 * (q3 - q1)
+  return times.filter(t => t <= fence)
+}
+
+function SummaryPanel({ onRetry, onNextUnsolved }) {
   return (
     <div class="summary-panel">
       <div class="scoring-title">Quiz Complete</div>
-      <div>Moves: {total}</div>
-      <div class="summary-correct">Correct: {engine.correct}</div>
-      <div class="summary-wrong">Wrong: {engine.wrong}</div>
-      <div>Accuracy: {pct}%</div>
-      <hr />
       <button class="back-btn" title="Restart this problem from the beginning" onClick={onRetry}>Retry</button>
       <button class="back-btn" title="Jump to next unsolved problem (Space)" onClick={onNextUnsolved}>Next Unsolved</button>
     </div>
   )
 }
+
 
 function ProgressBar({ questionsPerMove, moveProgress }) {
   let total = questionsPerMove.length
@@ -342,6 +357,23 @@ function ProgressBar({ questionsPerMove, moveProgress }) {
   )
 }
 
+function StatsBar({ engine, times }) {
+  let total = engine.results.length
+  let pct = total > 0 ? Math.round(engine.correct / total * 100) : 0
+  let filtered = iqrFilter(times)
+  let excluded = times.length - filtered.length
+  let avg = filtered.length > 0 ? filtered.reduce((a, b) => a + b, 0) / filtered.length : 0
+  let sd = filtered.length > 1 ? Math.sqrt(filtered.reduce((a, b) => a + (b - avg) ** 2, 0) / filtered.length) : 0
+  return (
+    <div class="progress-bar">
+      <span class="stats-line">
+        {engine.correct}/{total} ({pct}%)
+        {filtered.length > 0 && <> &middot; {(avg / 1000).toFixed(1)}s {sd > 0 ? `\u00b1${(sd / 1000).toFixed(1)}s` : ''}{excluded > 0 ? ` (${excluded} slow)` : ''}</>}
+      </span>
+    </div>
+  )
+}
+
 function AnswerButtons({ onAnswer }) {
   return (
     <div class="answer-buttons">
@@ -354,10 +386,10 @@ function AnswerButtons({ onAnswer }) {
   )
 }
 
-function NextButton({ onNext }) {
+function NextButton({ label = 'Next', onNext }) {
   return (
     <div class="answer-buttons">
-      <button class="bar-btn next-btn" title="Advance to next move (Space)" onClick={onNext}>Next</button>
+      <button class="bar-btn next-btn" title={`${label} (Space)`} onClick={onNext}>{label}</button>
     </div>
   )
 }
@@ -372,11 +404,54 @@ function ComparisonButtons({ onAnswer }) {
   )
 }
 
+function ConfigPanel({ mode, maxQ, soundOn, showDuration, onMode, onMaxQ, onSound, onShowDuration, onClose }) {
+  return (
+    <div class="overlay" onClick={onClose}>
+      <div class="overlay-content" onClick={e => e.stopPropagation()}>
+        <div class="overlay-header">
+          <b>Settings</b>
+          <button class="bar-btn" onClick={onClose}>X</button>
+        </div>
+        <div class="cfg-row">
+          <span class="cfg-label">Mode</span>
+          <div class="cfg-options">
+            <button class={`cfg-opt${mode === 'liberty' ? ' active' : ''}`} onClick={() => onMode('liberty')}>① Liberty</button>
+            <button class={`cfg-opt${mode === 'comparison' ? ' active' : ''}`} onClick={() => onMode('comparison')}>⚖ Comparison</button>
+          </div>
+        </div>
+        <div class="cfg-row">
+          <span class="cfg-label">Questions</span>
+          <div class="cfg-options">
+            {[0, 1, 2, 3, 4].map(n => (
+              <button key={n} class={`cfg-opt${maxQ === n ? ' active' : ''}`} onClick={() => onMaxQ(n)}>{n}</button>
+            ))}
+          </div>
+        </div>
+        <div class="cfg-row">
+          <span class="cfg-label">Show move</span>
+          <div class="cfg-options">
+            {[['manual', 'Until next'], ['1000', '1s'], ['500', '0.5s'], ['200', '0.2s']].map(([val, label]) => (
+              <button key={val} class={`cfg-opt${showDuration === val ? ' active' : ''}`} onClick={() => onShowDuration(val)}>{label}</button>
+            ))}
+          </div>
+        </div>
+        <div class="cfg-row">
+          <span class="cfg-label">Sound</span>
+          <div class="cfg-options">
+            <button class={`cfg-opt${soundOn ? ' active' : ''}`} onClick={() => { if (!soundOn) onSound() }}>🔊 On</button>
+            <button class={`cfg-opt${!soundOn ? ' active' : ''}`} onClick={() => { if (soundOn) onSound() }}>🔇 Off</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function HelpOverlay({ mode, onClose }) {
   return (
-    <div class="help-overlay" onClick={onClose}>
-      <div class="help-content" onClick={e => e.stopPropagation()}>
-        <div class="help-header">
+    <div class="overlay" onClick={onClose}>
+      <div class="overlay-content" onClick={e => e.stopPropagation()}>
+        <div class="overlay-header">
           <b>Controls</b>
           <button class="bar-btn" onClick={onClose}>X</button>
         </div>
@@ -384,9 +459,7 @@ function HelpOverlay({ mode, onClose }) {
           <tr><td class="help-key">☰</td><td>Back to library</td><td class="help-shortcut">Esc</td></tr>
           <tr><td class="help-key">↺</td><td>Restart this problem</td><td /></tr>
           <tr><td class="help-key">◀ ▶</td><td>Previous / next problem</td><td class="help-shortcut">← →</td></tr>
-          <tr><td class="help-key">{mode === 'liberty' ? '①' : '⚖'}</td><td>Toggle mode: <b>① liberty</b> (count liberties of a marked group) vs <b>⚖ comparison</b> (which of two marked groups has more liberties)</td><td /></tr>
-          <tr><td class="help-key">Q<i>n</i></td><td>Max questions per move (cycles 1-4)</td><td /></tr>
-          <tr><td class="help-key">🔊 🔇</td><td>Toggle sound effects</td><td /></tr>
+          <tr><td class="help-key">⚙</td><td>Open settings (mode, questions, sound)</td><td /></tr>
         </table>
         <div class="help-section">Answering</div>
         <table class="help-table">
