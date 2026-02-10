@@ -452,19 +452,23 @@ export class QuizEngine {
         }
       }
     }
-    // If >3 pairs, drop random diff-2 pairs until ≤3
-    if (pairs.length > 3) {
-      let diff2 = pairs.filter(p => Math.abs(p.libs1 - p.libs2) === 2)
-      let keep = pairs.filter(p => Math.abs(p.libs1 - p.libs2) <= 1)
-      // Shuffle diff2 and add back until we hit 3
-      for (let i = diff2.length - 1; i > 0; i--) {
-        let j = Math.floor(this.random() * (i + 1));
-        [diff2[i], diff2[j]] = [diff2[j], diff2[i]]
-      }
-      while (keep.length < 3 && diff2.length > 0) keep.push(diff2.pop())
-      pairs = keep
+    // Sort: lib_diff asc, opponent-has-more first, just-played first, random tiebreak
+    // libs1 = black, libs2 = white; sign = current move's color
+    let sign = this.currentMove.sign
+    let currentMoveGroup = vertexToGroup.get(vertexKey(this.currentMove.vertex))
+    for (let p of pairs) {
+      p._diff = Math.abs(p.libs1 - p.libs2)
+      // Within same diff: opponent having more libs is more interesting (comes first)
+      // sign=1 (B played) → opponent=W → W-has-more first → (libs2-libs1) > 0
+      // sign=-1 (W played) → opponent=B → B-has-more first → (libs1-libs2) > 0
+      // Equivalently: (libs1-libs2)*(-sign) > 0 means opponent has more
+      p._sub = p._diff === 0 ? 0 : ((p.libs1 - p.libs2) * (-sign) > 0 ? 0 : 1)
+      p._justPlayed = (vertexToGroup.get(vertexKey(p.v1)) === currentMoveGroup ||
+                        vertexToGroup.get(vertexKey(p.v2)) === currentMoveGroup) ? 0 : 1
+      p._rand = this.random()
     }
-    return pairs
+    pairs.sort((a, b) => a._diff - b._diff || a._sub - b._sub || a._justPlayed - b._justPlayed || a._rand - b._rand)
+    return pairs.slice(0, 3)
   }
 
   _pruneCaptured() {
