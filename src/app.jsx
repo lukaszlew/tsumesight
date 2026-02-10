@@ -45,8 +45,8 @@ export function App() {
     setPosition({ index: idx + 1, total: siblings.length })
   }
 
-  function selectSgf({ id, content, path }) {
-    let val = { id, content, path }
+  function selectSgf({ id, content, path, filename }) {
+    let val = { id, content, path, filename }
     sessionStorage.setItem('activeSgf', JSON.stringify(val))
     sessionStorage.setItem('lastPath', path)
     setActive(val)
@@ -82,7 +82,7 @@ export function App() {
     let siblings = await getSiblings(active.path)
     let curIdx = siblings.findIndex(s => s.id === active.id)
     let s = siblings[(curIdx + delta + siblings.length) % siblings.length]
-    if (s) selectSgf({ id: s.id, content: s.content, path: s.path || '' })
+    if (s) selectSgf({ id: s.id, content: s.content, path: s.path || '', filename: s.filename })
   }
 
   async function goNextUnsolved() {
@@ -91,7 +91,7 @@ export function App() {
     for (let i = 1; i < siblings.length; i++) {
       let s = siblings[(curIdx + i) % siblings.length]
       if (!s.solved) {
-        selectSgf({ id: s.id, content: s.content, path: s.path || '' })
+        selectSgf({ id: s.id, content: s.content, path: s.path || '', filename: s.filename })
         return
       }
     }
@@ -106,6 +106,7 @@ export function App() {
     return (
       <ErrorBoundary onReset={clearSgf}>
         <Quiz key={`${active.id}:${attempt}`} quizKey={`${active.id}:${attempt}`} sgf={active.content}
+          filename={active.filename}
           onBack={clearSgf} onSolved={markSolved} onProgress={saveProgress} onLoadError={handleLoadError}
           onPrev={() => goStep(-1)} onNext={() => goStep(1)}
           onNextUnsolved={goNextUnsolved}

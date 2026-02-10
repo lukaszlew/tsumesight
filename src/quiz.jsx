@@ -27,7 +27,7 @@ function makeEmptyMap(size, fill = null) {
   return Array.from({ length: size }, () => Array(size).fill(fill))
 }
 
-export function Quiz({ sgf, quizKey, onBack, onSolved, onProgress, onLoadError, onPrev, onNext, onNextUnsolved, onRetry, fileIndex, fileTotal }) {
+export function Quiz({ sgf, quizKey, filename, onBack, onSolved, onProgress, onLoadError, onPrev, onNext, onNextUnsolved, onRetry, fileIndex, fileTotal }) {
   let engineRef = useRef(null)
   let historyRef = useRef([])
   let solvedRef = useRef(false)
@@ -220,6 +220,7 @@ export function Quiz({ sgf, quizKey, onBack, onSolved, onProgress, onLoadError, 
 
       <div class="top-bar">
         <button class="bar-btn" onClick={onBack}>☰</button>
+        <span class="problem-name">{engine.gameName || filename?.replace(/\.sgf$/i, '') || ''}</span>
         <button class="bar-btn" onClick={onRetry}>↺</button>
         <div class="nav-group">
           <button class="bar-btn" onClick={onPrev}>◀</button>

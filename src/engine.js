@@ -37,6 +37,7 @@ export class QuizEngine {
     this.random = mulberry32(hashString(sgfString))
     let parsed = parseSgf(sgfString)
     this.boardSize = parsed.boardSize
+    this.gameName = parsed.gameName
     this.moves = parsed.moves.filter(m => m.vertex != null) // skip passes
     this.totalMoves = this.moves.length
 

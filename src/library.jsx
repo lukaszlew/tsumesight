@@ -266,7 +266,7 @@ export function Library({ onSelect, initialPath = '' }) {
               )
             })}
             {filesHere.map(s => (
-              <tr key={s.id} onClick={() => onSelect({ id: s.id, content: s.content, path: s.path || '' })} class={`sgf-row${s.solved ? ' solved-row' : ''}`}>
+              <tr key={s.id} onClick={() => onSelect({ id: s.id, content: s.content, path: s.path || '', filename: s.filename })} class={`sgf-row${s.solved ? ' solved-row' : ''}`}>
                 <td>{s.solved ? '✓ ' : ''}{s.filename}</td>
                 <td>{s.moveCount}</td>
                 <ScoreCells correct={s.correct} done={s.done} total={s.total} />

@@ -51,9 +51,10 @@ export function parseSgf(sgfString) {
     }
   }
 
-  // Player names
+  // Player names and game name
   let playerBlack = root.data.PB ? root.data.PB[0] : ''
   let playerWhite = root.data.PW ? root.data.PW[0] : ''
+  let gameName = root.data.GN ? root.data.GN[0] : ''
 
   // Extract moves from main line (skip root node)
   let nodes = walkMainLine(root)
@@ -85,6 +86,7 @@ export function parseSgf(sgfString) {
     setupWhite,
     playerBlack,
     playerWhite,
+    gameName,
     moveCount: moves.length,
   }
 }
