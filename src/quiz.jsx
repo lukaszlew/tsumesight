@@ -45,6 +45,9 @@ export function Quiz({ sgf, quizKey, filename, onBack, onSolved, onProgress, onL
   let [mode, setMode] = useState(getMode)
   let [maxQ, setMaxQ] = useState(getMaxQ)
   let [error, setError] = useState(null)
+  let [showHelp, _setShowHelp] = useState(false)
+  let showHelpRef = useRef(false)
+  let setShowHelp = (v) => { let next = typeof v === 'function' ? v(showHelpRef.current) : v; showHelpRef.current = next; _setShowHelp(next) }
 
   // Initialize engine once (possibly replaying saved history)
   if (!engineRef.current && !error) {
@@ -117,7 +120,7 @@ export function Quiz({ sgf, quizKey, filename, onBack, onSolved, onProgress, onL
   // Keyboard shortcuts
   useEffect(() => {
     function onKeyDown(e) {
-      if (e.key === 'Escape') { e.preventDefault(); onBack() }
+      if (e.key === 'Escape') { e.preventDefault(); if (showHelpRef.current) setShowHelp(false); else onBack() }
       else if (e.key === 'ArrowLeft') { e.preventDefault(); onPrev() }
       else if (e.key === 'ArrowRight') { e.preventDefault(); onNext() }
       else if (e.key === '?') {
@@ -204,6 +207,7 @@ export function Quiz({ sgf, quizKey, filename, onBack, onSolved, onProgress, onL
       <div class="board-row" ref={boardRowRef}>
         <div
           class="board-container"
+          title="Hold to peek at hidden stones (?)"
           onPointerDown={() => setPeeking(true)}
           onPointerUp={() => setPeeking(false)}
           onPointerLeave={() => setPeeking(false)}
@@ -225,15 +229,15 @@ export function Quiz({ sgf, quizKey, filename, onBack, onSolved, onProgress, onL
       </div>
 
       <div class="top-bar">
-        <button class="bar-btn" onClick={onBack}>☰</button>
+        <button class="bar-btn" title="Back to library (Esc)" onClick={onBack}>☰</button>
         <span class="problem-name">{engine.gameName || filename?.replace(/\.sgf$/i, '') || ''}</span>
-        <button class="bar-btn" onClick={onRetry}>↺</button>
+        <button class="bar-btn" title="Restart this problem" onClick={onRetry}>↺</button>
         <div class="nav-group">
-          <button class="bar-btn" onClick={onPrev}>◀</button>
-          <button class="bar-btn" onClick={onNext}>▶</button>
+          <button class="bar-btn" title="Previous problem (←)" onClick={onPrev}>◀</button>
+          <button class="bar-btn" title="Next problem (→)" onClick={onNext}>▶</button>
         </div>
         <div class="nav-group">
-          <button class="bar-btn" onClick={() => {
+          <button class="bar-btn" title={mode === 'liberty' ? 'Switch to comparison mode: two groups are marked 1 and 2, answer which has more liberties or if equal' : 'Switch to liberty mode: one group is marked, answer how many liberties it has (1-5+)'} onClick={() => {
             let next = mode === 'liberty' ? 'comparison' : 'liberty'
             localStorage.setItem(MODE_KEY, next)
             setMode(next)
@@ -245,7 +249,7 @@ export function Quiz({ sgf, quizKey, filename, onBack, onSolved, onProgress, onL
           }}>
             {mode === 'liberty' ? '①' : '⚖'}
           </button>
-          <button class="bar-btn" onClick={() => {
+          <button class="bar-btn" title={`Max questions per move: ${maxQ} (click to cycle 1-4)`} onClick={() => {
             let next = maxQ % 4 + 1
             localStorage.setItem(MAXQ_KEY, next)
             setMaxQ(next)
@@ -257,11 +261,14 @@ export function Quiz({ sgf, quizKey, filename, onBack, onSolved, onProgress, onL
           }}>
             Q{maxQ}
           </button>
-          <button class="bar-btn" onClick={() => setSoundOn(toggleSound())}>
+          <button class="bar-btn" title={soundOn ? 'Mute sound effects' : 'Enable sound effects'} onClick={() => setSoundOn(toggleSound())}>
             {soundOn ? '🔊' : '🔇'}
           </button>
+          <button class="bar-btn" title="Show help" onClick={() => setShowHelp(h => !h)}>?</button>
         </div>
       </div>
+
+      {showHelp && <HelpOverlay mode={mode} onClose={() => setShowHelp(false)} />}
 
       <div class="bottom-bar">
         {(() => {
@@ -289,8 +296,8 @@ function SummaryPanel({ engine, onBack, onRetry, onNextUnsolved }) {
       <div class="summary-wrong">Wrong: {engine.wrong}</div>
       <div>Accuracy: {pct}%</div>
       <hr />
-      <button class="back-btn" onClick={onRetry}>Retry</button>
-      <button class="back-btn" onClick={onNextUnsolved}>Next Unsolved</button>
+      <button class="back-btn" title="Restart this problem from the beginning" onClick={onRetry}>Retry</button>
+      <button class="back-btn" title="Jump to next unsolved problem (Space)" onClick={onNextUnsolved}>Next Unsolved</button>
     </div>
   )
 }
@@ -335,7 +342,7 @@ function AnswerButtons({ onAnswer }) {
   return (
     <div class="answer-buttons">
       {[1, 2, 3, 4, 5].map(l => (
-        <button key={l} class="bar-btn ans-btn" onClick={() => onAnswer(l)}>
+        <button key={l} class="bar-btn ans-btn" title={`Group has ${l === 5 ? '5 or more' : l} libert${l === 1 ? 'y' : 'ies'} (key ${l})`} onClick={() => onAnswer(l)}>
           {l === 5 ? '5+' : l}
         </button>
       ))}
@@ -346,7 +353,7 @@ function AnswerButtons({ onAnswer }) {
 function NextButton({ onNext }) {
   return (
     <div class="answer-buttons">
-      <button class="bar-btn next-btn" onClick={onNext}>Next</button>
+      <button class="bar-btn next-btn" title="Advance to next move (Space)" onClick={onNext}>Next</button>
     </div>
   )
 }
@@ -354,9 +361,49 @@ function NextButton({ onNext }) {
 function ComparisonButtons({ onAnswer }) {
   return (
     <div class="answer-buttons">
-      <button class="ans-btn black-stone-btn" onClick={() => onAnswer(1)}>1</button>
-      <button class="bar-btn ans-btn eq-btn" onClick={() => onAnswer(3)}>=</button>
-      <button class="ans-btn white-stone-btn" onClick={() => onAnswer(2)}>2</button>
+      <button class="ans-btn black-stone-btn" title="Group 1 has more liberties (key 1)" onClick={() => onAnswer(1)}>1</button>
+      <button class="bar-btn ans-btn eq-btn" title="Both groups have equal liberties (key Q)" onClick={() => onAnswer(3)}>=</button>
+      <button class="ans-btn white-stone-btn" title="Group 2 has more liberties (key 2)" onClick={() => onAnswer(2)}>2</button>
+    </div>
+  )
+}
+
+function HelpOverlay({ mode, onClose }) {
+  return (
+    <div class="help-overlay" onClick={onClose}>
+      <div class="help-content" onClick={e => e.stopPropagation()}>
+        <div class="help-header">
+          <b>Controls</b>
+          <button class="bar-btn" onClick={onClose}>X</button>
+        </div>
+        <table class="help-table">
+          <tr><td class="help-key">☰</td><td>Back to library</td><td class="help-shortcut">Esc</td></tr>
+          <tr><td class="help-key">↺</td><td>Restart this problem</td><td /></tr>
+          <tr><td class="help-key">◀ ▶</td><td>Previous / next problem</td><td class="help-shortcut">← →</td></tr>
+          <tr><td class="help-key">{mode === 'liberty' ? '①' : '⚖'}</td><td>Toggle mode: <b>① liberty</b> (count liberties of a marked group) vs <b>⚖ comparison</b> (which of two marked groups has more liberties)</td><td /></tr>
+          <tr><td class="help-key">Q<i>n</i></td><td>Max questions per move (cycles 1-4)</td><td /></tr>
+          <tr><td class="help-key">🔊 🔇</td><td>Toggle sound effects</td><td /></tr>
+        </table>
+        <div class="help-section">Answering</div>
+        <table class="help-table">
+          {mode === 'comparison'
+            ? <>
+                <tr><td class="help-key">1</td><td>Group marked "1" has more liberties</td><td class="help-shortcut">1</td></tr>
+                <tr><td class="help-key">=</td><td>Both groups have equal liberties</td><td class="help-shortcut">Q</td></tr>
+                <tr><td class="help-key">2</td><td>Group marked "2" has more liberties</td><td class="help-shortcut">2</td></tr>
+              </>
+            : <>
+                <tr><td class="help-key">1-4</td><td>Marked group has that many liberties</td><td class="help-shortcut">1-4</td></tr>
+                <tr><td class="help-key">5+</td><td>Marked group has 5 or more liberties</td><td class="help-shortcut">5</td></tr>
+              </>
+          }
+          <tr><td class="help-key">Next</td><td>Advance when no question this move</td><td class="help-shortcut">Space</td></tr>
+        </table>
+        <div class="help-section">Board</div>
+        <table class="help-table">
+          <tr><td class="help-key">?</td><td>Hold to peek at hidden stones</td><td class="help-shortcut">? / touch board</td></tr>
+        </table>
+      </div>
     </div>
   )
 }
