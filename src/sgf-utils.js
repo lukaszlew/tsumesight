@@ -1,5 +1,41 @@
 import sgf from '@sabaki/sgf'
 
+// Decode SGF bytes using encoding declared in CA property, defaulting to UTF-8
+export function decodeSgf(bytes) {
+  let encoding = detectCaEncoding(bytes)
+  if (encoding && encoding !== 'utf-8') {
+    try { return new TextDecoder(encoding).decode(bytes) } catch {}
+  }
+  return new TextDecoder('utf-8').decode(bytes)
+}
+
+// Scan raw bytes for CA[encoding] property
+// Works at byte level to avoid multi-byte encoding issues (GBK second bytes can be 0x5D=']')
+function detectCaEncoding(bytes) {
+  let limit = Math.min(bytes.length, 500)
+  for (let i = 0; i < limit - 4; i++) {
+    if (bytes[i] !== 0x43 || bytes[i + 1] !== 0x41 || bytes[i + 2] !== 0x5B) continue // CA[
+    let start = i + 3
+    let end = start
+    while (end < limit && bytes[end] !== 0x5D) end++ // find ]
+    if (end >= limit) return null
+    let value = ''
+    for (let j = start; j < end; j++) value += String.fromCharCode(bytes[j])
+    value = value.trim().toLowerCase()
+    let map = {
+      'utf-8': 'utf-8', 'utf8': 'utf-8',
+      'gb2312': 'gbk', 'gbk': 'gbk', 'gb18030': 'gb18030',
+      'big5': 'big5',
+      'euc-kr': 'euc-kr', 'euc_kr': 'euc-kr',
+      'shift_jis': 'shift_jis', 'sjis': 'shift_jis',
+      'iso-8859-1': 'iso-8859-1', 'latin1': 'iso-8859-1', 'latin-1': 'iso-8859-1',
+      'windows-1252': 'windows-1252',
+    }
+    return map[value] || value
+  }
+  return null
+}
+
 // Total move count from this node (inclusive) down through longest variation
 function moveDepth(node) {
   let self = (node.data.B || node.data.W) ? 1 : 0
@@ -63,20 +99,9 @@ export function parseSgf(sgfString) {
   for (let i = 1; i < nodes.length; i++) {
     let node = nodes[i]
     if (node.data.B != null) {
-      let raw = node.data.B[0]
-      // Pass: empty string or 'tt' on 19x19
-      if (!raw || raw === 'tt') {
-        moves.push({ sign: 1, vertex: null })
-      } else {
-        moves.push({ sign: 1, vertex: sgf.parseVertex(raw) })
-      }
+      moves.push({ sign: 1, vertex: parseMove(node.data.B[0], boardSize) })
     } else if (node.data.W != null) {
-      let raw = node.data.W[0]
-      if (!raw || raw === 'tt') {
-        moves.push({ sign: -1, vertex: null })
-      } else {
-        moves.push({ sign: -1, vertex: sgf.parseVertex(raw) })
-      }
+      moves.push({ sign: -1, vertex: parseMove(node.data.W[0], boardSize) })
     }
   }
 
@@ -142,6 +167,14 @@ export function computeRange(sgfString) {
   if (maxX - minX >= size - 2 && maxY - minY >= size - 2) return null
 
   return [minX, minY, maxX, maxY]
+}
+
+// Parse move coordinate; treat empty, 'tt', and out-of-bounds as pass (null)
+function parseMove(raw, boardSize) {
+  if (!raw || raw === 'tt') return null
+  let vertex = sgf.parseVertex(raw)
+  if (vertex[0] < 0 || vertex[0] >= boardSize || vertex[1] < 0 || vertex[1] >= boardSize) return null
+  return vertex
 }
 
 function assert(condition, msg) {

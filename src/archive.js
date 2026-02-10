@@ -1,4 +1,5 @@
 import JSZip from 'jszip'
+import { decodeSgf } from './sgf-utils.js'
 
 const ARCHIVE_EXTENSIONS = ['.zip', '.tar.gz', '.tgz', '.tar']
 
@@ -33,7 +34,7 @@ async function extractZip(file) {
   for (let [name, entry] of Object.entries(zip.files)) {
     if (entry.dir) continue
     if (!name.toLowerCase().endsWith('.sgf')) continue
-    let content = await entry.async('string')
+    let content = decodeSgf(await entry.async('uint8array'))
     results.push({ name, content })
   }
   return results
@@ -60,7 +61,7 @@ function extractTar(buf) {
     if (prefix) name = prefix + '/' + name
     offset += 512
     if (name.toLowerCase().endsWith('.sgf') && size > 0) {
-      let content = new TextDecoder().decode(view.slice(offset, offset + size))
+      let content = decodeSgf(view.slice(offset, offset + size))
       results.push({ name, content })
     }
     offset += Math.ceil(size / 512) * 512

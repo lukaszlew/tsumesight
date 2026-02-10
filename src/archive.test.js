@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import JSZip from 'jszip'
-import { parseSgf } from './sgf-utils.js'
+import { parseSgf, decodeSgf } from './sgf-utils.js'
 import { QuizEngine } from './engine.js'
 
 // Test the full pipeline: zip → extract → flatten → parse → engine
@@ -14,7 +14,7 @@ async function extractAndFlatten(buf) {
   let entries = []
   for (let [name, entry] of Object.entries(zip.files)) {
     if (entry.dir || !name.toLowerCase().endsWith('.sgf')) continue
-    entries.push({ name, content: await entry.async('string') })
+    entries.push({ name, content: decodeSgf(await entry.async('uint8array')) })
   }
   // flattenSingleRoot
   if (entries.length > 0) {
@@ -57,6 +57,53 @@ describe('SGFBooks.zip', () => {
     console.log(`Parsed ${entries.length - failures.length}/${entries.length}`)
     // Allow up to 0.1% parse failures from malformed SGFs in the archive
     expect(failures.length).toBeLessThan(entries.length * 0.001)
+  })
+
+  it('no consecutive same-color moves (encoding correctness)', { timeout: 30000 }, async () => {
+    entries = entries || await extractAndFlatten(zipBuf)
+    let suspicious = []
+    for (let { name, content } of entries) {
+      try {
+        let { moves } = parseSgf(content)
+        for (let i = 1; i < moves.length; i++) {
+          if (moves[i].sign === moves[i - 1].sign) {
+            suspicious.push({ name, moveIdx: i, sign: moves[i].sign })
+            break
+          }
+        }
+      } catch { /* parse failures handled by other test */ }
+    }
+    if (suspicious.length > 0) {
+      console.log(`Consecutive same-color moves (${suspicious.length}):`)
+      for (let s of suspicious) console.log(`  ${s.name}: move ${s.moveIdx} sign=${s.sign}`)
+    }
+    // Some SGFs may legitimately have consecutive same-color (e.g. handicap formats)
+    // but encoding bugs cause many — allow a tiny fraction
+    expect(suspicious.length).toBeLessThan(entries.length * 0.01)
+  })
+
+  it('all move coordinates are within board bounds', { timeout: 30000 }, async () => {
+    entries = entries || await extractAndFlatten(zipBuf)
+    let outOfBounds = []
+    for (let { name, content } of entries) {
+      try {
+        let { moves, boardSize } = parseSgf(content)
+        for (let i = 0; i < moves.length; i++) {
+          let v = moves[i].vertex
+          if (!v) continue // pass
+          let [x, y] = v
+          if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) {
+            outOfBounds.push({ name, moveIdx: i, vertex: v, boardSize })
+            break
+          }
+        }
+      } catch {}
+    }
+    if (outOfBounds.length > 0) {
+      console.log(`Out-of-bounds moves (${outOfBounds.length}):`)
+      for (let o of outOfBounds) console.log(`  ${o.name}: move ${o.moveIdx} at [${o.vertex}] on ${o.boardSize}x${o.boardSize}`)
+    }
+    expect(outOfBounds.length).toBe(0)
   })
 
   it('sampled SGFs can init QuizEngine and advance', { timeout: 60000 }, async () => {

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'preact/hooks'
 import { getAllSgfs, addSgfBatch, deleteSgf, deleteSgfsByPrefix } from './db.js'
 import { parseSgf } from './sgf-utils.js'
 import { isArchive, extractSgfs } from './archive.js'
+import { decodeSgf } from './sgf-utils.js'
 
 async function collectSgfFiles(dirHandle, path) {
   let results = []
@@ -84,7 +85,7 @@ export function Library({ onSelect, initialPath = '' }) {
         let archiveName = file.name.replace(/\.(zip|tar\.gz|tgz|tar)$/i, '')
         allRecords.push(...parseAndCollect(entries, archiveName, now))
       } else if (file.name.toLowerCase().endsWith('.sgf')) {
-        let content = await file.text()
+        let content = decodeSgf(new Uint8Array(await file.arrayBuffer()))
         allRecords.push(...parseAndCollect([{ name: file.name, content }], '', now))
       }
     }
@@ -99,7 +100,7 @@ export function Library({ onSelect, initialPath = '' }) {
     let now = Date.now()
     let entries = []
     for (let { file, path } of collected) {
-      let content = await file.text()
+      let content = decodeSgf(new Uint8Array(await file.arrayBuffer()))
       entries.push({ name: path + '/' + file.name, content })
     }
     let records = parseAndCollect(entries, '', now)
@@ -126,7 +127,7 @@ export function Library({ onSelect, initialPath = '' }) {
         let archiveName = filename.replace(/\.(zip|tar\.gz|tgz|tar)$/i, '')
         allRecords = parseAndCollect(entries, archiveName, now)
       } else {
-        let content = await file.text()
+        let content = decodeSgf(new Uint8Array(await file.arrayBuffer()))
         allRecords = parseAndCollect([{ name: filename, content }], '', now)
       }
       if (allRecords.length > 0) await importBatch(allRecords)
