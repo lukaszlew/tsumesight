@@ -444,10 +444,10 @@ export class QuizEngine {
           if (!ga.libsChanged && !gb.libsChanged) continue
           let va = ga.vertices[Math.floor(this.random() * ga.vertices.length)]
           let vb = gb.vertices[Math.floor(this.random() * gb.vertices.length)]
-          // Label "1" left/above, "3" right/below
-          let swap = vb[0] < va[0] || (vb[0] === va[0] && vb[1] < va[1])
-          let [v1, v2] = swap ? [vb, va] : [va, vb]
-          let [libs1, libs2] = swap ? [libsB, libsA] : [libsA, libsB]
+          // Label "1" = black, "2" = white
+          let blackIsA = signA === 1
+          let [v1, v2] = blackIsA ? [va, vb] : [vb, va]
+          let [libs1, libs2] = blackIsA ? [libsA, libsB] : [libsB, libsA]
           pairs.push({ v1, v2, libs1, libs2 })
         }
       }

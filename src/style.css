@@ -204,6 +204,10 @@ body {
   position: relative;
   margin-bottom: 1rem;
   overflow: hidden;
+  height: min(480px, 100vw - 2rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .top-bar {
@@ -234,10 +238,26 @@ body {
 /* Progress bar (below board) */
 .progress-bar {
   display: flex;
-  gap: 1px;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
   padding: 0;
+}
+.progress-pips {
+  display: flex;
+  gap: 1px;
+  align-items: flex-start;
+}
+.progress-score {
+  white-space: nowrap;
+  padding-right: 0.4rem;
+  font-size: 2rem;
+  font-weight: 500;
+}
+.progress-score .score-correct {
+  color: #4c4;
+}
+.progress-score .score-slash {
+  color: #999;
 }
 .progress-ellipsis {
   color: #666;
@@ -270,8 +290,8 @@ body {
   top: -0.8rem;
 }
 .check-empty, .check-done, .check-fail {
-  width: 16px;
-  height: 16px;
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -279,8 +299,8 @@ body {
   border: 1px solid #555;
 }
 .check-skip {
-  width: 16px;
-  height: 16px;
+  width: 11px;
+  height: 11px;
   flex-shrink: 0;
   position: relative;
 }
@@ -375,6 +395,24 @@ body {
   -webkit-text-stroke: .02em rgba(0,0,0,.25);
   border-radius: 50%;
 }
+.black-stone-btn {
+  background: radial-gradient(circle at 35% 35%, #666, #111);
+  color: #ccc;
+  border: none;
+  box-shadow: 2px 2px 4px rgba(0,0,0,.5);
+}
+.black-stone-btn:hover {
+  background: radial-gradient(circle at 35% 35%, #777, #222);
+}
+.white-stone-btn {
+  background: radial-gradient(circle at 25% 25%, #fff 0%, #ccc 30%, #888 100%);
+  color: #333;
+  border: none;
+  box-shadow: 2px 2px 4px rgba(0,0,0,.3);
+}
+.white-stone-btn:hover {
+  background: radial-gradient(circle at 25% 25%, #fff 0%, #d5d5d5 30%, #999 100%);
+}
 .eq-btn {
   border-radius: 4px;
   width: auto;
@@ -437,14 +475,12 @@ body {
     flex-direction: column;
   }
   .board-section > .progress-bar {
-    height: 10dvh;
-    flex-shrink: 0;
-    align-items: flex-start;
+    flex: 0 0 10%;
     overflow: hidden;
   }
   .board-row {
-    height: 50dvh;
-    flex-shrink: 0;
+    flex: 0 0 50%;
+    height: auto;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -452,13 +488,11 @@ body {
     overflow: hidden;
   }
   .top-bar {
-    height: 8dvh;
-    flex-shrink: 0;
+    flex: 0 0 10%;
     padding: 0 0.5rem;
   }
   .bottom-bar {
-    height: 10dvh;
-    flex-shrink: 0;
+    flex: 0 0 10%;
     justify-content: center;
     margin-bottom: 0;
   }

@@ -36,7 +36,7 @@ export function Quiz({ sgf, quizKey, onBack, onSolved, onProgress, onLoadError, 
   let [peeking, setPeeking] = useState(false)
   let [soundOn, setSoundOn] = useState(isSoundEnabled())
   let [vertexSize, setVertexSize] = useState(0)
-  let boardContainerRef = useRef(null)
+  let boardRowRef = useRef(null)
   let [mode, setMode] = useState(getMode)
   let [error, setError] = useState(null)
 
@@ -144,14 +144,16 @@ export function Quiz({ sgf, quizKey, onBack, onSolved, onProgress, onLoadError, 
   let rangeY = engine.boardRange ? [engine.boardRange[1], engine.boardRange[3]] : undefined
   let cols = rangeX ? rangeX[1] - rangeX[0] + 1 : engine.boardSize
   let rows = rangeY ? rangeY[1] - rangeY[0] + 1 : engine.boardSize
+  // Measure actual board-row container via ResizeObserver — no viewport guessing
   useEffect(() => {
-    let el = boardContainerRef.current
+    let el = boardRowRef.current
     if (!el) return
-    let isPortrait = window.innerHeight > window.innerWidth
-    let maxW = isPortrait ? window.innerWidth : Math.min(window.innerWidth - 32, 480)
-    let maxH = isPortrait ? window.innerHeight * 0.50 : maxW
-    // Shudan adds ~0.8em border+padding; solve vertexSize * (n + 1.8) ≤ max
-    setVertexSize(Math.max(1, Math.floor(Math.min(maxW / (cols + 1.8), maxH / (rows + 1.8)))))
+    let ro = new ResizeObserver(entries => {
+      let { width, height } = entries[0].contentRect
+      setVertexSize(Math.max(1, Math.floor(Math.min(width / (cols + 1.8), height / (rows + 1.8)))))
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
   }, [cols, rows])
 
   // Build display maps
@@ -193,10 +195,9 @@ export function Quiz({ sgf, quizKey, onBack, onSolved, onProgress, onLoadError, 
     <div class="quiz">
       <div class="board-section">
       <ProgressBar questionsPerMove={engine.questionsPerMove} moveProgress={engine.moveProgress} />
-      <div class="board-row">
+      <div class="board-row" ref={boardRowRef}>
         <div
           class="board-container"
-          ref={boardContainerRef}
           onPointerDown={() => setPeeking(true)}
           onPointerUp={() => setPeeking(false)}
           onPointerLeave={() => setPeeking(false)}
@@ -219,6 +220,7 @@ export function Quiz({ sgf, quizKey, onBack, onSolved, onProgress, onLoadError, 
 
       <div class="top-bar">
         <button class="bar-btn" onClick={onBack}>☰</button>
+        <button class="bar-btn" onClick={onRetry}>↺</button>
         <div class="nav-group">
           <button class="bar-btn" onClick={onPrev}>◀</button>
           <button class="bar-btn" onClick={onNext}>▶</button>
@@ -282,24 +284,30 @@ function ProgressBar({ questionsPerMove, moveProgress }) {
   let start = needsWindow ? Math.max(0, Math.min(current - CONTEXT, total - CONTEXT * 2 - 1)) : 0
   let end = needsWindow ? Math.min(total, start + CONTEXT * 2 + 1) : total
 
+  let correctCount = moveProgress.reduce((sum, mp) => sum + mp.results.filter(r => r === 'correct').length, 0)
+  let totalCount = questionsPerMove.reduce((sum, q) => sum + q, 0)
+
   return (
     <div class="progress-bar">
-      <span class={`progress-ellipsis${needsWindow && start > 0 ? '' : ' invisible'}`}>…</span>
-      {questionsPerMove.slice(start, end).map((qCount, offset) => {
-        let i = start + offset
-        let results = moveProgress[i] ? moveProgress[i].results : []
-        return (
-          <div key={i} class={`progress-move${i === current ? ' current' : ''}`}>
-            <span class="move-number">{i === current ? i + 1 : ''}</span>
-            {qCount === 0
-              ? <span class="check-skip" />
-              : Array.from({ length: qCount }, (_, j) => (
-                <span key={j} class={results[j] === 'correct' ? 'check-done' : results[j] === 'failed' ? 'check-fail' : 'check-empty'} />
-              ))}
-          </div>
-        )
-      })}
-      <span class={`progress-ellipsis${needsWindow && end < total ? '' : ' invisible'}`}>…</span>
+      <span class="progress-score"><span class="score-correct">{correctCount}</span><span class="score-slash">/{totalCount}</span></span>
+      <div class="progress-pips">
+        <span class={`progress-ellipsis${needsWindow && start > 0 ? '' : ' invisible'}`}>…</span>
+        {questionsPerMove.slice(start, end).map((qCount, offset) => {
+          let i = start + offset
+          let results = moveProgress[i] ? moveProgress[i].results : []
+          return (
+            <div key={i} class={`progress-move${i === current ? ' current' : ''}`}>
+              <span class="move-number">{i === current ? i + 1 : ''}</span>
+              {qCount === 0
+                ? <span class="check-skip" />
+                : Array.from({ length: qCount }, (_, j) => (
+                  <span key={j} class={results[j] === 'correct' ? 'check-done' : results[j] === 'failed' ? 'check-fail' : 'check-empty'} />
+                ))}
+            </div>
+          )
+        })}
+        <span class={`progress-ellipsis${needsWindow && end < total ? '' : ' invisible'}`}>…</span>
+      </div>
     </div>
   )
 }
@@ -327,9 +335,9 @@ function NextButton({ onNext }) {
 function ComparisonButtons({ onAnswer }) {
   return (
     <div class="answer-buttons">
-      <button class="bar-btn ans-btn" onClick={() => onAnswer(1)}>1</button>
+      <button class="ans-btn black-stone-btn" onClick={() => onAnswer(1)}>1</button>
       <button class="bar-btn ans-btn eq-btn" onClick={() => onAnswer(3)}>=</button>
-      <button class="bar-btn ans-btn" onClick={() => onAnswer(2)}>2</button>
+      <button class="ans-btn white-stone-btn" onClick={() => onAnswer(2)}>2</button>
     </div>
   )
 }
