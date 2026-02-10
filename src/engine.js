@@ -314,6 +314,35 @@ export class QuizEngine {
     return groups
   }
 
+  recomputeQuestions() {
+    let move = this.currentMove
+    if (!move) return
+    if (this.mode === 'comparison') {
+      let pairs = this._findComparisonPairs()
+      this.questions = pairs
+      this.questionIndex = 0
+      this.comparisonPair = pairs[0] || null
+      this.questionVertex = null
+    } else {
+      this.peekGroupScores = this.getGroupScores()
+      let pool = this.peekGroupScores.filter(g => g.libsChanged)
+      pool.sort((a, b) => b.score - a.score)
+      this.questions = pool.map(g =>
+        g.vertices[Math.floor(this.random() * g.vertices.length)]
+      )
+      let moveChainKeys = new Set(this.trueBoard.getChain(move.vertex).map(vertexKey))
+      this.questions = this.questions.filter(q => !moveChainKeys.has(vertexKey(q)))
+      this.questions.unshift(move.vertex)
+      let filtered = this.questions.filter(q => this.trueBoard.getLiberties(q).length < 6)
+      if (filtered.length > 0) this.questions = filtered
+      this.questionIndex = 0
+      this.questionVertex = this.questions[0] || null
+      this.comparisonPair = null
+    }
+    this.moveProgress[this.moveProgress.length - 1] = { total: this.questions.length, results: [] }
+    this.questionsPerMove[this.questionsPerMove.length - 1] = this.questions.length
+  }
+
   _advanceLiberty(move) {
     // Build question queue: all groups with changed liberties
     this.peekGroupScores = this.getGroupScores()

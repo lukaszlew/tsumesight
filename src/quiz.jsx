@@ -7,7 +7,7 @@ const HISTORY_KEY = 'quizHistory'
 const MODE_KEY = 'quizMode'
 
 function getMode() {
-  return localStorage.getItem(MODE_KEY) || 'liberty'
+  return localStorage.getItem(MODE_KEY) || 'comparison'
 }
 
 function loadHistory(quizKey) {
@@ -195,8 +195,12 @@ export function Quiz({ sgf, quizKey, onBack, onSolved, onProgress, onLoadError, 
             localStorage.setItem(MODE_KEY, next)
             setMode(next)
             engine.mode = next
+            if (!engine.finished) {
+              engine.recomputeQuestions()
+              rerender()
+            }
           }}>
-            {mode === 'liberty' ? '#' : '><'}
+            {mode === 'liberty' ? '①' : '⚖'}
           </button>
           <button class="bar-btn" onClick={() => setSoundOn(toggleSound())}>
             {soundOn ? '🔊' : '🔇'}
@@ -229,9 +233,14 @@ export function Quiz({ sgf, quizKey, onBack, onSolved, onProgress, onLoadError, 
 
       <div class="bottom-bar">
         <ProgressBar questionsPerMove={engine.questionsPerMove} moveProgress={engine.moveProgress} />
-        {!engine.finished && (engine.mode === 'comparison'
-          ? <ComparisonButtons onAnswer={submitAnswer} />
-          : <AnswerButtons onAnswer={submitAnswer} />)}
+        {(() => {
+          if (engine.finished) return <div class="answer-buttons" />
+          let hasQuestion = engine.mode === 'comparison' ? engine.comparisonPair : engine.questionVertex
+          if (!hasQuestion) return <NextButton onNext={() => submitAnswer(0)} />
+          return engine.mode === 'comparison'
+            ? <ComparisonButtons onAnswer={submitAnswer} />
+            : <AnswerButtons onAnswer={submitAnswer} />
+        })()}
       </div>
       </div>
     </div>
@@ -293,6 +302,14 @@ function AnswerButtons({ onAnswer }) {
           {l === 5 ? '5+' : l}
         </button>
       ))}
+    </div>
+  )
+}
+
+function NextButton({ onNext }) {
+  return (
+    <div class="answer-buttons">
+      <button class="bar-btn next-btn" onClick={onNext}>Next</button>
     </div>
   )
 }

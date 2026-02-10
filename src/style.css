@@ -254,6 +254,7 @@ body {
   padding: 2px;
   border: 1px solid transparent;
   border-radius: 3px;
+  position: relative;
 }
 .progress-move.current {
   background: rgba(255, 255, 255, 0.06);
@@ -263,7 +264,9 @@ body {
   font-size: 0.6rem;
   color: #999;
   line-height: 1;
-  height: 0.6rem;
+  height: 0;
+  position: relative;
+  top: -0.8rem;
 }
 .check-empty, .check-done, .check-fail {
   width: 12px;
@@ -356,6 +359,7 @@ body {
   display: flex;
   gap: 0.5rem;
   justify-content: center;
+  height: 3rem;
 }
 .ans-btn {
   width: 3rem;
@@ -365,6 +369,12 @@ body {
   color: #f33;
   -webkit-text-stroke: .02em rgba(0,0,0,.25);
   border-radius: 50%;
+}
+.next-btn {
+  width: 10rem;
+  height: 3rem;
+  font-size: 0.95rem;
+  border-radius: 1.5rem;
 }
 
 /* Summary panel (side of board) */
