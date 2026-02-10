@@ -1,24 +1,25 @@
 import sgf from '@sabaki/sgf'
 
-// Depth of the longest path from this node (counting nodes with moves)
-function longestDepth(node) {
-  if (!node.children || node.children.length === 0) return 0
+// Total move count from this node (inclusive) down through longest variation
+function moveDepth(node) {
+  let self = (node.data.B || node.data.W) ? 1 : 0
+  if (!node.children || node.children.length === 0) return self
   let best = 0
   for (let child of node.children) {
-    let d = longestDepth(child) + (child.data.B || child.data.W ? 1 : 0)
+    let d = moveDepth(child)
     if (d > best) best = d
   }
-  return best
+  return self + best
 }
 
 // Walk the longest variation through the tree
 function walkMainLine(node) {
   let nodes = [node]
   while (node.children && node.children.length > 0) {
-    let best = node.children[0], bestDepth = longestDepth(best)
+    let best = node.children[0], bestScore = moveDepth(best)
     for (let i = 1; i < node.children.length; i++) {
-      let d = longestDepth(node.children[i])
-      if (d > bestDepth) { best = node.children[i]; bestDepth = d }
+      let d = moveDepth(node.children[i])
+      if (d > bestScore) { best = node.children[i]; bestScore = d }
     }
     node = best
     nodes.push(node)
