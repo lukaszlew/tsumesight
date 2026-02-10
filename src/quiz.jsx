@@ -131,10 +131,10 @@ export function Quiz({ sgf, quizKey, filename, onBack, onSolved, onProgress, onL
         e.preventDefault()
         let hasQuestion = engine.mode === 'comparison' ? engine.comparisonPair : engine.questionVertex
         if (engine.finished) onNextUnsolved()
+        else if (engine.mode === 'comparison' && engine.comparisonPair) submitAnswer(3)
         else if (!hasQuestion) submitAnswer(0)
       }
       else if (engine.mode === 'comparison' && (e.key === '1' || e.key === '2')) submitAnswer(parseInt(e.key))
-      else if (engine.mode === 'comparison' && (e.key === 'q' || e.key === 'Q')) submitAnswer(3)
       else if (engine.mode !== 'comparison' && e.key >= '1' && e.key <= '5') submitAnswer(parseInt(e.key))
     }
     function onKeyUp(e) {
@@ -362,7 +362,7 @@ function ComparisonButtons({ onAnswer }) {
   return (
     <div class="answer-buttons">
       <button class="ans-btn black-stone-btn" title="Group 1 has more liberties (key 1)" onClick={() => onAnswer(1)}>1</button>
-      <button class="bar-btn ans-btn eq-btn" title="Both groups have equal liberties (key Q)" onClick={() => onAnswer(3)}>=</button>
+      <button class="bar-btn ans-btn eq-btn" title="Both groups have equal liberties (Space)" onClick={() => onAnswer(3)}>=</button>
       <button class="ans-btn white-stone-btn" title="Group 2 has more liberties (key 2)" onClick={() => onAnswer(2)}>2</button>
     </div>
   )
@@ -389,7 +389,7 @@ function HelpOverlay({ mode, onClose }) {
           {mode === 'comparison'
             ? <>
                 <tr><td class="help-key">1</td><td>Group marked "1" has more liberties</td><td class="help-shortcut">1</td></tr>
-                <tr><td class="help-key">=</td><td>Both groups have equal liberties</td><td class="help-shortcut">Q</td></tr>
+                <tr><td class="help-key">=</td><td>Both groups have equal liberties</td><td class="help-shortcut">Space</td></tr>
                 <tr><td class="help-key">2</td><td>Group marked "2" has more liberties</td><td class="help-shortcut">2</td></tr>
               </>
             : <>
