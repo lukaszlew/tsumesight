@@ -63,16 +63,33 @@ function moveDepth(node) {
   return self + best
 }
 
-// Walk the longest variation through the tree
+// Pick the main-line child at a branch point:
+// 1. Exclude WV (Wrong Variation) children
+// 2. If first candidate has no move (comment-only), skip it
+// 3. Prefer first remaining candidate; fall back to longest
+function pickChild(children) {
+  let candidates = children.filter(c => !('WV' in c.data))
+  if (candidates.length === 0) candidates = children
+  if (candidates[0].data.B || candidates[0].data.W) return candidates[0]
+  let withMoves = candidates.filter(c => c.data.B || c.data.W)
+  if (withMoves.length === 0) withMoves = candidates
+  return longestOf(withMoves)
+}
+
+function longestOf(nodes) {
+  let best = nodes[0], bestScore = moveDepth(best)
+  for (let i = 1; i < nodes.length; i++) {
+    let d = moveDepth(nodes[i])
+    if (d > bestScore) { best = nodes[i]; bestScore = d }
+  }
+  return best
+}
+
+// Walk the main line through the tree
 function walkMainLine(node) {
   let nodes = [node]
   while (node.children && node.children.length > 0) {
-    let best = node.children[0], bestScore = moveDepth(best)
-    for (let i = 1; i < node.children.length; i++) {
-      let d = moveDepth(node.children[i])
-      if (d > bestScore) { best = node.children[i]; bestScore = d }
-    }
-    node = best
+    node = node.children.length === 1 ? node.children[0] : pickChild(node.children)
     nodes.push(node)
   }
   return nodes
