@@ -176,9 +176,8 @@ export function Quiz({ sgf, quizKey, filename, onBack, onSolved, onProgress, onL
   let markerMap = makeEmptyMap(size)
   let ghostStoneMap = makeEmptyMap(size)
 
-  // Current move: ghost stone (semi-transparent last move indicator)
-  // Clear signMap at ghost vertex so stale captured stones don't show through
-  if (engine.currentMove) {
+  // Show phase: ghost stone for the just-played move (disappears when questions activate)
+  if (engine.currentMove && engine.showingMove) {
     let [x, y] = engine.currentMove.vertex
     signMap[y][x] = 0
     ghostStoneMap[y][x] = { sign: engine.currentMove.sign, faint: true }
