@@ -224,7 +224,7 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
       <div class="board-section">
       {engine.finished
         ? <StatsBar engine={engine} times={timesRef.current} />
-        : <ProgressBar questionsPerMove={engine.questionsPerMove} moveProgress={engine.moveProgress} />}
+        : <ProgressBar questionsPerMove={engine.questionsPerMove} moveProgress={engine.moveProgress} questionIndex={engine.questionIndex} showingMove={engine.showingMove} moves={engine.moves} />}
       <div class="board-row" ref={boardRowRef}>
         <div
           class="board-container"
@@ -303,14 +303,6 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
   )
 }
 
-function iqrFilter(times) {
-  if (times.length < 4) return times
-  let sorted = [...times].sort((a, b) => a - b)
-  let q1 = sorted[Math.floor(sorted.length * 0.25)]
-  let q3 = sorted[Math.floor(sorted.length * 0.75)]
-  let fence = q3 + 1.5 * (q3 - q1)
-  return times.filter(t => t <= fence)
-}
 
 function SummaryPanel({ onRetry, onNextUnsolved }) {
   return (
@@ -323,12 +315,12 @@ function SummaryPanel({ onRetry, onNextUnsolved }) {
 }
 
 
-function ProgressBar({ questionsPerMove, moveProgress }) {
+function ProgressBar({ questionsPerMove, moveProgress, questionIndex, showingMove, moves }) {
   let total = questionsPerMove.length
-  let current = moveProgress.length - 1
+  let currentMove = moveProgress.length - 1
   let CONTEXT = 3
   let needsWindow = total > CONTEXT * 2 + 1
-  let start = needsWindow ? Math.max(0, Math.min(current - CONTEXT, total - CONTEXT * 2 - 1)) : 0
+  let start = needsWindow ? Math.max(0, Math.min(currentMove - CONTEXT, total - CONTEXT * 2 - 1)) : 0
   let end = needsWindow ? Math.min(total, start + CONTEXT * 2 + 1) : total
 
   let correctCount = moveProgress.reduce((sum, mp) => sum + mp.results.filter(r => r === 'correct').length, 0)
@@ -342,14 +334,18 @@ function ProgressBar({ questionsPerMove, moveProgress }) {
         {questionsPerMove.slice(start, end).map((qCount, offset) => {
           let i = start + offset
           let results = moveProgress[i] ? moveProgress[i].results : []
+          let isCurrent = i === currentMove
           return (
-            <div key={i} class={`progress-move${i === current ? ' current' : ''}`}>
-              <span class="move-number">{i === current ? i + 1 : ''}</span>
+            <div key={i} class={`progress-move${isCurrent ? ' current' : ''}`}>
+              <span class={`move-stone${moves[i].sign === 1 ? ' stone-black' : ' stone-white'}${isCurrent && showingMove ? ' q-current' : ''}`}>{i + 1}</span>
               {qCount === 0
                 ? <span class="check-skip" />
-                : Array.from({ length: qCount }, (_, j) => (
-                  <span key={j} class={results[j] === 'correct' ? 'check-done' : results[j] === 'failed' ? 'check-fail' : 'check-empty'} />
-                ))}
+                : Array.from({ length: qCount }, (_, j) => {
+                  let isActiveQ = isCurrent && !showingMove && j === questionIndex
+                  let cls = results[j] === 'correct' ? 'q-correct' : results[j] === 'failed' ? 'q-failed' : 'q-pending'
+                  if (isActiveQ) cls += ' q-current'
+                  return <span key={j} class={cls}>{results[j] === 'correct' ? '✓' : results[j] === 'failed' ? '✗' : '?'}</span>
+                })}
             </div>
           )
         })}
@@ -362,15 +358,13 @@ function ProgressBar({ questionsPerMove, moveProgress }) {
 function StatsBar({ engine, times }) {
   let total = engine.results.length
   let pct = total > 0 ? Math.round(engine.correct / total * 100) : 0
-  let filtered = iqrFilter(times)
-  let excluded = times.length - filtered.length
-  let avg = filtered.length > 0 ? filtered.reduce((a, b) => a + b, 0) / filtered.length : 0
-  let sd = filtered.length > 1 ? Math.sqrt(filtered.reduce((a, b) => a + (b - avg) ** 2, 0) / filtered.length) : 0
+  let avg = times.length > 0 ? times.reduce((a, b) => a + b, 0) / times.length : 0
+  let sd = times.length > 1 ? Math.sqrt(times.reduce((a, b) => a + (b - avg) ** 2, 0) / times.length) : 0
   return (
     <div class="progress-bar">
       <span class="stats-line">
         {engine.correct}/{total} ({pct}%)
-        {filtered.length > 0 && <> &middot; {(avg / 1000).toFixed(1)}s {sd > 0 ? `\u00b1${(sd / 1000).toFixed(1)}s` : ''}{excluded > 0 ? ` (${excluded} slow)` : ''}</>}
+        {times.length > 0 && <> &middot; {(avg / 1000).toFixed(1)}s {sd > 0 ? `\u00b1${(sd / 1000).toFixed(1)}s` : ''}</>}
       </span>
     </div>
   )

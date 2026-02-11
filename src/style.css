@@ -312,65 +312,63 @@ body {
 .progress-move {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   align-items: center;
-  padding: 2px;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  position: relative;
+  padding: 3px;
 }
-.progress-move.current {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.2);
-}
-.move-number {
-  font-size: 0.6rem;
-  color: #999;
-  line-height: 1;
-  height: 0;
-  position: relative;
-  top: -0.8rem;
-}
-.check-empty, .check-done, .check-fail {
-  width: 11px;
-  height: 11px;
+.move-stone {
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
+  font-size: 0.55rem;
+  line-height: 16px;
+  text-align: center;
   flex-shrink: 0;
 }
-.check-empty {
+.move-stone.stone-black {
+  background: #222;
+  color: #ccc;
   border: 1px solid #555;
 }
-.check-skip {
-  width: 11px;
-  height: 11px;
+.move-stone.stone-white {
+  background: #ddd;
+  color: #333;
+  border: 1px solid #999;
+}
+.q-pending, .q-correct, .q-failed {
+  width: 16px;
+  height: 16px;
+  font-size: 0.7rem;
+  line-height: 16px;
+  text-align: center;
   flex-shrink: 0;
+  border-radius: 3px;
+}
+.q-pending {
+  color: #777;
+}
+.q-correct {
+  color: #4c4;
+}
+.q-failed {
+  color: #c44;
+}
+.q-current {
   position: relative;
 }
-.check-skip::before,
-.check-skip::after {
+.q-current::after {
   content: '';
   position: absolute;
-  background: #555;
+  inset: -3px;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  z-index: -1;
 }
-.check-skip::before {
-  width: 10px;
-  height: 1px;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) rotate(45deg);
-}
-.check-skip::after {
-  width: 10px;
-  height: 1px;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) rotate(-45deg);
-}
-.check-done {
-  background: #4c4;
-}
-.check-fail {
-  background: #c44;
+.check-skip {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }
 
 .stats-line {
