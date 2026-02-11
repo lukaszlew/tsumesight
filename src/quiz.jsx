@@ -195,6 +195,7 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
     let [x, y] = engine.currentMove.vertex
     signMap[y][x] = 0
     ghostStoneMap[y][x] = { sign: engine.currentMove.sign, faint: true }
+    markerMap[y][x] = { type: 'label', label: String(engine.moveIndex) }
   }
 
   if (peeking) {
