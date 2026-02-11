@@ -90,27 +90,37 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
     }
   }
 
-  let submitAnswer = useCallback((value) => {
+  let dismissHints = () => {
     setRetryHint(false)
     setIntroHint(false)
     setModeHint(null)
     setSettingsHint(false)
+  }
+
+  let checkAdvanceHints = () => {
+    if (engine.moveIndex === 1 && !kv('seenIntroHint')) {
+      kvSet('seenIntroHint', '1')
+      setIntroHint(true)
+    } else if (engine.moveIndex >= 5 && !kv('seenSettingsHint')) {
+      kvSet('seenSettingsHint', '1')
+      setSettingsHint(true)
+    }
+  }
+
+  let submitAnswer = useCallback((value) => {
+    dismissHints()
     let hasQuestion = engine.mode === 'comparison' ? engine.comparisonPair : engine.questionVertex
     if (!hasQuestion) {
       if (engine.showingMove) {
         engine.activateQuestions()
         let activated = engine.mode === 'comparison' ? engine.comparisonPair : engine.questionVertex
-        if (!activated && !engine.finished) engine.advance()
+        if (!activated && !engine.finished) {
+          engine.advance()
+          checkAdvanceHints()
+        }
       } else if (!engine.finished) {
         engine.advance()
-        if (engine.moveIndex === 1 && !kv('seenIntroHint')) {
-          kvSet('seenIntroHint', '1')
-          setIntroHint(true)
-        }
-        if (engine.moveIndex === 3 && !kv('seenSettingsHint')) {
-          kvSet('seenSettingsHint', '1')
-          setSettingsHint(true)
-        }
+        checkAdvanceHints()
       }
       checkFinished()
       rerender()
@@ -126,7 +136,10 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
       historyRef.current.push(!wasRetrying)
       saveHistory(quizKey, historyRef.current)
       playCorrect()
-      if (result.done) engine.advance()
+      if (result.done) {
+        engine.advance()
+        checkAdvanceHints()
+      }
       let total = engine.questionsPerMove.reduce((a, b) => a + b, 0)
       onProgress({ correct: engine.correct, done: engine.results.length, total })
     } else {
@@ -179,7 +192,7 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
     if (hasQ && questionStartRef.current === null) {
       questionStartRef.current = performance.now()
       let hintKey = engine.mode === 'comparison' ? 'seenComparisonHint' : 'seenLibertyHint'
-      if (!kv(hintKey)) {
+      if (engine.moveIndex >= 2 && !kv(hintKey)) {
         kvSet(hintKey, '1')
         setModeHint(engine.mode)
       }
