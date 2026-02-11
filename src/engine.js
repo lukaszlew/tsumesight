@@ -459,7 +459,7 @@ export class QuizEngine {
           if (!ga.libsChanged && !gb.libsChanged) continue
           let va = ga.vertices[Math.floor(this.random() * ga.vertices.length)]
           let vb = gb.vertices[Math.floor(this.random() * gb.vertices.length)]
-          // Label "A" = black, "B" = white
+          // Label "Q" = black, "W" = white
           let blackIsA = signA === 1
           let [v1, v2] = blackIsA ? [va, vb] : [vb, va]
           let [libs1, libs2] = blackIsA ? [libsA, libsB] : [libsB, libsA]

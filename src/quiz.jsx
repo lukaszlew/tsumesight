@@ -137,8 +137,8 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
         else if (engine.mode === 'comparison' && engine.comparisonPair) submitAnswer(3)
         else if (!hasQuestion) submitAnswer(0)
       }
-      else if (engine.mode === 'comparison' && e.key === '1') submitAnswer(1)
-      else if (engine.mode === 'comparison' && e.key === '2') submitAnswer(2)
+      else if (engine.mode === 'comparison' && e.key === 'q') submitAnswer(1)
+      else if (engine.mode === 'comparison' && e.key === 'w') submitAnswer(2)
       else if (engine.mode !== 'comparison' && e.key >= '1' && e.key <= '5') submitAnswer(parseInt(e.key))
     }
     function onKeyUp(e) {
@@ -212,8 +212,8 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
     let { v1, v2 } = engine.comparisonPair
     let [x1, y1] = v1
     let [x2, y2] = v2
-    markerMap[y1][x1] = { type: 'label', label: 'A' }
-    markerMap[y2][x2] = { type: 'label', label: 'B' }
+    markerMap[y1][x1] = { type: 'label', label: 'Q' }
+    markerMap[y2][x2] = { type: 'label', label: 'W' }
   } else if (engine.questionVertex) {
     let [x, y] = engine.questionVertex
     markerMap[y][x] = { type: 'label', label: '❓' }
@@ -399,9 +399,9 @@ function NextButton({ label = 'Next', onNext }) {
 function ComparisonButtons({ onAnswer }) {
   return (
     <div class="answer-buttons">
-      <button class="ans-btn black-stone-btn" title="Group A has more liberties (key 1)" onClick={() => onAnswer(1)}>A</button>
+      <button class="ans-btn black-stone-btn" title="Group Q has more liberties (key Q)" onClick={() => onAnswer(1)}>Q</button>
       <button class="bar-btn ans-btn eq-btn" title="Both groups have equal liberties (Space)" onClick={() => onAnswer(3)}>=</button>
-      <button class="ans-btn white-stone-btn" title="Group B has more liberties (key 2)" onClick={() => onAnswer(2)}>B</button>
+      <button class="ans-btn white-stone-btn" title="Group W has more liberties (key W)" onClick={() => onAnswer(2)}>W</button>
     </div>
   )
 }
@@ -467,9 +467,9 @@ function HelpOverlay({ mode, onClose }) {
         <table class="help-table">
           {mode === 'comparison'
             ? <>
-                <tr><td class="help-key">A</td><td>Group marked "A" has more liberties</td><td class="help-shortcut">1</td></tr>
+                <tr><td class="help-key">Q</td><td>Group marked "Q" has more liberties</td><td class="help-shortcut">Q</td></tr>
                 <tr><td class="help-key">=</td><td>Both groups have equal liberties</td><td class="help-shortcut">Space</td></tr>
-                <tr><td class="help-key">B</td><td>Group marked "B" has more liberties</td><td class="help-shortcut">2</td></tr>
+                <tr><td class="help-key">W</td><td>Group marked "W" has more liberties</td><td class="help-shortcut">W</td></tr>
               </>
             : <>
                 <tr><td class="help-key">1-4</td><td>Marked group has that many liberties</td><td class="help-shortcut">1-4</td></tr>
