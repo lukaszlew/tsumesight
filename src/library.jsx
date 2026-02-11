@@ -75,6 +75,18 @@ export function Library({ onSelect, initialPath = '' }) {
   let [importing, setImporting] = useState(null) // { done, total } or null
   let [cwd, setCwd] = useState(initialPath)
 
+  useEffect(() => {
+    function onKeyDown(e) {
+      if (e.key === 'Escape' && cwd) {
+        e.preventDefault()
+        let parts = cwd.split('/')
+        setCwd(parts.slice(0, -1).join('/'))
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [cwd])
+
   let refresh = async () => {
     let all = await getAllSgfs()
     setSgfs(all)

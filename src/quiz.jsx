@@ -46,6 +46,7 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
   let [retryHint, setRetryHint] = useState(false)
   let [introHint, setIntroHint] = useState(false)
   let [modeHint, setModeHint] = useState(null)
+  let [settingsHint, setSettingsHint] = useState(false)
 
   // Initialize engine once (possibly replaying saved history)
   if (!engineRef.current && !error) {
@@ -93,6 +94,7 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
     setRetryHint(false)
     setIntroHint(false)
     setModeHint(null)
+    setSettingsHint(false)
     let hasQuestion = engine.mode === 'comparison' ? engine.comparisonPair : engine.questionVertex
     if (!hasQuestion) {
       if (engine.showingMove) {
@@ -104,6 +106,10 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
         if (engine.moveIndex === 1 && !kv('seenIntroHint')) {
           kvSet('seenIntroHint', '1')
           setIntroHint(true)
+        }
+        if (engine.moveIndex === 3 && !kv('seenSettingsHint')) {
+          kvSet('seenSettingsHint', '1')
+          setSettingsHint(true)
         }
       }
       checkFinished()
@@ -307,6 +313,15 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
       />}
       {showHelp && <HelpOverlay mode={mode} onClose={() => setShowHelp(false)} />}
 
+      {settingsHint && <div class="overlay" onClick={() => setSettingsHint(false)}>
+        <div class="overlay-content" onClick={e => e.stopPropagation()}>
+          <div class="overlay-header">
+            <b>Tip</b>
+            <button class="bar-btn" onClick={() => setSettingsHint(false)}>X</button>
+          </div>
+          <p>Press &#x2699; to adjust settings — enable timed auto-advance so stones disappear automatically, or change the number of questions per move.</p>
+        </div>
+      </div>}
       {modeHint && <div class="overlay" onClick={() => setModeHint(null)}>
         <div class="overlay-content" onClick={e => e.stopPropagation()}>
           <div class="overlay-header">

@@ -121,15 +121,16 @@ body {
 
 .breadcrumbs {
   margin-bottom: 1rem;
-  font-size: 0.85rem;
+  font-size: 1.1rem;
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.3rem;
+  flex-wrap: wrap;
 }
 .breadcrumbs .crumb,
 .breadcrumbs .crumb-current {
-  padding: 0.2rem 0.5rem;
-  border-radius: 3px;
+  padding: 0.35rem 0.7rem;
+  border-radius: 5px;
   cursor: pointer;
 }
 .breadcrumbs .crumb {
@@ -140,14 +141,16 @@ body {
   background: #253d54;
 }
 .breadcrumbs .crumb-current {
-  color: #ddd;
-  background: #333;
+  color: #eee;
+  background: #3a3a3a;
+  font-weight: 500;
 }
 .breadcrumbs .crumb-current:hover {
-  background: #444;
+  background: #4a4a4a;
 }
 .crumb-sep {
-  color: #555;
+  color: #666;
+  font-size: 1.2rem;
   margin: 0 0.1rem;
 }
 .dir-stats {
