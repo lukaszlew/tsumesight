@@ -90,12 +90,9 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
     }
   }
 
-  let dismissHints = () => {
-    setRetryHint(false)
-    setIntroHint(false)
-    setModeHint(null)
-    setSettingsHint(false)
-  }
+  let anyHint = retryHint || introHint || modeHint || settingsHint
+  let anyHintRef = useRef(false)
+  anyHintRef.current = anyHint
 
   let checkAdvanceHints = () => {
     if (engine.moveIndex === 1 && !kv('seenIntroHint')) {
@@ -108,7 +105,7 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
   }
 
   let submitAnswer = useCallback((value) => {
-    dismissHints()
+    if (anyHintRef.current) return
     let hasQuestion = engine.mode === 'comparison' ? engine.comparisonPair : engine.questionVertex
     if (!hasQuestion) {
       if (engine.showingMove) {
@@ -156,7 +153,7 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
   // Keyboard shortcuts
   useEffect(() => {
     function onKeyDown(e) {
-      if (e.key === 'Escape') { e.preventDefault(); if (showConfigRef.current) setShowConfig(false); else if (showHelpRef.current) setShowHelp(false); else onBack() }
+      if (e.key === 'Escape') { e.preventDefault(); if (anyHintRef.current) { setRetryHint(false); setIntroHint(false); setModeHint(null); setSettingsHint(false) } else if (showConfigRef.current) setShowConfig(false); else if (showHelpRef.current) setShowHelp(false); else onBack() }
       else if (e.key === 'ArrowLeft') { e.preventDefault(); onPrev() }
       else if (e.key === 'ArrowRight') { e.preventDefault(); onNext() }
       else if (e.key === '?') {
@@ -192,7 +189,7 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
     if (hasQ && questionStartRef.current === null) {
       questionStartRef.current = performance.now()
       let hintKey = engine.mode === 'comparison' ? 'seenComparisonHint' : 'seenLibertyHint'
-      if (engine.moveIndex >= 2 && !kv(hintKey)) {
+      if (!kv(hintKey)) {
         kvSet(hintKey, '1')
         setModeHint(engine.mode)
       }
@@ -326,8 +323,8 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
       />}
       {showHelp && <HelpOverlay mode={mode} onClose={() => setShowHelp(false)} />}
 
-      {settingsHint && <div class="overlay" onClick={() => setSettingsHint(false)}>
-        <div class="overlay-content" onClick={e => e.stopPropagation()}>
+      {settingsHint && <div class="overlay">
+        <div class="overlay-content">
           <div class="overlay-header">
             <b>Tip</b>
             <button class="bar-btn" onClick={() => setSettingsHint(false)}>X</button>
@@ -335,8 +332,8 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
           <p>Press &#x2699; to adjust settings — enable timed auto-advance so stones disappear automatically, or change the number of questions per move.</p>
         </div>
       </div>}
-      {modeHint && <div class="overlay" onClick={() => setModeHint(null)}>
-        <div class="overlay-content" onClick={e => e.stopPropagation()}>
+      {modeHint && <div class="overlay">
+        <div class="overlay-content">
           <div class="overlay-header">
             <b>{modeHint === 'comparison' ? 'Comparison mode' : 'Liberty mode'}</b>
             <button class="bar-btn" onClick={() => setModeHint(null)}>X</button>
@@ -346,8 +343,8 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
             : <p>A group is marked with &#x2753;. Count its liberties and pick the right number (1–4 or 5+).</p>}
         </div>
       </div>}
-      {introHint && <div class="overlay" onClick={() => setIntroHint(false)}>
-        <div class="overlay-content" onClick={e => e.stopPropagation()}>
+      {introHint && <div class="overlay">
+        <div class="overlay-content">
           <div class="overlay-header">
             <b>How it works</b>
             <button class="bar-btn" onClick={() => setIntroHint(false)}>X</button>
@@ -355,8 +352,8 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
           <p>This stone will disappear. Stones are shown one at a time — remember their positions and answer questions about the board between moves.</p>
         </div>
       </div>}
-      {retryHint && <div class="overlay" onClick={() => setRetryHint(false)}>
-        <div class="overlay-content" onClick={e => e.stopPropagation()}>
+      {retryHint && <div class="overlay">
+        <div class="overlay-content">
           <div class="overlay-header">
             <b>Hint</b>
             <button class="bar-btn" onClick={() => setRetryHint(false)}>X</button>
