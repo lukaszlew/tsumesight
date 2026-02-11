@@ -41,32 +41,7 @@ function archivePrefix(entries, fallback) {
 function WelcomeMessage() {
   return (
     <div class="welcome">
-      <p>
-        TsumeSight is <b>not</b> a problem-solving app. It is a <b>stone visualization exercise</b>.
-        The app plays through SGF game records move by move. Stones appear briefly
-        then become invisible — your job is to track them mentally and answer
-        questions about the resulting board state.
-      </p>
-      <p class="welcome-section">Two quiz modes</p>
-      <p>
-        <b>Liberty mode</b> — a stone group is marked with ❓, answer how many
-        liberties it has (1–4 or 5+).
-        <b> Comparison mode</b> — two groups are marked 1 and 2, answer which has
-        more liberties or if they are equal.
-      </p>
-      <p class="welcome-section">Settings</p>
-      <p>
-        Press <b>⚙</b> during a quiz to change mode, number of questions per move
-        (0–4), move display duration (manual or timed: 1s, 0.5s, 0.2s), and
-        sound. Every button has a tooltip — hover or see <b>?</b> for keyboard
-        shortcuts.
-      </p>
-      <p class="welcome-section">SGF collections</p>
-      <p>
-        The quality of the experience depends heavily on the SGFs used. Tsumego
-        collections with 5–30 moves per problem work best. Upload your own files
-        above, or fetch the default collection below.
-      </p>
+      <p>Upload SGF files above or click <b>Fetch</b> below to load the default collection.</p>
     </div>
   )
 }
