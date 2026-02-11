@@ -43,6 +43,9 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
   let [showConfig, _setShowConfig] = useState(false)
   let showConfigRef = useRef(false)
   let setShowConfig = (v) => { let next = typeof v === 'function' ? v(showConfigRef.current) : v; showConfigRef.current = next; _setShowConfig(next) }
+  let [retryHint, setRetryHint] = useState(false)
+  let [introHint, setIntroHint] = useState(false)
+  let [modeHint, setModeHint] = useState(null)
 
   // Initialize engine once (possibly replaying saved history)
   if (!engineRef.current && !error) {
@@ -87,6 +90,9 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
   }
 
   let submitAnswer = useCallback((value) => {
+    setRetryHint(false)
+    setIntroHint(false)
+    setModeHint(null)
     let hasQuestion = engine.mode === 'comparison' ? engine.comparisonPair : engine.questionVertex
     if (!hasQuestion) {
       if (engine.showingMove) {
@@ -95,6 +101,10 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
         if (!activated && !engine.finished) engine.advance()
       } else if (!engine.finished) {
         engine.advance()
+        if (engine.moveIndex === 1 && !kv('seenIntroHint')) {
+          kvSet('seenIntroHint', '1')
+          setIntroHint(true)
+        }
       }
       checkFinished()
       rerender()
@@ -115,6 +125,10 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
       onProgress({ correct: engine.correct, done: engine.results.length, total })
     } else {
       playWrong()
+      if (!kv('seenRetryHint')) {
+        kvSet('seenRetryHint', '1')
+        setRetryHint(true)
+      }
     }
     checkFinished()
     rerender()
@@ -156,7 +170,14 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
   useEffect(() => {
     if (!engine) return
     let hasQ = engine.mode === 'comparison' ? engine.comparisonPair : engine.questionVertex
-    if (hasQ && questionStartRef.current === null) questionStartRef.current = performance.now()
+    if (hasQ && questionStartRef.current === null) {
+      questionStartRef.current = performance.now()
+      let hintKey = engine.mode === 'comparison' ? 'seenComparisonHint' : 'seenLibertyHint'
+      if (!kv(hintKey)) {
+        kvSet(hintKey, '1')
+        setModeHint(engine.mode)
+      }
+    }
     if (!hasQ) questionStartRef.current = null
   })
 
@@ -286,6 +307,35 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
       />}
       {showHelp && <HelpOverlay mode={mode} onClose={() => setShowHelp(false)} />}
 
+      {modeHint && <div class="overlay" onClick={() => setModeHint(null)}>
+        <div class="overlay-content" onClick={e => e.stopPropagation()}>
+          <div class="overlay-header">
+            <b>{modeHint === 'comparison' ? 'Comparison mode' : 'Liberty mode'}</b>
+            <button class="bar-btn" onClick={() => setModeHint(null)}>X</button>
+          </div>
+          {modeHint === 'comparison'
+            ? <p>Two groups are marked Q and W. Choose which has more liberties, or equal.</p>
+            : <p>A group is marked with &#x2753;. Count its liberties and pick the right number (1–4 or 5+).</p>}
+        </div>
+      </div>}
+      {introHint && <div class="overlay" onClick={() => setIntroHint(false)}>
+        <div class="overlay-content" onClick={e => e.stopPropagation()}>
+          <div class="overlay-header">
+            <b>How it works</b>
+            <button class="bar-btn" onClick={() => setIntroHint(false)}>X</button>
+          </div>
+          <p>This stone will disappear. Stones are shown one at a time — remember their positions and answer questions about the board between moves.</p>
+        </div>
+      </div>}
+      {retryHint && <div class="overlay" onClick={() => setRetryHint(false)}>
+        <div class="overlay-content" onClick={e => e.stopPropagation()}>
+          <div class="overlay-header">
+            <b>Hint</b>
+            <button class="bar-btn" onClick={() => setRetryHint(false)}>X</button>
+          </div>
+          <p>Wrong answer — all hidden stones are now revealed. Answer the same question again to continue.</p>
+        </div>
+      </div>}
       <div class="bottom-bar">
         {(() => {
           if (engine.finished) return <div class="answer-buttons" />

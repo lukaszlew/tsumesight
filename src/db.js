@@ -131,4 +131,6 @@ export async function clearAll() {
   await promisify(tx(db, 'readwrite').clear())
   await promisify(tx(db, 'readwrite', KV_STORE).clear())
   kvCache = {}
+  localStorage.clear()
+  sessionStorage.clear()
 }
