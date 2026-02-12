@@ -386,6 +386,19 @@ body {
   margin-bottom: 0.25rem;
 }
 
+/* Wrong-answer flash */
+.wrong-flash {
+  animation: wrong-shake 0.4s ease-out;
+}
+@keyframes wrong-shake {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-6px); }
+  30% { transform: translateX(5px); }
+  45% { transform: translateX(-4px); }
+  60% { transform: translateX(3px); }
+  75% { transform: translateX(-2px); }
+}
+
 /* Shudan overrides */
 .shudan-goban {
   --shudan-board-background-color: #dcb35c;
@@ -475,6 +488,10 @@ body {
   height: 3rem;
   font-size: 0.95rem;
   border-radius: 1.5rem;
+}
+.next-btn.mode-active {
+  border-color: #8af;
+  color: #eee;
 }
 
 /* Summary panel (side of board) */

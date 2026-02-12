@@ -43,6 +43,7 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
   let [showConfig, _setShowConfig] = useState(false)
   let showConfigRef = useRef(false)
   let setShowConfig = (v) => { let next = typeof v === 'function' ? v(showConfigRef.current) : v; showConfigRef.current = next; _setShowConfig(next) }
+  let [wrongFlash, setWrongFlash] = useState(false)
   let [retryHint, setRetryHint] = useState(false)
   let [introHint, setIntroHint] = useState(false)
   let [modeHint, setModeHint] = useState(null)
@@ -141,6 +142,8 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
       onProgress({ correct: engine.correct, done: engine.results.length, total })
     } else {
       playWrong()
+      setWrongFlash(true)
+      setTimeout(() => setWrongFlash(false), 400)
       if (!kv('seenRetryHint')) {
         kvSet('seenRetryHint', '1')
         setRetryHint(true)
@@ -269,7 +272,7 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
         : <ProgressBar questionsPerMove={engine.questionsPerMove} moveProgress={engine.moveProgress} questionIndex={engine.questionIndex} showingMove={engine.showingMove} moves={engine.moves} />}
       <div class="board-row" ref={boardRowRef}>
         <div
-          class="board-container"
+          class={`board-container${wrongFlash ? ' wrong-flash' : ''}`}
           title="Hold to peek at hidden stones (?)"
           onPointerDown={() => setPeeking(true)}
           onPointerUp={() => setPeeking(false)}
@@ -306,13 +309,7 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
       </div>
 
       {showConfig && <ConfigPanel
-        mode={mode} maxQ={maxQ} soundOn={soundOn} showDuration={showDuration}
-        onMode={next => {
-          kvSet('quizMode', next)
-          setMode(next)
-          engine.mode = next
-          if (!engine.finished) { engine.recomputeQuestions(); rerender() }
-        }}
+        maxQ={maxQ} soundOn={soundOn} showDuration={showDuration}
         onMaxQ={next => {
           kvSet('quizMaxQ', String(next))
           setMaxQ(next)
@@ -369,10 +366,17 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
       <div class="bottom-bar">
         {(() => {
           if (engine.finished) return <div class="answer-buttons" />
+          if (engine.moveIndex === 0) return <ModeChoice mode={mode} onChoice={nextMode => {
+            kvSet('quizMode', nextMode)
+            setMode(nextMode)
+            engine.mode = nextMode
+            engine.recomputeQuestions()
+            submitAnswer(0)
+          }} />
           let hasQuestion = engine.mode === 'comparison' ? engine.comparisonPair : engine.questionVertex
           if (!hasQuestion) return engine.showingMove && showDuration !== 'manual'
             ? <div class="answer-buttons" />
-            : <NextButton label={engine.moveIndex === 0 ? 'Start' : 'Next'} onNext={() => submitAnswer(0)} />
+            : <NextButton label="Next" onNext={() => submitAnswer(0)} />
           return engine.mode === 'comparison'
             ? <ComparisonButtons onAnswer={submitAnswer} />
             : <AnswerButtons onAnswer={submitAnswer} />
@@ -468,6 +472,15 @@ function AnswerButtons({ onAnswer }) {
   )
 }
 
+function ModeChoice({ mode, onChoice }) {
+  return (
+    <div class="answer-buttons">
+      <button class={`bar-btn next-btn${mode === 'liberty' ? ' mode-active' : ''}`} onClick={() => onChoice('liberty')}>① Liberty</button>
+      <button class={`bar-btn next-btn${mode === 'comparison' ? ' mode-active' : ''}`} onClick={() => onChoice('comparison')}>⚖ Compare</button>
+    </div>
+  )
+}
+
 function NextButton({ label = 'Next', onNext }) {
   return (
     <div class="answer-buttons">
@@ -486,20 +499,13 @@ function ComparisonButtons({ onAnswer }) {
   )
 }
 
-function ConfigPanel({ mode, maxQ, soundOn, showDuration, onMode, onMaxQ, onSound, onShowDuration, onClose }) {
+function ConfigPanel({ maxQ, soundOn, showDuration, onMaxQ, onSound, onShowDuration, onClose }) {
   return (
     <div class="overlay" onClick={onClose}>
       <div class="overlay-content" onClick={e => e.stopPropagation()}>
         <div class="overlay-header">
           <b>Settings</b>
           <button class="bar-btn" onClick={onClose}>X</button>
-        </div>
-        <div class="cfg-row">
-          <span class="cfg-label">Mode</span>
-          <div class="cfg-options">
-            <button class={`cfg-opt${mode === 'liberty' ? ' active' : ''}`} onClick={() => onMode('liberty')}>① Liberty</button>
-            <button class={`cfg-opt${mode === 'comparison' ? ' active' : ''}`} onClick={() => onMode('comparison')}>⚖ Comparison</button>
-          </div>
         </div>
         <div class="cfg-row">
           <span class="cfg-label">Questions</span>

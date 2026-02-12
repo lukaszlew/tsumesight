@@ -342,7 +342,7 @@ export class QuizEngine {
     } else {
       this.peekGroupScores = this.getGroupScores()
       let pool = this.peekGroupScores.filter(g => g.libsChanged)
-      pool.sort((a, b) => b.score - a.score)
+      pool.sort((a, b) => a.liberties - b.liberties || b.score - a.score)
       this.questions = pool.map(g =>
         g.vertices[Math.floor(this.random() * g.vertices.length)]
       )
@@ -362,9 +362,10 @@ export class QuizEngine {
 
   _advanceLiberty(move) {
     // Build question queue: all groups with changed liberties
+    // Sort by fewest liberties first (most tactically critical), then by score
     this.peekGroupScores = this.getGroupScores()
     let pool = this.peekGroupScores.filter(g => g.libsChanged)
-    pool.sort((a, b) => b.score - a.score)
+    pool.sort((a, b) => a.liberties - b.liberties || b.score - a.score)
 
     this.questions = pool.map(g =>
       g.vertices[Math.floor(this.random() * g.vertices.length)]

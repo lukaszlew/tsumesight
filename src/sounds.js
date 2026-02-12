@@ -23,7 +23,7 @@ function getCtx() {
   return ctx
 }
 
-function playTone(freq, duration, type = 'sine') {
+function playTone(freq, duration, type = 'sine', vol = 0.24) {
   if (!enabled) return
   let c = getCtx()
   let osc = c.createOscillator()
@@ -31,7 +31,7 @@ function playTone(freq, duration, type = 'sine') {
   osc.type = type
   osc.frequency.value = freq
   gain.gain.setValueAtTime(0.001, c.currentTime)
-  gain.gain.linearRampToValueAtTime(0.24, c.currentTime + 0.05)
+  gain.gain.linearRampToValueAtTime(vol, c.currentTime + 0.05)
   gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + duration)
   osc.connect(gain)
   gain.connect(c.destination)
@@ -41,9 +41,11 @@ function playTone(freq, duration, type = 'sine') {
 
 export function playCorrect() {
   streak++
-  // Each consecutive correct raises pitch by a semitone
-  let freq = 330 * Math.pow(2, (streak - 1) / 12)
-  playTone(freq, 0.35)
+  // Each consecutive correct raises pitch by a semitone, capped at one octave
+  let baseFreq = 330, maxFreq = 660
+  let freq = Math.min(baseFreq * Math.pow(2, (streak - 1) / 12), maxFreq)
+  let vol = 0.24 - 0.12 * (freq - baseFreq) / (maxFreq - baseFreq)
+  playTone(freq, 0.35, 'sine', vol)
 }
 
 export function playWrong() {
