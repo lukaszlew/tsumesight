@@ -785,6 +785,10 @@ function HelpOverlay({ mode, onClose }) {
         <table class="help-table">
           <tr><td class="help-key">?</td><td>Hold to peek at hidden stones</td><td class="help-shortcut">? / touch board</td></tr>
         </table>
+        <div class="help-section">Review (after completion)</div>
+        <table class="help-table">
+          <tr><td class="help-key">◀ ▶</td><td>Step through moves</td><td class="help-shortcut">← → Space</td></tr>
+        </table>
       </div>
     </div>
   )
