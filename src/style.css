@@ -388,13 +388,13 @@ body {
 
 /* Wrong-answer flash */
 .wrong-flash {
-  animation: wrong-shake 0.2s ease-out;
+  animation: wrong-shake 0.1s ease-out;
 }
 @keyframes wrong-shake {
   0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-3px); }
-  50% { transform: translateX(2.5px); }
-  75% { transform: translateX(-2px); }
+  25% { transform: translateX(-2px); }
+  50% { transform: translateX(1.5px); }
+  75% { transform: translateX(-1px); }
 }
 
 /* Shudan overrides */
