@@ -435,12 +435,17 @@ function ProgressBar({ questionsPerMove, moveProgress, questionIndex, showingMov
   )
 }
 
+export function computeStats(times, cap = 5000) {
+  let capped = times.map(t => Math.min(t, cap))
+  let avg = capped.length > 0 ? capped.reduce((a, b) => a + b, 0) / capped.length : 0
+  let sd = capped.length > 1 ? Math.sqrt(capped.reduce((a, b) => a + (b - avg) ** 2, 0) / capped.length) : 0
+  return { avg, sd }
+}
+
 function StatsBar({ engine, times }) {
   let total = engine.results.length
   let pct = total > 0 ? Math.round(engine.correct / total * 100) : 0
-  let capped = times.map(t => Math.min(t, 5000))
-  let avg = capped.length > 0 ? capped.reduce((a, b) => a + b, 0) / capped.length : 0
-  let sd = capped.length > 1 ? Math.sqrt(capped.reduce((a, b) => a + (b - avg) ** 2, 0) / capped.length) : 0
+  let { avg, sd } = computeStats(times)
   return (
     <div class="progress-bar">
       <span class="stats-line">
