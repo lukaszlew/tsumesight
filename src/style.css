@@ -183,9 +183,11 @@ body {
 
 .quiz {
   height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  width: min(100%, 100dvh);
+  margin: 0 auto;
+  display: grid;
+  grid-template-rows: 10% 45% 5% 10% 15% 15%;
+  justify-items: center;
 }
 
 .back-btn {
@@ -218,7 +220,10 @@ body {
 .nav-group {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: min(0.75rem, 2vw);
+  height: 100%;
+  flex-shrink: 1;
+  min-width: 0;
 }
 .file-counter {
   font-size: 0.85rem;
@@ -229,74 +234,102 @@ body {
 
 
 .board-section {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  width: 100%;
-  max-width: 80dvh;
-  height: 80%;
+  display: contents;
 }
 
 .board-row {
-  flex: 1;
+  height: 100%;
+  align-self: center;
   min-height: 0;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
+  width: 100%;
 }
 
 .top-bar {
-  flex-shrink: 0;
+  height: 90%;
+  align-self: center;
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 0.5rem;
+  padding: 0 0.5rem;
+  overflow: hidden;
+}
+.top-bar .bar-btn {
+  height: 70%;
+  aspect-ratio: 1.2;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 1;
+  min-width: 0;
 }
 .problem-name {
-  flex: 1;
-  min-width: 0;
+  height: 90%;
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0 0.5rem;
+  line-height: 1.2;
+}
+.problem-dir {
+  font-size: min(0.7rem, 2dvh);
+  color: #666;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.85rem;
-  color: #999;
-  padding: 0 0.5rem;
+  max-width: 100%;
 }
-
-.top-bar, .bottom-bar {
+.problem-file {
+  font-size: min(0.85rem, 3dvh);
+  color: #999;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 .bottom-bar {
-  flex-shrink: 0;
+  height: 90%;
+  align-self: center;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  gap: 0.4rem;
-  padding: 0.5rem 0.5rem 8rem;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  overflow: hidden;
 }
 
 
 /* Progress bar (below board) */
 .progress-bar {
-  flex-shrink: 0;
+  height: 90%;
+  width: 100%;
+  align-self: center;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.5rem 0;
+  container-type: size;
 }
 .progress-pips {
   display: flex;
   gap: 1px;
   align-items: flex-start;
+  max-width: 100%;
+  min-width: 0;
 }
 .progress-score {
   white-space: nowrap;
   padding-right: 0.4rem;
-  font-size: 2rem;
+  font-size: min(60cqh, 8cqw);
   font-weight: 500;
 }
 .progress-score .score-correct {
@@ -316,18 +349,23 @@ body {
 .progress-move {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   align-items: center;
-  padding: 3px;
+  padding: 2px;
+  flex-shrink: 1;
+  min-width: 0;
 }
 .move-stone {
-  width: 16px;
-  height: 16px;
+  width: 40cqh;
+  max-width: 100%;
+  aspect-ratio: 1;
   border-radius: 50%;
-  font-size: 0.55rem;
-  line-height: 16px;
-  text-align: center;
-  flex-shrink: 0;
+  font-size: 18cqh;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 1;
 }
 .move-stone.stone-black {
   background: #222;
@@ -340,12 +378,15 @@ body {
   border: 1px solid #999;
 }
 .q-pending, .q-correct, .q-failed {
-  width: 16px;
-  height: 16px;
-  font-size: 0.7rem;
-  line-height: 16px;
-  text-align: center;
-  flex-shrink: 0;
+  width: 30cqh;
+  max-width: 100%;
+  aspect-ratio: 1;
+  font-size: 15cqh;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 1;
   border-radius: 3px;
 }
 .q-pending {
@@ -377,7 +418,7 @@ body {
 
 .stats-line {
   color: #ccc;
-  font-size: 1.1rem;
+  font-size: min(1.1rem, 3dvh);
 }
 
 .stats-best {
@@ -387,10 +428,12 @@ body {
   color: #888;
 }
 .stats-expanded {
+  height: 90%;
+  align-self: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  flex-shrink: 0;
+  overflow: hidden;
 }
 .time-chart {
   overflow-x: auto;
@@ -464,49 +507,59 @@ body {
 
 .answer-buttons {
   display: flex;
-  gap: 1.5rem;
+  gap: 3%;
   justify-content: center;
   align-items: center;
-  height: 4rem;
-  padding: 0 1.5rem;
+  height: 100%;
+  width: 100%;
 }
 .ans-btn {
-  width: 4rem;
-  height: 4rem;
-  font-size: 1.3rem;
+  max-width: 12%;
+  flex: 0 1 12%;
+  height: 70%;
+  font-size: min(1.3rem, 4vw);
   font-weight: bold;
-  color: #999;
-  -webkit-text-stroke: .02em rgba(0,0,0,.25);
-  border-radius: 50%;
+  color: #ccc;
+  background: #2a2a2a;
+  border: 1px solid #555;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(0,0,0,.3);
+  min-width: 0;
+}
+.ans-btn:hover {
+  background: #333;
+  border-color: #888;
+}
+.ans-btn:active {
+  background: #222;
+  box-shadow: none;
 }
 .black-stone-btn {
-  background: radial-gradient(circle at 35% 35%, #666, #111);
+  background: linear-gradient(180deg, #444, #1a1a1a);
   color: #ccc;
-  border: none;
-  box-shadow: 2px 2px 4px rgba(0,0,0,.5);
+  border: 1px solid #555;
 }
 .black-stone-btn:hover {
-  background: radial-gradient(circle at 35% 35%, #777, #222);
+  background: linear-gradient(180deg, #555, #222);
 }
 .white-stone-btn {
-  background: radial-gradient(circle at 25% 25%, #fff 0%, #ccc 30%, #888 100%);
+  background: linear-gradient(180deg, #eee, #aaa);
   color: #333;
-  border: none;
-  box-shadow: 2px 2px 4px rgba(0,0,0,.3);
+  border: 1px solid #999;
 }
 .white-stone-btn:hover {
-  background: radial-gradient(circle at 25% 25%, #fff 0%, #d5d5d5 30%, #999 100%);
+  background: linear-gradient(180deg, #fff, #bbb);
 }
 .eq-btn {
-  border-radius: 4px;
-  width: auto;
-  padding: 0 1.5rem;
-  font-size: 1.2rem;
+  max-width: 15%;
+  flex-basis: 15%;
 }
 .next-btn {
-  width: 10rem;
-  height: 3rem;
-  font-size: 0.95rem;
+  max-width: 30%;
+  flex: 0 1 30%;
+  height: 70%;
   border-radius: 1.5rem;
 }
 .next-btn.mode-active {
@@ -651,10 +704,4 @@ body {
   font-size: 0.8rem;
 }
 
-/* Portrait: use full height (no bottom spacing needed on phones) */
-@media (orientation: portrait) {
-  .board-section {
-    height: 100%;
-  }
-}
 

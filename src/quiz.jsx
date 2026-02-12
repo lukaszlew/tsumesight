@@ -260,7 +260,7 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
     if (!el) return
     let ro = new ResizeObserver(entries => {
       let { width, height } = entries[0].contentRect
-      setVertexSize(Math.max(1, Math.floor(Math.min(width / (cols + 1.8), height / (rows + 1.8)))))
+      setVertexSize(Math.max(1, Math.floor(Math.min(width / (cols + 1), height / (rows + 1)))))
     })
     ro.observe(el)
     return () => ro.disconnect()
@@ -395,9 +395,12 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
           onReviewForward={() => setReviewStep(s => s === null ? 1 : s < engine.totalMoves ? s + 1 : 0)} />}
       </div>
 
+      <div class="problem-name">
+        {dirName && <span class="problem-dir">{dirName}</span>}
+        <span class="problem-file">{engine.gameName || filename?.replace(/\.sgf$/i, '') || 'Untitled'}</span>
+      </div>
       <div class="top-bar">
         <button class="bar-btn" title="Back to library (Esc)" onClick={onBack}>☰</button>
-        <span class="problem-name">{dirName ? dirName + ' / ' : ''}{engine.gameName || filename?.replace(/\.sgf$/i, '') || 'Untitled'}</span>
         <button class="bar-btn" title="Restart this problem" onClick={onRetry}>↺</button>
         <div class="nav-group">
           <button class="bar-btn" title="Previous problem (←)" onClick={onPrev}>◀</button>
