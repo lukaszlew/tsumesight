@@ -25,11 +25,6 @@ function libertySetKey(libs) {
   return libs.map(vertexKey).sort().join(';')
 }
 
-function libertyBonus(libCount) {
-  if (libCount <= 3) return 2
-  if (libCount === 4) return 1
-  return 0
-}
 
 export class QuizEngine {
   constructor(sgfString, mode = 'liberty', _precompute = true, maxQuestions = 3) {
@@ -281,8 +276,8 @@ export class QuizEngine {
     return this.baseSignMap.map(row => [...row])
   }
 
-  // Returns all groups on the board with their scores
-  // Each group: { vertices: [[x,y]...], score, liberties, libsChanged }
+  // Returns all groups on the board with their properties
+  // Each group: { vertices: [[x,y]...], liberties, libsChanged }
   getGroupScores() {
     let visited = new Set()
     let groups = []
@@ -296,11 +291,7 @@ export class QuizEngine {
         if (this.trueBoard.get(vertex) === 0) continue
 
         let chain = this.trueBoard.getChain(vertex)
-        let maxStaleness = 0
-        for (let v of chain) {
-          visited.add(vertexKey(v))
-          maxStaleness = Math.max(maxStaleness, this.staleness.get(vertexKey(v)) || 0)
-        }
+        for (let v of chain) visited.add(vertexKey(v))
 
         let libs = this.trueBoard.getLiberties(vertex).length
         let containsCurrentMove = chain.some(v => vertexKey(v) === currentMoveKey)
@@ -319,12 +310,7 @@ export class QuizEngine {
           }
         }
 
-        // Just-played single stone: no bonuses (you just saw it placed)
-        let isSingleCurrent = chain.length === 1 && containsCurrentMove
-        let score = isSingleCurrent
-          ? maxStaleness
-          : maxStaleness + libertyBonus(libs)
-        groups.push({ vertices: chain, score, liberties: libs, libsChanged })
+        groups.push({ vertices: chain, liberties: libs, libsChanged })
       }
     }
     return groups
@@ -342,13 +328,15 @@ export class QuizEngine {
     } else {
       this.peekGroupScores = this.getGroupScores()
       let pool = this.peekGroupScores.filter(g => g.libsChanged)
-      pool.sort((a, b) => a.liberties - b.liberties || b.score - a.score)
+      let currentMoveKey = vertexKey(move.vertex)
+      for (let g of pool) {
+        g._justPlayed = g.vertices.some(v => vertexKey(v) === currentMoveKey) ? 0 : 1
+        g._rand = this.random()
+      }
+      pool.sort((a, b) => a.liberties - b.liberties || a._justPlayed - b._justPlayed || a._rand - b._rand)
       this.questions = pool.map(g =>
         g.vertices[Math.floor(this.random() * g.vertices.length)]
       )
-      let moveChainKeys = new Set(this.trueBoard.getChain(move.vertex).map(vertexKey))
-      this.questions = this.questions.filter(q => !moveChainKeys.has(vertexKey(q)))
-      this.questions.unshift(move.vertex)
       let filtered = this.questions.filter(q => this.trueBoard.getLiberties(q).length < 6)
       if (filtered.length > 0) this.questions = filtered
       this.questions = this.questions.slice(0, this.maxQuestions)
@@ -362,19 +350,19 @@ export class QuizEngine {
 
   _advanceLiberty(move) {
     // Build question queue: all groups with changed liberties
-    // Sort by fewest liberties first (most tactically critical), then by score
+    // Sort uniform with comparison mode: liberties asc, just-played first, random tiebreak
     this.peekGroupScores = this.getGroupScores()
     let pool = this.peekGroupScores.filter(g => g.libsChanged)
-    pool.sort((a, b) => a.liberties - b.liberties || b.score - a.score)
+    let currentMoveKey = vertexKey(move.vertex)
+    for (let g of pool) {
+      g._justPlayed = g.vertices.some(v => vertexKey(v) === currentMoveKey) ? 0 : 1
+      g._rand = this.random()
+    }
+    pool.sort((a, b) => a.liberties - b.liberties || a._justPlayed - b._justPlayed || a._rand - b._rand)
 
     this.questions = pool.map(g =>
       g.vertices[Math.floor(this.random() * g.vertices.length)]
     )
-
-    // Always ask about just-played stone first
-    let moveChainKeys = new Set(this.trueBoard.getChain(move.vertex).map(vertexKey))
-    this.questions = this.questions.filter(q => !moveChainKeys.has(vertexKey(q)))
-    this.questions.unshift(move.vertex)
 
     // Skip groups with 6+ liberties (answer is always "5+"), keep at least one
     let filtered = this.questions.filter(q => this.trueBoard.getLiberties(q).length < 6)
@@ -385,15 +373,6 @@ export class QuizEngine {
     this.questionVertex = null
     this.comparisonPair = null
     this.moveProgress.push({ total: this.questions.length, results: [] })
-
-    // Reset staleness for all questioned groups
-    for (let qv of this.questions) {
-      let chain = this.trueBoard.getChain(qv)
-      for (let v of chain) {
-        let k = vertexKey(v)
-        if (this.staleness.has(k)) this.staleness.set(k, -1)
-      }
-    }
   }
 
   _advanceComparison() {
@@ -403,17 +382,6 @@ export class QuizEngine {
     this.comparisonPair = null
     this.questionVertex = null
     this.moveProgress.push({ total: pairs.length, results: [] })
-
-    // Reset staleness for all groups involved in questions
-    for (let pair of pairs) {
-      for (let v of [pair.v1, pair.v2]) {
-        let chain = this.trueBoard.getChain(v)
-        for (let cv of chain) {
-          let k = vertexKey(cv)
-          if (this.staleness.has(k)) this.staleness.set(k, -1)
-        }
-      }
-    }
   }
 
   _findComparisonPairs() {

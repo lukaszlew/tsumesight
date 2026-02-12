@@ -251,10 +251,10 @@ describe('QuizEngine', () => {
   })
 
   describe('group scoring', () => {
-    it('questioned stone gets staleness -1', () => {
+    it('questioned stone staleness tracks age', () => {
       let engine = new QuizEngine(simpleSgf)
-      engine.advance() // B[ee] — only stone, questioned, reset to -1
-      expect(engine.staleness.get('4,4')).toBe(-1)
+      engine.advance() // B[ee] — only stone, staleness 0
+      expect(engine.staleness.get('4,4')).toBe(0)
     })
 
     it('staleness increments each turn for unchosen groups', () => {
@@ -281,37 +281,17 @@ describe('QuizEngine', () => {
       }
     })
 
-    it('just-played single stone gets no bonuses', () => {
-      let engine = new QuizEngine('(;SZ[9];B[aa])')
-      engine.advance()
-      let groups = engine.getGroupScores()
-      expect(groups.length).toBe(1)
-      expect(groups[0].liberties).toBe(2)
-      // Single-stone current group: score = staleness only = 0
-      expect(groups[0].score).toBe(0)
-    })
-
-    it('getGroupScores returns correct liberty bonus for older group', () => {
-      // After 2 moves, the older stone gets liberty bonus
+    it('getGroupScores returns liberties and libsChanged', () => {
       let engine = new QuizEngine('(;SZ[9];B[aa];W[ii])')
-      engine.advance() // B[aa] — questioned, staleness → -1
-      engine.advance() // W[ii] — B[aa] aged: -1 → 0
-      // Use peekGroupScores (snapshot before staleness reset)
-      let blackGroup = engine.peekGroupScores.find(g => g.vertices.some(v => v[0] === 0 && v[1] === 0))
-      // staleness(0) + libertyBonus(2) = 2
-      expect(blackGroup.score).toBe(2)
-    })
-
-    it('getGroupScores gives no bonus for 5+ liberties', () => {
-      // Two adjacent stones: 6 liberties → bonus 0
-      let engine = new QuizEngine('(;SZ[9];B[ee];W[aa];B[fe])')
-      engine.advance()
-      engine.advance()
-      engine.advance()
+      engine.advance() // B[aa]
+      engine.advance() // W[ii]
       let groups = engine.getGroupScores()
-      let bigGroup = groups.find(g => g.liberties === 6)
-      // score = staleness + 0
-      expect(bigGroup.score).toBeLessThanOrEqual(4)
+      let blackGroup = groups.find(g => g.vertices.some(v => v[0] === 0 && v[1] === 0))
+      expect(blackGroup.liberties).toBe(2)
+      expect(blackGroup.libsChanged).toBe(false) // W[ii] is far away
+      let whiteGroup = groups.find(g => g.vertices.some(v => v[0] === 8 && v[1] === 8))
+      expect(whiteGroup.liberties).toBe(2)
+      expect(whiteGroup.libsChanged).toBe(true) // just-played
     })
 
     it('asks about just-played stone first, then older affected group', () => {
@@ -364,18 +344,18 @@ describe('QuizEngine', () => {
       expect(bigGroup.libsChanged).toBe(true)
     })
 
-    it('picks just-played stone first, then libsChanged over unchanged', () => {
+    it('sorts by fewest liberties first, just-played as tiebreaker', () => {
       // B[aa] corner (2 libs), W[ii] far corner (2 libs)
-      // Then B[hi] adjacent to W[ii] — W[ii] libs change, B[aa] unchanged
+      // Then B[hi] adjacent to W[ii] — W[ii] reduced to 1 lib, B[hi] has 2 libs
       let engine = new QuizEngine('(;SZ[9];B[aa];W[ii];B[hi])')
       engine.advance() // B[aa]
       engine.advance() // W[ii]
-      engine.advance(); engine.activateQuestions() // B[hi] — adjacent to W[ii], changes its libs
-      // B[hi] is just-played → first question
-      // W[ii]: libsChanged=true → second question
+      engine.advance(); engine.activateQuestions() // B[hi]
+      // W[ii] has 1 liberty (fewest) → first question
+      // B[hi] has 2 liberties, just-played → second question
       // B[aa]: libsChanged=false → masked out
-      expect(engine.questionVertex).toEqual([7, 8]) // just-played first
-      expect(engine.questions[1]).toEqual([8, 8])    // then W[ii]
+      expect(engine.questionVertex).toEqual([8, 8]) // W[ii] — fewest libs
+      expect(engine.questions[1]).toEqual([7, 8])    // B[hi] — just-played
     })
 
     it('two non-adjacent center stones: unchanged masked out', () => {
@@ -755,12 +735,12 @@ describe('QuizEngine', () => {
       expect(engine.questions.length).toBe(1)
     })
 
-    it('resets staleness for all questioned groups', () => {
+    it('staleness tracks stone age without question reset', () => {
       let engine = new QuizEngine('(;SZ[9];B[ba];W[aa])')
-      engine.advance() // B[ba]
-      engine.advance() // W[aa] — 2 questions, both get staleness -1
-      expect(engine.staleness.get('1,0')).toBe(-1) // B[ba]
-      expect(engine.staleness.get('0,0')).toBe(-1) // W[aa]
+      engine.advance() // B[ba] — staleness 0
+      engine.advance() // W[aa] — B[ba] aged to 1, W[aa] staleness 0
+      expect(engine.staleness.get('1,0')).toBe(1) // B[ba] aged
+      expect(engine.staleness.get('0,0')).toBe(0) // W[aa] just placed
     })
   })
 
