@@ -4,7 +4,7 @@ import { parseSgf } from './sgf-utils.js'
 import { isArchive, extractSgfs } from './archive.js'
 import { decodeSgf } from './sgf-utils.js'
 
-const DEFAULT_URL = 'https://files.catbox.moe/il1jz1.zip'
+const DEFAULT_URL = 'https://files.catbox.moe/v3phv1.zip'
 
 let numInParens = /^(.*\()(\d+)(\)\..+)$/
 
