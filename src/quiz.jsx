@@ -234,6 +234,12 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
     markerMap[y][x] = { type: 'label', label: String(engine.moveIndex) }
   }
 
+  // During retry: show move numbers on all revealed stones
+  for (let { vertex, moveNumber } of engine.revealedStones) {
+    let [x, y] = vertex
+    markerMap[y][x] = { type: 'label', label: String(moveNumber) }
+  }
+
   if (peeking) {
     // Show invisible stones as ghost stones
     for (let [, { vertex }] of engine.invisibleStones) {

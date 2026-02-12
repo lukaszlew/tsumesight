@@ -51,7 +51,8 @@ export class QuizEngine {
     this.baseSignMap = this.trueBoard.signMap.map(row => [...row])
 
     // Tracking
-    this.invisibleStones = new Map() // vertexKey → {sign, vertex}
+    this.invisibleStones = new Map() // vertexKey → {sign, vertex, moveNumber}
+    this.revealedStones = [] // [{vertex, moveNumber}] populated during retry
     this.staleness = new Map() // vertexKey → number (turns since last questioned, cap 4)
     for (let y = 0; y < this.boardSize; y++)
       for (let x = 0; x < this.boardSize; x++)
@@ -127,7 +128,7 @@ export class QuizEngine {
 
     // Track as invisible (not shown on base display)
     let key = vertexKey(move.vertex)
-    this.invisibleStones.set(key, { sign: move.sign, vertex: move.vertex })
+    this.invisibleStones.set(key, { sign: move.sign, vertex: move.vertex, moveNumber: this.moveIndex })
     this.staleness.set(key, 0)
 
     // Remove captured stones from tracking
@@ -250,6 +251,7 @@ export class QuizEngine {
     this._savedBaseSignMap = this.baseSignMap.map(row => [...row])
     this._savedInvisibleStones = new Map(this.invisibleStones)
     this._savedStaleness = new Map(this.staleness)
+    this.revealedStones = [...this.invisibleStones.values()].map(({ vertex, moveNumber }) => ({ vertex, moveNumber }))
     this.materialize()
   }
 
@@ -260,6 +262,7 @@ export class QuizEngine {
     this._savedBaseSignMap = null
     this._savedInvisibleStones = null
     this._savedStaleness = null
+    this.revealedStones = []
   }
 
   materialize() {
