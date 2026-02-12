@@ -435,6 +435,8 @@ body {
   justify-content: center;
   align-items: center;
   height: 4rem;
+  padding: 0 1.5rem;
+  margin-bottom: 4rem;
 }
 .ans-btn {
   width: 4rem;

@@ -227,11 +227,10 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
   let markerMap = makeEmptyMap(size)
   let ghostStoneMap = makeEmptyMap(size)
 
-  // Show phase: ghost stone for the just-played move (disappears when questions activate)
+  // Show phase: opaque stone with move number for the just-played move
   if (engine.currentMove && engine.showingMove) {
     let [x, y] = engine.currentMove.vertex
-    signMap[y][x] = 0
-    ghostStoneMap[y][x] = { sign: engine.currentMove.sign, faint: true }
+    signMap[y][x] = engine.currentMove.sign
     markerMap[y][x] = { type: 'label', label: String(engine.moveIndex) }
   }
 
@@ -433,8 +432,9 @@ function ProgressBar({ questionsPerMove, moveProgress, questionIndex, showingMov
 function StatsBar({ engine, times }) {
   let total = engine.results.length
   let pct = total > 0 ? Math.round(engine.correct / total * 100) : 0
-  let avg = times.length > 0 ? times.reduce((a, b) => a + b, 0) / times.length : 0
-  let sd = times.length > 1 ? Math.sqrt(times.reduce((a, b) => a + (b - avg) ** 2, 0) / times.length) : 0
+  let capped = times.map(t => Math.min(t, 5000))
+  let avg = capped.length > 0 ? capped.reduce((a, b) => a + b, 0) / capped.length : 0
+  let sd = capped.length > 1 ? Math.sqrt(capped.reduce((a, b) => a + (b - avg) ** 2, 0) / capped.length) : 0
   return (
     <div class="progress-bar">
       <span class="stats-line">
