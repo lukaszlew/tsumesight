@@ -42,7 +42,7 @@ function playTone(freq, duration, type = 'sine', vol = 0.24) {
 export function playCorrect() {
   streak++
   // Each consecutive correct raises pitch by a semitone, capped at one octave
-  let freq = Math.min(220 * Math.pow(2, (streak - 1) / 12), 660)
+  let freq = Math.min(220 * Math.pow(2, (streak - 1) / 12), 880)
   playTone(freq, 0.35)
 }
 
