@@ -69,11 +69,29 @@ function ScoreCells({ correct, done, total }) {
   </>
 }
 
+let deferredPrompt = null
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e })
+
 export function Library({ onSelect, initialPath = '' }) {
   let [sgfs, setSgfs] = useState([])
   let [loading, setLoading] = useState(true)
   let [importing, setImporting] = useState(null) // { done, total } or null
   let [cwd, setCwd] = useState(initialPath)
+  let [canInstall, setCanInstall] = useState(!!deferredPrompt)
+
+  useEffect(() => {
+    let onPrompt = (e) => { e.preventDefault(); deferredPrompt = e; setCanInstall(true) }
+    window.addEventListener('beforeinstallprompt', onPrompt)
+    return () => window.removeEventListener('beforeinstallprompt', onPrompt)
+  }, [])
+
+  let handleInstall = async () => {
+    if (!deferredPrompt) return
+    deferredPrompt.prompt()
+    await deferredPrompt.userChoice
+    deferredPrompt = null
+    setCanInstall(false)
+  }
 
   useEffect(() => {
     function onKeyDown(e) {
@@ -263,6 +281,7 @@ export function Library({ onSelect, initialPath = '' }) {
           Upload folder
         </button>
         <span class="upload-hint">SGF, ZIP, tar.gz</span>
+        {canInstall && <button class="upload-btn" onClick={handleInstall}>Add to Home Screen</button>}
         <button class="delete-btn" title="Delete all data and re-download defaults" onClick={handleReset}>Reset</button>
       </div>
       <form class="url-row" onSubmit={handleUrl}>

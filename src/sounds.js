@@ -41,28 +41,11 @@ function playTone(freq, duration, type = 'sine', vol = 0.24) {
 
 export function playCorrect() {
   streak++
-  if (!enabled) return
-  let c = getCtx()
-  // Shepard tone: multiple octaves with Gaussian amplitude envelope
-  // Creates illusion of endlessly rising pitch without getting higher
-  let t = ((streak - 1) % 12) / 12
-  let base = 220 * Math.pow(2, t)
-  let center = Math.log2(440)
-  for (let freq of [base / 2, base, base * 2, base * 4]) {
-    let dist = Math.log2(freq) - center
-    let amp = 0.15 * Math.exp(-dist * dist * 4)
-    if (amp < 0.005) continue
-    let osc = c.createOscillator()
-    let gain = c.createGain()
-    osc.frequency.value = freq
-    gain.gain.setValueAtTime(0.001, c.currentTime)
-    gain.gain.linearRampToValueAtTime(amp, c.currentTime + 0.05)
-    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.35)
-    osc.connect(gain)
-    gain.connect(c.destination)
-    osc.start()
-    osc.stop(c.currentTime + 0.35)
-  }
+  // Each consecutive correct raises pitch by a semitone, capped at one octave
+  let baseFreq = 330, maxFreq = 660
+  let freq = Math.min(baseFreq * Math.pow(2, (streak - 1) / 12), maxFreq)
+  let vol = 0.24 - 0.12 * (freq - baseFreq) / (maxFreq - baseFreq)
+  playTone(freq, 0.35, 'sine', vol)
 }
 
 export function playWrong() {
