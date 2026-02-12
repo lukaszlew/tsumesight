@@ -380,6 +380,29 @@ body {
   font-size: 1.1rem;
 }
 
+.stats-best {
+  color: #8af;
+}
+.stats-runs {
+  color: #888;
+}
+.stats-expanded {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+.time-chart {
+  overflow-x: auto;
+  padding: 0.25rem 0;
+  max-width: 100%;
+  cursor: grab;
+  -webkit-overflow-scrolling: touch;
+}
+.time-chart svg {
+  display: block;
+}
+
 .scoring-title {
   font-weight: bold;
   color: #eee;
@@ -509,6 +532,18 @@ body {
 }
 .summary-panel .back-btn {
   margin-right: 0.5rem;
+}
+.review-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.review-counter {
+  font-size: 0.85rem;
+  color: #999;
+  min-width: 4ch;
+  text-align: center;
 }
 .summary-panel hr {
   border: none;

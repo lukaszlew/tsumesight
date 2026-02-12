@@ -126,6 +126,26 @@ export function kvRemove(key) {
   openDb().then(db => promisify(tx(db, 'readwrite', KV_STORE).delete(key)))
 }
 
+export function getScores(sgfId) {
+  let raw = kv(`scores:${sgfId}`)
+  if (!raw) return []
+  try { return JSON.parse(raw) } catch { return [] }
+}
+
+export function addScore(sgfId, entry) {
+  let scores = getScores(sgfId)
+  scores.push(entry)
+  kvSet(`scores:${sgfId}`, JSON.stringify(scores))
+}
+
+export function getBestScore(sgfId) {
+  let scores = getScores(sgfId)
+  if (scores.length === 0) return null
+  return scores.reduce((best, s) =>
+    s.accuracy > best.accuracy || (s.accuracy === best.accuracy && s.avgTimeMs < best.avgTimeMs) ? s : best
+  )
+}
+
 export async function clearAll() {
   let db = await openDb()
   await promisify(tx(db, 'readwrite').clear())

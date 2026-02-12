@@ -2,7 +2,7 @@ import { useState, useEffect } from 'preact/hooks'
 import { Component } from 'preact'
 import { Library } from './library.jsx'
 import { Quiz } from './quiz.jsx'
-import { getAllSgfs, updateSgf, kv, kvSet, kvRemove } from './db.js'
+import { getAllSgfs, updateSgf, addScore, kv, kvSet, kvRemove } from './db.js'
 
 class ErrorBoundary extends Component {
   state = { error: null }
@@ -50,6 +50,7 @@ export function App() {
     kvSet('activeSgf', JSON.stringify(val))
     kvSet('lastPath', path)
     setActive(val)
+    history.pushState({ sgfId: id }, '')
     refreshPosition(id, path)
   }
 
@@ -57,7 +58,41 @@ export function App() {
     kvRemove('activeSgf')
     setActive(null)
     setPosition(null)
+    history.pushState({ sgfId: null }, '')
   }
+
+  // Replace initial history entry with current state
+  useEffect(() => {
+    history.replaceState({ sgfId: active?.id || null }, '')
+  }, [])
+
+  // Handle browser back/forward
+  useEffect(() => {
+    async function onPopState(e) {
+      let sgfId = e.state?.sgfId
+      if (!sgfId) {
+        kvRemove('activeSgf')
+        setActive(null)
+        setPosition(null)
+        return
+      }
+      let all = await getAllSgfs()
+      let found = all.find(s => s.id === sgfId)
+      if (!found) {
+        kvRemove('activeSgf')
+        setActive(null)
+        setPosition(null)
+        return
+      }
+      let val = { id: found.id, content: found.content, path: found.path || '', filename: found.filename }
+      kvSet('activeSgf', JSON.stringify(val))
+      kvSet('lastPath', val.path)
+      setActive(val)
+      refreshPosition(val.id, val.path)
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
 
   useEffect(() => {
     if (active) refreshPosition(active.id, active.path)
@@ -67,8 +102,11 @@ export function App() {
     if (active.id) updateSgf(active.id, { correct, done, total })
   }
 
-  function markSolved(correct, done) {
-    if (active.id) updateSgf(active.id, { solved: true, correct, done })
+  function markSolved(correct, done, scoreEntry) {
+    if (active.id) {
+      updateSgf(active.id, { solved: true, correct, done })
+      if (scoreEntry) addScore(active.id, scoreEntry)
+    }
   }
 
   async function getSiblings(path) {
@@ -106,7 +144,7 @@ export function App() {
     return (
       <ErrorBoundary onReset={clearSgf}>
         <Quiz key={`${active.id}:${attempt}`} quizKey={`${active.id}:${attempt}`} sgf={active.content}
-          filename={active.filename} dirName={active.path}
+          sgfId={active.id} filename={active.filename} dirName={active.path}
           onBack={clearSgf} onSolved={markSolved} onProgress={saveProgress} onLoadError={handleLoadError}
           onPrev={() => goStep(-1)} onNext={() => goStep(1)}
           onNextUnsolved={goNextUnsolved}

@@ -69,6 +69,7 @@ export class QuizEngine {
     this.retrying = false
     this.showingMove = false
     this.finished = false
+    this.questionsAsked = [] // per move: [{vertex}...] or [{v1,v2}...] for comparison
 
     // Precompute question counts per move (ideal play, no wrong answers)
     if (_precompute) {
@@ -346,6 +347,11 @@ export class QuizEngine {
     }
     this.moveProgress[this.moveProgress.length - 1] = { total: this.questions.length, results: [] }
     this.questionsPerMove[this.questionsPerMove.length - 1] = this.questions.length
+    if (this.mode === 'comparison') {
+      this.questionsAsked[this.questionsAsked.length - 1] = this.questions.map(p => ({ v1: p.v1, v2: p.v2 }))
+    } else {
+      this.questionsAsked[this.questionsAsked.length - 1] = this.questions.map(v => ({ vertex: v }))
+    }
   }
 
   _advanceLiberty(move) {
@@ -373,6 +379,7 @@ export class QuizEngine {
     this.questionVertex = null
     this.comparisonPair = null
     this.moveProgress.push({ total: this.questions.length, results: [] })
+    this.questionsAsked.push(this.questions.map(v => ({ vertex: v })))
   }
 
   _advanceComparison() {
@@ -382,6 +389,7 @@ export class QuizEngine {
     this.comparisonPair = null
     this.questionVertex = null
     this.moveProgress.push({ total: pairs.length, results: [] })
+    this.questionsAsked.push(pairs.map(p => ({ v1: p.v1, v2: p.v2 })))
   }
 
   _findComparisonPairs() {

@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'preact/hooks'
 import { Goban } from '@sabaki/shudan'
+import Board from '@sabaki/go-board'
 import { QuizEngine } from './engine.js'
+import { parseSgf } from './sgf-utils.js'
 import { playCorrect, playWrong, playComplete, isSoundEnabled, toggleSound, resetStreak } from './sounds.js'
-import { kv, kvSet, kvRemove } from './db.js'
+import { kv, kvSet, kvRemove, getScores, getBestScore } from './db.js'
 
 function loadHistory(quizKey) {
   let saved = kv('quizHistory')
@@ -21,7 +23,7 @@ function makeEmptyMap(size, fill = null) {
   return Array.from({ length: size }, () => Array(size).fill(fill))
 }
 
-export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProgress, onLoadError, onPrev, onNext, onNextUnsolved, onRetry, fileIndex, fileTotal }) {
+export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved, onProgress, onLoadError, onPrev, onNext, onNextUnsolved, onRetry, fileIndex, fileTotal }) {
   let engineRef = useRef(null)
   let historyRef = useRef([])
   let solvedRef = useRef(false)
@@ -40,6 +42,8 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
   let [showDuration, setShowDuration] = useState(() => kv('quizShowDuration', 'manual'))
   let questionStartRef = useRef(null)
   let timesRef = useRef([])
+  let moveTimingRef = useRef([]) // [{moveViewMs, questionTimes: [ms...]}]
+  let moveViewStartRef = useRef(null)
   let [showConfig, _setShowConfig] = useState(false)
   let showConfigRef = useRef(false)
   let setShowConfig = (v) => { let next = typeof v === 'function' ? v(showConfigRef.current) : v; showConfigRef.current = next; _setShowConfig(next) }
@@ -48,6 +52,7 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
   let [introHint, setIntroHint] = useState(false)
   let [modeHint, setModeHint] = useState(null)
   let [settingsHint, setSettingsHint] = useState(false)
+  let [reviewStep, setReviewStep] = useState(null) // null = not reviewing, 0..totalMoves
 
   // Initialize engine once (possibly replaying saved history)
   if (!engineRef.current && !error) {
@@ -86,7 +91,11 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
   let checkFinished = () => {
     if (engine.finished && !solvedRef.current) {
       solvedRef.current = true
-      onSolved(engine.correct, engine.results.length)
+      let total = engine.results.length
+      let accuracy = total > 0 ? engine.correct / total : 1
+      let { avg } = computeStats(timesRef.current)
+      let scoreEntry = { accuracy, avgTimeMs: Math.round(avg), date: Date.now(), mode, moveTiming: moveTimingRef.current }
+      onSolved(engine.correct, total, scoreEntry)
       playComplete()
     }
   }
@@ -105,19 +114,33 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
     }
   }
 
+  let trackAdvance = () => {
+    moveViewStartRef.current = performance.now()
+  }
+
+  let trackActivate = () => {
+    let moveViewMs = moveViewStartRef.current !== null
+      ? performance.now() - moveViewStartRef.current : 0
+    moveViewStartRef.current = null
+    moveTimingRef.current.push({ moveViewMs, questionTimes: [] })
+  }
+
   let submitAnswer = useCallback((value) => {
     if (anyHintRef.current) return
     let hasQuestion = engine.mode === 'comparison' ? engine.comparisonPair : engine.questionVertex
     if (!hasQuestion) {
       if (engine.showingMove) {
+        trackActivate()
         engine.activateQuestions()
         let activated = engine.mode === 'comparison' ? engine.comparisonPair : engine.questionVertex
         if (!activated && !engine.finished) {
           engine.advance()
+          trackAdvance()
           checkAdvanceHints()
         }
       } else if (!engine.finished) {
         engine.advance()
+        trackAdvance()
         checkAdvanceHints()
       }
       checkFinished()
@@ -128,19 +151,30 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
     let result = engine.answer(value)
     if (result.correct) {
       if (questionStartRef.current !== null) {
-        timesRef.current.push(performance.now() - questionStartRef.current)
+        let elapsed = performance.now() - questionStartRef.current
+        timesRef.current.push(elapsed)
         questionStartRef.current = null
+        let mt = moveTimingRef.current
+        if (mt.length > 0) mt[mt.length - 1].questionTimes.push({ ms: elapsed, failed: false })
       }
       historyRef.current.push(!wasRetrying)
       saveHistory(quizKey, historyRef.current)
       playCorrect()
       if (result.done) {
         engine.advance()
+        trackAdvance()
         checkAdvanceHints()
       }
       let total = engine.questionsPerMove.reduce((a, b) => a + b, 0)
       onProgress({ correct: engine.correct, done: engine.results.length, total })
     } else {
+      // Record failed attempt time, restart timer for retry
+      if (questionStartRef.current !== null) {
+        let elapsed = performance.now() - questionStartRef.current
+        let mt = moveTimingRef.current
+        if (mt.length > 0) mt[mt.length - 1].questionTimes.push({ ms: elapsed, failed: true })
+        questionStartRef.current = performance.now()
+      }
       playWrong()
       setWrongFlash(true)
       setTimeout(() => setWrongFlash(false), 150)
@@ -157,8 +191,16 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
   useEffect(() => {
     function onKeyDown(e) {
       if (e.key === 'Escape') { e.preventDefault(); if (anyHintRef.current) { setRetryHint(false); setIntroHint(false); setModeHint(null); setSettingsHint(false) } else if (showConfigRef.current) setShowConfig(false); else if (showHelpRef.current) setShowHelp(false); else onBack() }
-      else if (e.key === 'ArrowLeft') { e.preventDefault(); onPrev() }
-      else if (e.key === 'ArrowRight') { e.preventDefault(); onNext() }
+      else if (e.key === 'ArrowLeft') {
+        e.preventDefault()
+        if (engine.finished) setReviewStep(s => s === null ? engine.totalMoves : s > 0 ? s - 1 : engine.totalMoves)
+        else onPrev()
+      }
+      else if (e.key === 'ArrowRight') {
+        e.preventDefault()
+        if (engine.finished) setReviewStep(s => s === null ? 1 : s < engine.totalMoves ? s + 1 : 0)
+        else onNext()
+      }
       else if (e.key === '?') {
         e.preventDefault()
         setPeeking(true)
@@ -166,7 +208,7 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
       else if (e.key === ' ') {
         e.preventDefault()
         let hasQuestion = engine.mode === 'comparison' ? engine.comparisonPair : engine.questionVertex
-        if (engine.finished) onNextUnsolved()
+        if (engine.finished) setReviewStep(s => s === null ? 1 : s < engine.totalMoves ? s + 1 : 0)
         else if (engine.mode === 'comparison' && engine.comparisonPair) submitAnswer(3)
         else if (!hasQuestion) submitAnswer(0)
       }
@@ -226,49 +268,105 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
 
   // Build display maps
   let size = engine.boardSize
-  let signMap = engine.finished ? engine.trueBoard.signMap : engine.getDisplaySignMap()
-  let markerMap = makeEmptyMap(size)
-  let ghostStoneMap = makeEmptyMap(size)
+  let signMap, markerMap, ghostStoneMap
 
-  // Show phase: opaque stone with move number for the just-played move
-  if (engine.currentMove && engine.showingMove) {
-    let [x, y] = engine.currentMove.vertex
-    signMap[y][x] = engine.currentMove.sign
-    markerMap[y][x] = { type: 'label', label: String(engine.moveIndex) }
-  }
-
-  // During retry: show move numbers on all revealed stones
-  for (let { vertex, moveNumber } of engine.revealedStones) {
-    let [x, y] = vertex
-    markerMap[y][x] = { type: 'label', label: String(moveNumber) }
-  }
-
-  if (peeking) {
-    // Show invisible stones as ghost stones
-    for (let [, { vertex }] of engine.invisibleStones) {
-      let [x, y] = vertex
-      let sign = engine.trueBoard.get(vertex)
-      if (sign !== 0) {
-        signMap[y][x] = 0
-        ghostStoneMap[y][x] = { sign, faint: true }
+  if (engine.finished && reviewStep !== null) {
+    // Review mode: rebuild board up to reviewStep
+    let parsed = parseSgf(sgf)
+    let reviewBoard = Board.fromDimensions(size)
+    for (let [x, y] of parsed.setupBlack) reviewBoard.set([x, y], 1)
+    for (let [x, y] of parsed.setupWhite) reviewBoard.set([x, y], -1)
+    let moves = parsed.moves.filter(m => m.vertex != null)
+    markerMap = makeEmptyMap(size)
+    ghostStoneMap = makeEmptyMap(size)
+    for (let i = 0; i < reviewStep && i < moves.length; i++) {
+      try { reviewBoard = reviewBoard.makeMove(moves[i].sign, moves[i].vertex) } catch { break }
+      let [x, y] = moves[i].vertex
+      if (reviewBoard.get(moves[i].vertex) !== 0) {
+        markerMap[y][x] = { type: 'label', label: String(i + 1) }
       }
     }
-  } else if (engine.mode === 'comparison' && engine.comparisonPair) {
-    let { v1, v2 } = engine.comparisonPair
-    let [x1, y1] = v1
-    let [x2, y2] = v2
-    markerMap[y1][x1] = { type: 'label', label: 'Q' }
-    markerMap[y2][x2] = { type: 'label', label: 'W' }
-  } else if (engine.questionVertex) {
-    let [x, y] = engine.questionVertex
-    markerMap[y][x] = { type: 'label', label: '❓' }
+    // Show ❓ on groups that were questioned at this step
+    let asked = reviewStep > 0 && engine.questionsAsked[reviewStep - 1]
+    if (asked) {
+      for (let q of asked) {
+        if (q.vertex) {
+          let [x, y] = q.vertex
+          if (reviewBoard.get(q.vertex) !== 0) markerMap[y][x] = { type: 'label', label: '❓' }
+        }
+        if (q.v1) {
+          let [x, y] = q.v1
+          if (reviewBoard.get(q.v1) !== 0) markerMap[y][x] = { type: 'label', label: '❓' }
+        }
+        if (q.v2) {
+          let [x, y] = q.v2
+          if (reviewBoard.get(q.v2) !== 0) markerMap[y][x] = { type: 'label', label: '❓' }
+        }
+      }
+    }
+    signMap = reviewBoard.signMap
+  } else {
+    signMap = engine.finished ? engine.trueBoard.signMap : engine.getDisplaySignMap()
+    markerMap = makeEmptyMap(size)
+    ghostStoneMap = makeEmptyMap(size)
+
+    // Show phase: opaque stone with move number for the just-played move
+    if (engine.currentMove && engine.showingMove) {
+      let [x, y] = engine.currentMove.vertex
+      signMap[y][x] = engine.currentMove.sign
+      markerMap[y][x] = { type: 'label', label: String(engine.moveIndex) }
+    }
+
+    // During retry: show move numbers on all revealed stones
+    for (let { vertex, moveNumber } of engine.revealedStones) {
+      let [x, y] = vertex
+      markerMap[y][x] = { type: 'label', label: String(moveNumber) }
+    }
+
+
+    if (peeking) {
+      // Show invisible stones as ghost stones
+      for (let [, { vertex }] of engine.invisibleStones) {
+        let [x, y] = vertex
+        let sign = engine.trueBoard.get(vertex)
+        if (sign !== 0) {
+          signMap[y][x] = 0
+          ghostStoneMap[y][x] = { sign, faint: true }
+        }
+      }
+    } else if (engine.mode === 'comparison' && engine.comparisonPair) {
+      let { v1, v2 } = engine.comparisonPair
+      let [x1, y1] = v1
+      let [x2, y2] = v2
+      markerMap[y1][x1] = { type: 'label', label: 'Q' }
+      markerMap[y2][x2] = { type: 'label', label: 'W' }
+    } else if (engine.questionVertex) {
+      let [x, y] = engine.questionVertex
+      markerMap[y][x] = { type: 'label', label: '❓' }
+    }
+
+    // When finished but not reviewing, show all move numbers
+    if (engine.finished && reviewStep === null) {
+      let parsed = parseSgf(sgf)
+      let checkBoard = Board.fromDimensions(size)
+      for (let [x, y] of parsed.setupBlack) checkBoard.set([x, y], 1)
+      for (let [x, y] of parsed.setupWhite) checkBoard.set([x, y], -1)
+      let moves = parsed.moves.filter(m => m.vertex != null)
+      for (let i = 0; i < moves.length; i++) {
+        try { checkBoard = checkBoard.makeMove(moves[i].sign, moves[i].vertex) } catch { break }
+        let [x, y] = moves[i].vertex
+        if (checkBoard.get(moves[i].vertex) !== 0) {
+          markerMap[y][x] = { type: 'label', label: String(i + 1) }
+        }
+      }
+    }
   }
 
   return (
     <div class="quiz">
       <div class="board-section">
       {engine.finished
-        ? <StatsBar engine={engine} times={timesRef.current} />
+        ? <StatsBar engine={engine} times={timesRef.current} sgfId={sgfId} moveTiming={moveTimingRef.current} reviewStep={reviewStep} />
         : <ProgressBar questionsPerMove={engine.questionsPerMove} moveProgress={engine.moveProgress} questionIndex={engine.questionIndex} showingMove={engine.showingMove} moves={engine.moves} />}
       <div class="board-row" ref={boardRowRef}>
         <div
@@ -291,7 +389,10 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
           />}
         </div>
 
-        {engine.finished && <SummaryPanel onRetry={onRetry} onNextUnsolved={onNextUnsolved} />}
+        {engine.finished && <SummaryPanel onRetry={onRetry} onNextUnsolved={onNextUnsolved}
+          reviewStep={reviewStep} totalMoves={engine.totalMoves}
+          onReviewBack={() => setReviewStep(s => s === null ? engine.totalMoves : s > 0 ? s - 1 : engine.totalMoves)}
+          onReviewForward={() => setReviewStep(s => s === null ? 1 : s < engine.totalMoves ? s + 1 : 0)} />}
       </div>
 
       <div class="top-bar">
@@ -388,12 +489,18 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
 }
 
 
-function SummaryPanel({ onRetry, onNextUnsolved }) {
+function SummaryPanel({ onRetry, onNextUnsolved, reviewStep, totalMoves, onReviewBack, onReviewForward }) {
+  let displayStep = reviewStep === null ? totalMoves : reviewStep
   return (
     <div class="summary-panel">
       <div class="scoring-title">Quiz Complete</div>
+      <div class="review-controls">
+        <button class="bar-btn" title="Step back (←)" onClick={onReviewBack}>◀</button>
+        <span class="review-counter">{displayStep}/{totalMoves}</span>
+        <button class="bar-btn" title="Step forward (→/Space)" onClick={onReviewForward}>▶</button>
+      </div>
       <button class="back-btn" title="Restart this problem from the beginning" onClick={onRetry}>Retry</button>
-      <button class="back-btn" title="Jump to next unsolved problem (Space)" onClick={onNextUnsolved}>Next Unsolved</button>
+      <button class="back-btn" title="Jump to next unsolved problem" onClick={onNextUnsolved}>Next Unsolved</button>
     </div>
   )
 }
@@ -446,16 +553,123 @@ export function computeStats(times, cap = 5000) {
   return { avg, sd }
 }
 
-function StatsBar({ engine, times }) {
+function StatsBar({ engine, times, sgfId, moveTiming, reviewStep }) {
   let total = engine.results.length
   let pct = total > 0 ? Math.round(engine.correct / total * 100) : 0
   let { avg, sd } = computeStats(times)
+  let scores = sgfId ? getScores(sgfId) : []
+  let best = scores.length > 0 ? scores.reduce((b, s) =>
+    s.accuracy > b.accuracy || (s.accuracy === b.accuracy && s.avgTimeMs < b.avgTimeMs) ? s : b
+  ) : null
   return (
-    <div class="progress-bar">
-      <span class="stats-line">
-        {engine.correct}/{total} ({pct}%)
-        {times.length > 0 && <> &middot; {(avg / 1000).toFixed(1)}s {sd > 0 ? `\u00b1${(sd / 1000).toFixed(1)}s` : ''}</>}
-      </span>
+    <div class="stats-expanded">
+      <div class="progress-bar">
+        <span class="stats-line">
+          {engine.correct}/{total} ({pct}%)
+          {times.length > 0 && <> &middot; {Math.round(avg)}ms {sd > 0 ? `\u00b1${Math.round(sd)}ms` : ''}</>}
+          {best && <span class="stats-best"> &middot; Best: {Math.round(best.accuracy * 100)}% &middot; {best.avgTimeMs}ms</span>}
+          {scores.length > 0 && <span class="stats-runs"> &middot; Run #{scores.length + 1}</span>}
+        </span>
+      </div>
+      {moveTiming.length > 0 && <TimeChart moveTiming={moveTiming} moves={engine.moves} reviewStep={reviewStep} />}
+    </div>
+  )
+}
+
+
+function TimeChart({ moveTiming, moves, reviewStep }) {
+  let moveCount = moveTiming.length
+  let barW = 10
+  let barGap = 1
+
+  // Count total bars per move (1 moveView + N questions), compute x offsets
+  let moveOffsets = [] // [{x, barCount}]
+  let totalBars = 0
+  for (let m of moveTiming) {
+    let count = 1 + m.questionTimes.length
+    moveOffsets.push({ x: totalBars * (barW + barGap), barCount: count })
+    totalBars += count
+  }
+
+  let axisW = 30
+  let chartW = totalBars * (barW + barGap)
+  let svgW = axisW + chartW + 4
+  let chartH = 60
+  let labelH = 14
+
+  // Find max time across current and best
+  let maxTime = 0
+  for (let m of moveTiming) {
+    maxTime = Math.max(maxTime, m.moveViewMs)
+    for (let t of m.questionTimes) maxTime = Math.max(maxTime, t.ms)
+  }
+  if (maxTime === 0) maxTime = 1000
+
+  // Nice tick values
+  let ticks = []
+  let step = maxTime <= 500 ? 100 : maxTime <= 2000 ? 500 : maxTime <= 5000 ? 1000 : 2000
+  for (let v = step; v <= maxTime; v += step) ticks.push(v)
+
+  let barH = (ms) => Math.max(1, ms / maxTime * chartH)
+  let fmt = (ms) => ms >= 1000 ? (ms / 1000) + 's' : ms + 'ms'
+
+  let dragRef = useRef(null)
+  let chartRef = useRef(null)
+  let onMouseDown = (e) => { dragRef.current = { x: e.clientX, scrollLeft: e.currentTarget.scrollLeft }; e.currentTarget.style.cursor = 'grabbing' }
+  let onMouseMove = (e) => { if (!dragRef.current) return; e.currentTarget.scrollLeft = dragRef.current.scrollLeft - (e.clientX - dragRef.current.x) }
+  let onMouseUp = (e) => { dragRef.current = null; e.currentTarget.style.cursor = '' }
+
+  // Auto-scroll to keep highlighted bar visible
+  useEffect(() => {
+    let el = chartRef.current
+    if (!el || reviewStep == null || reviewStep < 1 || reviewStep > moveCount) return
+    let { x: hx, barCount } = moveOffsets[reviewStep - 1]
+    let left = axisW + hx - 10
+    let right = axisW + hx + barCount * (barW + barGap) + 10
+    if (left < el.scrollLeft) el.scrollLeft = left
+    else if (right > el.scrollLeft + el.clientWidth) el.scrollLeft = right - el.clientWidth
+  }, [reviewStep])
+
+  return (
+    <div class="time-chart" ref={chartRef} onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}>
+      <svg width={svgW} height={chartH + labelH} viewBox={`0 0 ${svgW} ${chartH + labelH}`}>
+        {/* Y-axis ticks and gridlines */}
+        {ticks.map(v => {
+          let y = chartH - v / maxTime * chartH
+          return [
+            <line key={`grid-${v}`} x1={axisW} y1={y} x2={svgW} y2={y} stroke="#333" stroke-width="0.5" />,
+            <text key={`tick-${v}`} x={axisW - 3} y={y + 3} text-anchor="end" fill="#666" font-size="7">{fmt(v)}</text>
+          ]
+        })}
+        {/* Highlight current review step */}
+        {reviewStep != null && reviewStep > 0 && reviewStep <= moveCount && (() => {
+          let hi = reviewStep - 1
+          let { x: hx, barCount } = moveOffsets[hi]
+          let groupW = barCount * (barW + barGap) - barGap
+          return <rect x={axisW + hx - 1} y={0} width={groupW + 2} height={chartH} fill="rgba(255,255,255,0.08)" />
+        })()}
+        {/* Bars */}
+        {moveTiming.map((m, i) => {
+          let { x: mx } = moveOffsets[i]
+          let x0 = axisW + mx
+          let bars = []
+          // Current run bars — move-view bar colored by stone color
+          let h = barH(m.moveViewMs)
+          let moveColor = moves[i]?.sign === 1 ? '#222' : '#ddd'
+          bars.push(<rect key={`mv-${i}`} x={x0} y={chartH - h} width={barW} height={h} fill={moveColor} />)
+          for (let j = 0; j < m.questionTimes.length; j++) {
+            let qx = x0 + (j + 1) * (barW + barGap)
+            let qh = barH(m.questionTimes[j].ms)
+            let fill = m.questionTimes[j].failed ? '#c44' : '#4a4'
+            bars.push(<rect key={`q-${i}-${j}`} x={qx} y={chartH - qh} width={barW} height={qh} fill={fill} />)
+          }
+          // Move number label under the move-view bar
+          bars.push(<text key={`lbl-${i}`} x={x0 + barW / 2} y={chartH + 10} text-anchor="middle" fill="#888" font-size="7">{i + 1}</text>)
+          return bars
+        })}
+        {/* Baseline */}
+        <line x1={axisW} y1={chartH} x2={svgW} y2={chartH} stroke="#555" stroke-width="0.5" />
+      </svg>
     </div>
   )
 }

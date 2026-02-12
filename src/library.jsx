@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'preact/hooks'
-import { getAllSgfs, addSgfBatch, deleteSgf, deleteSgfsByPrefix, clearAll } from './db.js'
+import { getAllSgfs, addSgfBatch, deleteSgf, deleteSgfsByPrefix, clearAll, getBestScore } from './db.js'
 import { parseSgf } from './sgf-utils.js'
 import { isArchive, extractSgfs } from './archive.js'
 import { decodeSgf } from './sgf-utils.js'
@@ -327,6 +327,7 @@ export function Library({ onSelect, initialPath = '' }) {
               <th class="score-good">Good</th>
               <th>Done</th>
               <th>Total</th>
+              <th>Best</th>
               <th></th>
             </tr>
           </thead>
@@ -340,22 +341,27 @@ export function Library({ onSelect, initialPath = '' }) {
                   <td class="score-good">{solved}</td>
                   <td>{started || ''}</td>
                   <td>{total}</td>
+                  <td></td>
                   <td>
                     <button class="delete-btn" onClick={(e) => handleDeleteDir(e, prefix + d, d)}>🗑</button>
                   </td>
                 </tr>
               )
             })}
-            {filesHere.map(s => (
+            {filesHere.map(s => {
+              let best = getBestScore(s.id)
+              return (
               <tr key={s.id} onClick={() => onSelect({ id: s.id, content: s.content, path: s.path || '', filename: s.filename })} class={`sgf-row${s.solved ? ' solved-row' : ''}`}>
                 <td>{s.solved ? '✓ ' : ''}{s.filename}</td>
                 <td>{s.moveCount}</td>
                 <ScoreCells correct={s.correct} done={s.done} total={s.total} />
+                <td class="score-good">{best ? Math.round(best.accuracy * 100) + '%' : ''}</td>
                 <td>
                   <button class="delete-btn" onClick={(e) => handleDelete(e, s.id, s.filename)}>🗑</button>
                 </td>
               </tr>
-            ))}
+              )
+            })}
           </tbody>
         </table>
       )}
