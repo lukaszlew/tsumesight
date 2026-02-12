@@ -143,7 +143,7 @@ export function Quiz({ sgf, quizKey, filename, dirName, onBack, onSolved, onProg
     } else {
       playWrong()
       setWrongFlash(true)
-      setTimeout(() => setWrongFlash(false), 100)
+      setTimeout(() => setWrongFlash(false), 150)
       if (!kv('seenRetryHint')) {
         kvSet('seenRetryHint', '1')
         setRetryHint(true)
