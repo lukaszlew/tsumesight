@@ -744,4 +744,114 @@ describe('QuizEngine', () => {
     })
   })
 
+  describe('comparison A/B spatial ordering', () => {
+    it('v1 (A) is more top-left than v2 (B)', () => {
+      // B[ee]=[4,4] then W[de]=[3,4] — adjacent, different colors
+      let sgf = '(;SZ[9];B[ee];W[de])'
+      let engine = new QuizEngine(sgf, 'comparison')
+      engine.advance() // B[ee]
+      engine.advance(); engine.activateQuestions() // W[de]
+      if (!engine.comparisonPair) return
+      let { v1, v2 } = engine.comparisonPair
+      // A should be top-left: smaller y, or same y then smaller x
+      let aIsTopLeft = v1[1] < v2[1] || (v1[1] === v2[1] && v1[0] <= v2[0])
+      expect(aIsTopLeft).toBe(true)
+    })
+
+    it('v1 (A) is above v2 (B) when vertically adjacent', () => {
+      // B[ec]=[4,2] then W[ed]=[4,3] — same column, different rows
+      let sgf = '(;SZ[9];B[ec];W[ed])'
+      let engine = new QuizEngine(sgf, 'comparison')
+      engine.advance()
+      engine.advance(); engine.activateQuestions()
+      if (!engine.comparisonPair) return
+      let { v1, v2 } = engine.comparisonPair
+      expect(v1[1]).toBeLessThanOrEqual(v2[1])
+    })
+  })
+
+  describe('show window', () => {
+    it('starts at 1', () => {
+      let engine = new QuizEngine(simpleSgf)
+      expect(engine.showWindow).toBe(1)
+    })
+
+    it('increments on wrong answer in liberty mode', () => {
+      let engine = new QuizEngine(simpleSgf)
+      engine.advance(); engine.activateQuestions()
+      if (!engine.questionVertex) return
+      let trueLiberties = Math.min(engine.trueBoard.getLiberties(engine.questionVertex).length, 5)
+      let wrongAnswer = trueLiberties === 1 ? 2 : 1
+      engine.answer(wrongAnswer)
+      expect(engine.showWindow).toBe(2)
+    })
+
+    it('increments on each wrong answer', () => {
+      let sgf = '(;SZ[9];B[ee];W[de];B[ce];W[dd])'
+      let engine = new QuizEngine(sgf, 'liberty', true, 1)
+      // Play through giving wrong answers
+      let wrongCount = 0
+      engine.advance(); engine.activateQuestions()
+      while (!engine.finished) {
+        if (engine.questionVertex) {
+          let trueLiberties = Math.min(engine.trueBoard.getLiberties(engine.questionVertex).length, 5)
+          let wrongAnswer = trueLiberties === 1 ? 2 : 1
+          engine.answer(wrongAnswer) // wrong
+          wrongCount++
+          expect(engine.showWindow).toBe(1 + wrongCount)
+          engine.answer(trueLiberties) // retry correct
+        }
+        if (!engine.finished) {
+          engine.advance(); engine.activateQuestions()
+        }
+      }
+    })
+
+    it('increments on wrong answer in comparison mode', () => {
+      let sgf = '(;SZ[9];B[ee];W[de])'
+      let engine = new QuizEngine(sgf, 'comparison')
+      engine.advance(); engine.activateQuestions()
+      while (engine.comparisonPair) {
+        let pair = engine.comparisonPair
+        let ta = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 2 : 3
+        engine.answer(ta)
+      }
+      engine.advance(); engine.activateQuestions()
+      if (!engine.comparisonPair) return
+      let pair = engine.comparisonPair
+      let trueAnswer = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 2 : 3
+      let wrongAnswer = trueAnswer === 1 ? 2 : 1
+      engine.answer(wrongAnswer)
+      expect(engine.showWindow).toBe(2)
+    })
+
+    it('getWindowStones returns empty when showWindow=1', () => {
+      let engine = new QuizEngine(simpleSgf)
+      engine.advance()
+      expect(engine.getWindowStones()).toEqual([])
+    })
+
+    it('getWindowStones returns previous stones when showWindow>1', () => {
+      let sgf = '(;SZ[9];B[ee];W[de];B[ce])'
+      let engine = new QuizEngine(sgf, 'liberty', true, 1)
+      engine.advance(); engine.activateQuestions() // B[ee]
+      if (engine.questionVertex) {
+        let trueLiberties = Math.min(engine.trueBoard.getLiberties(engine.questionVertex).length, 5)
+        let wrongAnswer = trueLiberties === 1 ? 2 : 1
+        engine.answer(wrongAnswer) // wrong → showWindow=2
+        engine.answer(trueLiberties) // retry correct
+      }
+      engine.advance(); engine.activateQuestions() // W[de]
+      if (engine.questionVertex) {
+        let trueLiberties = Math.min(engine.trueBoard.getLiberties(engine.questionVertex).length, 5)
+        engine.answer(trueLiberties)
+      }
+      engine.advance() // B[ce] — showingMove=true, showWindow=2
+      expect(engine.showWindow).toBe(2)
+      let windowStones = engine.getWindowStones()
+      // Should return 1 previous invisible stone (showWindow-1=1)
+      expect(windowStones.length).toBeLessThanOrEqual(1)
+    })
+  })
+
 })

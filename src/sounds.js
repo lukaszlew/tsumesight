@@ -1,7 +1,6 @@
 import { kv, kvSet } from './db.js'
 
 let ctx = null
-let streak = 0
 let enabled = null
 
 function getEnabled() {
@@ -10,7 +9,6 @@ function getEnabled() {
 }
 
 export function isSoundEnabled() { return getEnabled() }
-export function resetStreak() { streak = 0 }
 
 export function toggleSound() {
   enabled = !getEnabled()
@@ -40,14 +38,10 @@ function playTone(freq, duration, type = 'sine', vol = 0.24) {
 }
 
 export function playCorrect() {
-  streak++
-  // Each consecutive correct raises pitch by a semitone, capped at one octave
-  let freq = Math.min(220 * Math.pow(2, (streak - 1) / 12), 880)
-  playTone(freq, 0.35)
+  playTone(440, 0.35)
 }
 
 export function playWrong() {
-  streak = 0
   playTone(130, 0.45, 'triangle')
 }
 

@@ -451,9 +451,16 @@ body {
   flex-shrink: 0;
 }
 
-.stats-line {
+.stats-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0 0.75rem;
   color: #ccc;
-  font-size: min(1.1rem, 3dvh);
+  font-size: min(0.9rem, 2.5dvh);
+}
+.stats-cell {
+  white-space: nowrap;
 }
 
 .stats-best {
@@ -474,6 +481,8 @@ body {
   overflow-x: auto;
   padding: 0.25rem 0;
   max-width: 100%;
+  flex: 1;
+  min-height: 0;
   cursor: grab;
   -webkit-overflow-scrolling: touch;
 }
@@ -531,9 +540,9 @@ body {
 .shudan-vertex.shudan-marker_label .shudan-marker {
   color: #999 !important;
   background: transparent !important;
-  font-weight: bold;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-weight: 600;
   font-size: .55em;
-  -webkit-text-stroke: .03em #000;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -579,41 +588,40 @@ body {
   background: linear-gradient(180deg, #222, #1a1a1a);
   box-shadow: inset 0 2px 4px rgba(0,0,0,.4);
 }
-.black-stone-btn {
-  background: linear-gradient(180deg, #3a3835, #1a1918);
-  color: #c8c0b8;
-  border: 1px solid #555;
-  box-shadow: 0 2px 6px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.08);
-}
-.black-stone-btn:hover {
-  background: linear-gradient(180deg, #4a4845, #2a2928);
-  box-shadow: 0 2px 10px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.1);
-}
-.white-stone-btn {
-  background: linear-gradient(180deg, #eee8e0, #b8b0a5);
-  color: #2a2520;
-  border: 1px solid #a09888;
-  box-shadow: 0 2px 6px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.5);
-}
-.white-stone-btn:hover {
-  background: linear-gradient(180deg, #f5f0e8, #c8c0b5);
-  box-shadow: 0 2px 10px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.6);
-}
 .ans-btn:nth-child(4) {
   grid-column: 2 / 4;
 }
 .ans-btn:nth-child(5) {
   grid-column: 4 / 6;
 }
-.eq-btn {
-  width: 100%;
-  grid-column: span 2;
-}
 .next-btn {
-  width: 100%;
+  width: 60%;
   height: 100%;
   border-radius: 1.5rem;
   grid-column: span 6;
+}
+.mode-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  height: 100%;
+  width: 80%;
+}
+.mode-buttons {
+  display: flex;
+  gap: 0.75rem;
+  width: 100%;
+}
+.mode-buttons .next-btn {
+  width: 100%;
+  flex: 1;
+}
+.mode-questions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 .next-btn.mode-active {
   border-color: #c8a060;

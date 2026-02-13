@@ -3,7 +3,7 @@ import { Goban } from '@sabaki/shudan'
 import Board from '@sabaki/go-board'
 import { QuizEngine } from './engine.js'
 import { parseSgf } from './sgf-utils.js'
-import { playCorrect, playWrong, playComplete, isSoundEnabled, toggleSound, resetStreak } from './sounds.js'
+import { playCorrect, playWrong, playComplete, isSoundEnabled, toggleSound } from './sounds.js'
 import { kv, kvSet, kvRemove, getScores, getBestScore } from './db.js'
 
 function loadHistory(quizKey) {
@@ -56,7 +56,6 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
 
   // Initialize engine once (possibly replaying saved history)
   if (!engineRef.current && !error) {
-    resetStreak()
     try {
       let saved = loadHistory(quizKey)
       if (saved && saved.length > 0) {
@@ -105,10 +104,7 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
   anyHintRef.current = anyHint
 
   let checkAdvanceHints = () => {
-    if (engine.moveIndex === 1 && !kv('seenIntroHint')) {
-      kvSet('seenIntroHint', '1')
-      setIntroHint(true)
-    } else if (engine.moveIndex >= 5 && !kv('seenSettingsHint')) {
+    if (engine.moveIndex >= 5 && !kv('seenSettingsHint')) {
       kvSet('seenSettingsHint', '1')
       setSettingsHint(true)
     }
@@ -132,6 +128,10 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
       if (engine.showingMove) {
         trackActivate()
         engine.activateQuestions()
+        if (engine.moveIndex === 1 && !kv('seenIntroHint')) {
+          kvSet('seenIntroHint', '1')
+          setIntroHint(true)
+        }
         let activated = engine.mode === 'comparison' ? engine.comparisonPair : engine.questionVertex
         if (!activated && !engine.finished) {
           engine.advance()
@@ -212,8 +212,8 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
         else if (engine.mode === 'comparison' && engine.comparisonPair) submitAnswer(3)
         else if (!hasQuestion) submitAnswer(0)
       }
-      else if (engine.mode === 'comparison' && e.key === 'q') submitAnswer(1)
-      else if (engine.mode === 'comparison' && e.key === 'w') submitAnswer(2)
+      else if (engine.mode === 'comparison' && e.key === 'a') submitAnswer(1)
+      else if (engine.mode === 'comparison' && e.key === 'b') submitAnswer(2)
       else if (engine.mode !== 'comparison' && e.key >= '1' && e.key <= '5') submitAnswer(parseInt(e.key))
     }
     function onKeyUp(e) {
@@ -315,6 +315,15 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
       let [x, y] = engine.currentMove.vertex
       signMap[y][x] = engine.currentMove.sign
       markerMap[y][x] = { type: 'label', label: String(engine.moveIndex) }
+      // Show window: also reveal recent previous stones based on wrong-answer count
+      for (let { vertex, moveNumber } of engine.getWindowStones()) {
+        let [wx, wy] = vertex
+        let sign = engine.trueBoard.get(vertex)
+        if (sign !== 0) {
+          signMap[wy][wx] = sign
+          markerMap[wy][wx] = { type: 'label', label: String(moveNumber) }
+        }
+      }
     }
 
     // During retry: show move numbers on all revealed stones
@@ -338,8 +347,8 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
       let { v1, v2 } = engine.comparisonPair
       let [x1, y1] = v1
       let [x2, y2] = v2
-      markerMap[y1][x1] = { type: 'label', label: 'Q' }
-      markerMap[y2][x2] = { type: 'label', label: 'W' }
+      markerMap[y1][x1] = { type: 'label', label: 'A' }
+      markerMap[y2][x2] = { type: 'label', label: 'B' }
     } else if (engine.questionVertex) {
       let [x, y] = engine.questionVertex
       markerMap[y][x] = { type: 'label', label: '❓' }
@@ -366,7 +375,7 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
     <div class="quiz">
       <div class="board-section">
       {engine.finished
-        ? <StatsBar engine={engine} times={timesRef.current} sgfId={sgfId} moveTiming={moveTimingRef.current} reviewStep={reviewStep} />
+        ? <StatsBar engine={engine} times={timesRef.current} sgfId={sgfId} />
         : <ProgressBar questionsPerMove={engine.questionsPerMove} moveProgress={engine.moveProgress} questionIndex={engine.questionIndex} showingMove={engine.showingMove} moves={engine.moves} />}
       <div class="board-row" ref={boardRowRef}>
         <div
@@ -403,8 +412,15 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
         <button class="bar-btn" title="Back to library (Esc)" onClick={onBack}>☰</button>
         <button class="bar-btn" title="Restart this problem" onClick={onRetry}>↺</button>
         <div class="nav-group">
-          <button class="bar-btn" title="Previous problem (←)" onClick={onPrev}>◀</button>
-          <button class="bar-btn" title="Next problem (→)" onClick={onNext}>▶</button>
+          {engine.finished
+            ? <>
+                <button class="bar-btn" title="Review step back (←)" onClick={() => setReviewStep(s => s === null ? engine.totalMoves : s > 0 ? s - 1 : engine.totalMoves)}>⏪</button>
+                <button class="bar-btn" title="Review step forward (→/Space)" onClick={() => setReviewStep(s => s === null ? 1 : s < engine.totalMoves ? s + 1 : 0)}>⏩</button>
+              </>
+            : <>
+                <button class="bar-btn" title="Previous problem (←)" onClick={onPrev}>◀</button>
+                <button class="bar-btn" title="Next problem (→)" onClick={onNext}>▶</button>
+              </>}
         </div>
         <div class="nav-group">
           <button class="bar-btn" title="Settings (Esc to close)" onClick={() => setShowConfig(c => !c)}>⚙</button>
@@ -435,7 +451,7 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
             <b>Tip</b>
             <button class="bar-btn" onClick={() => setSettingsHint(false)}>X</button>
           </div>
-          <p>Press &#x2699; to adjust settings — enable timed auto-advance so stones disappear automatically, or change the number of questions per move.</p>
+          <p>Press &#x2699; to adjust settings — enable timed auto-advance so stones disappear automatically.</p>
         </div>
       </div>}
       {modeHint && <div class="overlay">
@@ -445,7 +461,7 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
             <button class="bar-btn" onClick={() => setModeHint(null)}>X</button>
           </div>
           {modeHint === 'comparison'
-            ? <p>Two groups are marked Q and W. Choose which has more liberties, or equal.</p>
+            ? <p>Two groups are marked A and B. Choose which has more liberties, or equal.</p>
             : <p>A group is marked with &#x2753;. Count its liberties and pick the right number (1–4 or 5+).</p>}
         </div>
       </div>}
@@ -464,18 +480,24 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
             <b>Hint</b>
             <button class="bar-btn" onClick={() => setRetryHint(false)}>X</button>
           </div>
-          <p>Wrong answer — all hidden stones are now revealed. Answer the same question again to continue.</p>
+          <p>Wrong answer — all hidden stones are now revealed. Answer the same question again to continue. Future moves will show extra context.</p>
         </div>
       </div>}
       <div class="bottom-bar">
         {(() => {
-          if (engine.finished) return <div class="answer-buttons" />
-          if (engine.moveIndex === 0) return <ModeChoice mode={mode} onChoice={nextMode => {
+          if (engine.finished) return moveTimingRef.current.length > 0
+            ? <TimeChart moveTiming={moveTimingRef.current} moves={engine.moves} reviewStep={reviewStep} />
+            : <div class="answer-buttons" />
+          if (engine.moveIndex === 0) return <ModeChoice mode={mode} maxQ={maxQ} onChoice={nextMode => {
             kvSet('quizMode', nextMode)
             setMode(nextMode)
             engine.mode = nextMode
             engine.recomputeQuestions()
             submitAnswer(0)
+          }} onMaxQ={next => {
+            kvSet('quizMaxQ', String(next))
+            setMaxQ(next)
+            engine.maxQuestions = next
           }} />
           let hasQuestion = engine.mode === 'comparison' ? engine.comparisonPair : engine.questionVertex
           if (!hasQuestion) return engine.showingMove && showDuration !== 'manual'
@@ -556,7 +578,7 @@ export function computeStats(times, cap = 5000) {
   return { avg, sd }
 }
 
-function StatsBar({ engine, times, sgfId, moveTiming, reviewStep }) {
+function StatsBar({ engine, times, sgfId }) {
   let total = engine.results.length
   let pct = total > 0 ? Math.round(engine.correct / total * 100) : 0
   let { avg, sd } = computeStats(times)
@@ -566,15 +588,12 @@ function StatsBar({ engine, times, sgfId, moveTiming, reviewStep }) {
   ) : null
   return (
     <div class="stats-expanded">
-      <div class="progress-bar">
-        <span class="stats-line">
-          {engine.correct}/{total} ({pct}%)
-          {times.length > 0 && <> &middot; {Math.round(avg)}ms {sd > 0 ? `\u00b1${Math.round(sd)}ms` : ''}</>}
-          {best && <span class="stats-best"> &middot; Best: {Math.round(best.accuracy * 100)}% &middot; {best.avgTimeMs}ms</span>}
-          {scores.length > 0 && <span class="stats-runs"> &middot; Run #{scores.length + 1}</span>}
-        </span>
+      <div class="stats-grid">
+        <span class="stats-cell">{engine.correct}/{total} ({pct}%)</span>
+        {times.length > 0 && <span class="stats-cell">{Math.round(avg)}ms {sd > 0 ? `\u00b1${Math.round(sd)}ms` : ''}</span>}
+        {best && <span class="stats-cell stats-best">Best: {Math.round(best.accuracy * 100)}% {best.avgTimeMs}ms</span>}
+        {scores.length > 0 && <span class="stats-cell stats-runs">Run #{scores.length + 1}</span>}
       </div>
-      {moveTiming.length > 0 && <TimeChart moveTiming={moveTiming} moves={engine.moves} reviewStep={reviewStep} />}
     </div>
   )
 }
@@ -597,16 +616,18 @@ function TimeChart({ moveTiming, moves, reviewStep }) {
   let axisW = 30
   let chartW = totalBars * (barW + barGap)
   let svgW = axisW + chartW + 4
-  let chartH = 60
+  let chartH = 120
   let labelH = 14
 
-  // Find max time across current and best
+  // Find max time across current and best, capped at 5000ms
+  let cap = 5000
   let maxTime = 0
   for (let m of moveTiming) {
     maxTime = Math.max(maxTime, m.moveViewMs)
     for (let t of m.questionTimes) maxTime = Math.max(maxTime, t.ms)
   }
   if (maxTime === 0) maxTime = 1000
+  maxTime = Math.min(maxTime, cap)
 
   // Nice tick values
   let ticks = []
@@ -689,11 +710,21 @@ function AnswerButtons({ onAnswer }) {
   )
 }
 
-function ModeChoice({ mode, onChoice }) {
+function ModeChoice({ mode, maxQ, onChoice, onMaxQ }) {
   return (
-    <div class="answer-buttons">
-      <button class={`bar-btn next-btn${mode === 'liberty' ? ' mode-active' : ''}`} onClick={() => onChoice('liberty')}>① Liberty</button>
-      <button class={`bar-btn next-btn${mode === 'comparison' ? ' mode-active' : ''}`} onClick={() => onChoice('comparison')}>⚖ Compare</button>
+    <div class="mode-choice">
+      <div class="mode-buttons">
+        <button class={`bar-btn next-btn${mode === 'liberty' ? ' mode-active' : ''}`} onClick={() => onChoice('liberty')}>① Liberty</button>
+        <button class={`bar-btn next-btn${mode === 'comparison' ? ' mode-active' : ''}`} onClick={() => onChoice('comparison')}>⚖ Compare</button>
+      </div>
+      <div class="mode-questions">
+        <span class="cfg-label">Questions</span>
+        <div class="cfg-options">
+          {[0, 1, 2, 3, 4].map(n => (
+            <button key={n} class={`cfg-opt${maxQ === n ? ' active' : ''}`} onClick={() => onMaxQ(n)}>{n}</button>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
@@ -709,9 +740,9 @@ function NextButton({ label = 'Next', onNext }) {
 function ComparisonButtons({ onAnswer }) {
   return (
     <div class="answer-buttons">
-      <button class="ans-btn black-stone-btn" title="Group Q has more liberties (key Q)" onClick={() => onAnswer(1)}>Q</button>
-      <button class="bar-btn ans-btn eq-btn" title="Both groups have equal liberties (Space)" onClick={() => onAnswer(3)}>=</button>
-      <button class="ans-btn white-stone-btn" title="Group W has more liberties (key W)" onClick={() => onAnswer(2)}>W</button>
+      <button class="ans-btn" title="Group A has more liberties (key A)" onClick={() => onAnswer(1)}>A</button>
+      <button class="ans-btn" title="Both groups have equal liberties (Space)" onClick={() => onAnswer(3)}>=</button>
+      <button class="ans-btn" title="Group B has more liberties (key B)" onClick={() => onAnswer(2)}>B</button>
     </div>
   )
 }
@@ -763,16 +794,16 @@ function HelpOverlay({ mode, onClose }) {
         <table class="help-table">
           <tr><td class="help-key">☰</td><td>Back to library</td><td class="help-shortcut">Esc</td></tr>
           <tr><td class="help-key">↺</td><td>Restart this problem</td><td /></tr>
-          <tr><td class="help-key">◀ ▶</td><td>Previous / next problem</td><td class="help-shortcut">← →</td></tr>
+          <tr><td class="help-key">◀ ▶</td><td>Previous / next problem (review when finished)</td><td class="help-shortcut">← →</td></tr>
           <tr><td class="help-key">⚙</td><td>Open settings (mode, questions, sound)</td><td /></tr>
         </table>
         <div class="help-section">Answering</div>
         <table class="help-table">
           {mode === 'comparison'
             ? <>
-                <tr><td class="help-key">Q</td><td>Group marked "Q" has more liberties</td><td class="help-shortcut">Q</td></tr>
+                <tr><td class="help-key">A</td><td>Group marked "A" has more liberties</td><td class="help-shortcut">A</td></tr>
                 <tr><td class="help-key">=</td><td>Both groups have equal liberties</td><td class="help-shortcut">Space</td></tr>
-                <tr><td class="help-key">W</td><td>Group marked "W" has more liberties</td><td class="help-shortcut">W</td></tr>
+                <tr><td class="help-key">B</td><td>Group marked "B" has more liberties</td><td class="help-shortcut">B</td></tr>
               </>
             : <>
                 <tr><td class="help-key">1-4</td><td>Marked group has that many liberties</td><td class="help-shortcut">1-4</td></tr>

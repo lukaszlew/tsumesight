@@ -68,6 +68,7 @@ export class QuizEngine {
     this.boardRange = computeRange(sgfString) // [minX, minY, maxX, maxY] or null
     this.retrying = false
     this.showingMove = false
+    this.showWindow = 1 // how many recent stones visible during show phase (grows on wrong answers)
     this.finished = false
     this.questionsAsked = [] // per move: [{vertex}...] or [{v1,v2}...] for comparison
 
@@ -181,6 +182,7 @@ export class QuizEngine {
 
     if (!isCorrect) {
       this.wrong++
+      this.showWindow++
       mp.results.push('failed')
       this._saveAndMaterialize()
       this.retrying = true
@@ -215,6 +217,7 @@ export class QuizEngine {
 
     if (!isCorrect) {
       this.wrong++
+      this.showWindow++
       mp.results.push('failed')
       this._saveAndMaterialize()
       this.retrying = true
@@ -275,6 +278,17 @@ export class QuizEngine {
 
   getDisplaySignMap() {
     return this.baseSignMap.map(row => [...row])
+  }
+
+  // Returns the most recent invisible stones (excluding current move) that should
+  // be visible during the show phase, based on showWindow size.
+  getWindowStones() {
+    if (this.showWindow <= 1) return []
+    let extras = [...this.invisibleStones.values()]
+      .filter(s => !this.currentMove || vertexKey(s.vertex) !== vertexKey(this.currentMove.vertex))
+      .sort((a, b) => b.moveNumber - a.moveNumber)
+      .slice(0, this.showWindow - 1)
+    return extras
   }
 
   // Returns all groups on the board with their properties
@@ -439,25 +453,25 @@ export class QuizEngine {
           if (!ga.libsChanged && !gb.libsChanged) continue
           let va = ga.vertices[Math.floor(this.random() * ga.vertices.length)]
           let vb = gb.vertices[Math.floor(this.random() * gb.vertices.length)]
-          // Label "Q" = black, "W" = white
-          let blackIsA = signA === 1
-          let [v1, v2] = blackIsA ? [va, vb] : [vb, va]
-          let [libs1, libs2] = blackIsA ? [libsA, libsB] : [libsB, libsA]
-          pairs.push({ v1, v2, libs1, libs2 })
+          // Label A = more top-left (smaller y, then smaller x), B = other
+          let aIsFirst = va[1] < vb[1] || (va[1] === vb[1] && va[0] <= vb[0])
+          let [v1, v2] = aIsFirst ? [va, vb] : [vb, va]
+          let [libs1, libs2] = aIsFirst ? [libsA, libsB] : [libsB, libsA]
+          let sign1 = aIsFirst ? signA : this.trueBoard.get(gb.vertices[0])
+          pairs.push({ v1, v2, libs1, libs2, sign1 })
         }
       }
     }
     // Sort: lib_diff asc, opponent-has-more first, just-played first, random tiebreak
-    // libs1 = black, libs2 = white; sign = current move's color
     let sign = this.currentMove.sign
     let currentMoveGroup = vertexToGroup.get(vertexKey(this.currentMove.vertex))
     for (let p of pairs) {
       p._diff = Math.abs(p.libs1 - p.libs2)
       // Within same diff: opponent having more libs is more interesting (comes first)
-      // sign=1 (B played) → opponent=W → W-has-more first → (libs2-libs1) > 0
-      // sign=-1 (W played) → opponent=B → B-has-more first → (libs1-libs2) > 0
-      // Equivalently: (libs1-libs2)*(-sign) > 0 means opponent has more
-      p._sub = p._diff === 0 ? 0 : ((p.libs1 - p.libs2) * (-sign) > 0 ? 0 : 1)
+      // sign1 is the color of group A; if A is same color as current player,
+      // opponent is B → "opponent has more" = libs2 > libs1
+      let opponentLibs = p.sign1 === sign ? p.libs2 - p.libs1 : p.libs1 - p.libs2
+      p._sub = p._diff === 0 ? 0 : (opponentLibs > 0 ? 0 : 1)
       p._justPlayed = (vertexToGroup.get(vertexKey(p.v1)) === currentMoveGroup ||
                         vertexToGroup.get(vertexKey(p.v2)) === currentMoveGroup) ? 0 : 1
       p._rand = this.random()
