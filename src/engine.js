@@ -265,13 +265,8 @@ export class QuizEngine {
   }
 
   materialize() {
-    for (let [, { vertex }] of this.invisibleStones) {
-      let [x, y] = vertex
-      let sign = this.trueBoard.get(vertex)
-      if (sign !== 0) {
-        this.baseSignMap[y][x] = sign
-      }
-    }
+    // Present the true board as-is (captures removed, all stones shown)
+    this.baseSignMap = this.trueBoard.signMap.map(row => [...row])
     this.invisibleStones.clear()
     this.staleness.clear()
   }
@@ -453,7 +448,7 @@ export class QuizEngine {
           if (!ga.libsChanged && !gb.libsChanged) continue
           let va = ga.vertices[Math.floor(this.random() * ga.vertices.length)]
           let vb = gb.vertices[Math.floor(this.random() * gb.vertices.length)]
-          // Label A = more top-left (smaller y, then smaller x), B = other
+          // Label Z = more top-left (smaller y, then smaller x), X = other
           let aIsFirst = va[1] < vb[1] || (va[1] === vb[1] && va[0] <= vb[0])
           let [v1, v2] = aIsFirst ? [va, vb] : [vb, va]
           let [libs1, libs2] = aIsFirst ? [libsA, libsB] : [libsB, libsA]

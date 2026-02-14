@@ -1,3 +1,22 @@
 node_modules/
 dist/
 tmp/
+
+# Sandbox artifacts
+.bash_profile
+.bashrc
+.gitconfig
+.gitmodules
+.mcp.json
+.profile
+.ripgreprc
+.zprofile
+.zshrc
+HEAD
+config
+hooks
+objects
+refs
+.idea
+.vscode
+.claude/
