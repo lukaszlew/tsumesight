@@ -3,7 +3,7 @@ import { Goban } from '@sabaki/shudan'
 import Board from '@sabaki/go-board'
 import { QuizEngine } from './engine.js'
 import { parseSgf } from './sgf-utils.js'
-import { playCorrect, playWrong, playComplete, isSoundEnabled, toggleSound } from './sounds.js'
+import { playCorrect, playWrong, playComplete, isSoundEnabled, toggleSound, resetStreak } from './sounds.js'
 import { kv, kvSet, kvRemove, getScores, getBestScore } from './db.js'
 
 function loadHistory(quizKey) {
@@ -56,6 +56,7 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
 
   // Initialize engine once (possibly replaying saved history)
   if (!engineRef.current && !error) {
+    resetStreak()
     try {
       let saved = loadHistory(quizKey)
       if (saved && saved.length > 0) {
