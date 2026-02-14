@@ -474,7 +474,7 @@ export class QuizEngine {
       ;[questions[i], questions[j]] = [questions[j], questions[i]]
     }
 
-    return questions.slice(0, this.maxQuestions)
+    return questions
   }
 
   _advanceComparison() {

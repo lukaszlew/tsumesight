@@ -460,7 +460,7 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
       </div>
 
       {showConfig && <ConfigPanel
-        maxQ={maxQ} soundOn={soundOn} showDuration={showDuration}
+        mode={mode} maxQ={maxQ} soundOn={soundOn} showDuration={showDuration}
         onMaxQ={next => {
           kvSet('quizMaxQ', String(next))
           setMaxQ(next)
@@ -766,14 +766,14 @@ function ModeChoice({ mode, maxQ, onMode, onStart, onMaxQ }) {
           <button class={`cfg-opt${mode === 'comparison' ? ' active' : ''}`} onClick={() => onMode('comparison')}>Compare</button>
         </div>
       </div>
-      <div class="cfg-row">
+      {mode !== 'liberty-end' && <div class="cfg-row">
         <span class="cfg-label">Questions</span>
         <div class="cfg-options">
           {[0, 1, 2, 3, 4].map(n => (
             <button key={n} class={`cfg-opt${maxQ === n ? ' active' : ''}`} onClick={() => onMaxQ(n)}>{n}</button>
           ))}
         </div>
-      </div>
+      </div>}
       <button class="bar-btn next-btn" title="Start (Space)" onClick={onStart}>Start</button>
     </div>
   )
@@ -797,7 +797,7 @@ function ComparisonButtons({ onAnswer }) {
   )
 }
 
-function ConfigPanel({ maxQ, soundOn, showDuration, onMaxQ, onSound, onShowDuration, onClose }) {
+function ConfigPanel({ mode, maxQ, soundOn, showDuration, onMaxQ, onSound, onShowDuration, onClose }) {
   return (
     <div class="overlay" onClick={onClose}>
       <div class="overlay-content" onClick={e => e.stopPropagation()}>
@@ -805,14 +805,14 @@ function ConfigPanel({ maxQ, soundOn, showDuration, onMaxQ, onSound, onShowDurat
           <b>Settings</b>
           <button class="bar-btn" onClick={onClose}>X</button>
         </div>
-        <div class="cfg-row">
+        {mode !== 'liberty-end' && <div class="cfg-row">
           <span class="cfg-label">Questions</span>
           <div class="cfg-options">
             {[0, 1, 2, 3, 4].map(n => (
               <button key={n} class={`cfg-opt${maxQ === n ? ' active' : ''}`} onClick={() => onMaxQ(n)}>{n}</button>
             ))}
           </div>
-        </div>
+        </div>}
         <div class="cfg-row">
           <span class="cfg-label">Show move</span>
           <div class="cfg-options">
