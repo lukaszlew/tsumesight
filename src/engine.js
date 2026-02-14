@@ -42,6 +42,11 @@ export class QuizEngine {
     for (let [x, y] of parsed.setupBlack) this.trueBoard.set([x, y], 1)
     for (let [x, y] of parsed.setupWhite) this.trueBoard.set([x, y], -1)
 
+    // Snapshot initial position for liberty-end comparison
+    this.initialBoard = Board.fromDimensions(this.boardSize)
+    for (let [x, y] of parsed.setupBlack) this.initialBoard.set([x, y], 1)
+    for (let [x, y] of parsed.setupWhite) this.initialBoard.set([x, y], -1)
+
     // Base sign map: what the user sees (mutable copy of initial position)
     this.baseSignMap = this.trueBoard.signMap.map(row => [...row])
 
@@ -347,22 +352,24 @@ export class QuizEngine {
         this.questionsAsked[this.questionsAsked.length - 1] = []
         return
       }
-      this.peekGroupScores = this.getGroupScores()
-      let pool = this.mode === 'liberty-end'
-        ? this.peekGroupScores
-        : this.peekGroupScores.filter(g => g.libsChanged)
-      let currentMoveKey = vertexKey(move.vertex)
-      for (let g of pool) {
-        g._justPlayed = g.vertices.some(v => vertexKey(v) === currentMoveKey) ? 0 : 1
-        g._rand = this.random()
+      if (this.mode === 'liberty-end') {
+        this.questions = this._selectEndQuestions()
+      } else {
+        this.peekGroupScores = this.getGroupScores()
+        let pool = this.peekGroupScores.filter(g => g.libsChanged)
+        let currentMoveKey = vertexKey(move.vertex)
+        for (let g of pool) {
+          g._justPlayed = g.vertices.some(v => vertexKey(v) === currentMoveKey) ? 0 : 1
+          g._rand = this.random()
+        }
+        pool.sort((a, b) => a.liberties - b.liberties || a._justPlayed - b._justPlayed || a._rand - b._rand)
+        this.questions = pool.map(g =>
+          g.vertices[Math.floor(this.random() * g.vertices.length)]
+        )
+        let filtered = this.questions.filter(q => this.trueBoard.getLiberties(q).length < 6)
+        if (filtered.length > 0) this.questions = filtered
+        this.questions = this.questions.slice(0, this.maxQuestions)
       }
-      pool.sort((a, b) => a.liberties - b.liberties || a._justPlayed - b._justPlayed || a._rand - b._rand)
-      this.questions = pool.map(g =>
-        g.vertices[Math.floor(this.random() * g.vertices.length)]
-      )
-      let filtered = this.questions.filter(q => this.trueBoard.getLiberties(q).length < 6)
-      if (filtered.length > 0) this.questions = filtered
-      this.questions = this.questions.slice(0, this.maxQuestions)
       this.questionIndex = 0
       this.questionVertex = this.showingMove ? null : (this.questions[0] || null)
       this.comparisonPair = null
@@ -388,12 +395,21 @@ export class QuizEngine {
       return
     }
 
-    // Build question queue
-    // liberty-end on last move: all groups. liberty: only groups with changed liberties.
+    // liberty-end on last move: use dedicated end-game selection
+    if (this.mode === 'liberty-end') {
+      this.questions = this._selectEndQuestions()
+      this.questionIndex = 0
+      this.questionVertex = null
+      this.comparisonPair = null
+      this.moveProgress.push({ total: this.questions.length, results: [] })
+      this.questionsAsked.push(this.questions.map(v => ({ vertex: v })))
+      return
+    }
+
+    // Build question queue: all groups with changed liberties
+    // Sort: liberties asc, just-played first, random tiebreak
     this.peekGroupScores = this.getGroupScores()
-    let pool = this.mode === 'liberty-end'
-      ? this.peekGroupScores
-      : this.peekGroupScores.filter(g => g.libsChanged)
+    let pool = this.peekGroupScores.filter(g => g.libsChanged)
     let currentMoveKey = vertexKey(move.vertex)
     for (let g of pool) {
       g._justPlayed = g.vertices.some(v => vertexKey(v) === currentMoveKey) ? 0 : 1
@@ -415,6 +431,50 @@ export class QuizEngine {
     this.comparisonPair = null
     this.moveProgress.push({ total: this.questions.length, results: [] })
     this.questionsAsked.push(this.questions.map(v => ({ vertex: v })))
+  }
+
+  // Select questions for liberty-end mode:
+  // All groups whose vertex-set or liberty-set differs from initial position.
+  // No filtering. Randomized. Sliced to maxQuestions.
+  _selectEndQuestions() {
+    // Map initial groups: vertexSetKey → libertySetKey
+    let initialGroups = new Map()
+    let visited = new Set()
+    for (let y = 0; y < this.boardSize; y++)
+      for (let x = 0; x < this.boardSize; x++) {
+        let v = [x, y]
+        let k = vertexKey(v)
+        if (visited.has(k) || this.initialBoard.get(v) === 0) continue
+        let chain = this.initialBoard.getChain(v)
+        for (let cv of chain) visited.add(vertexKey(cv))
+        let vSetKey = chain.map(vertexKey).sort().join(';')
+        let libKey = libertySetKey(this.initialBoard.getLiberties(v))
+        initialGroups.set(vSetKey, libKey)
+      }
+
+    // Collect final groups that differ from initial (or are new)
+    let questions = []
+    visited = new Set()
+    for (let y = 0; y < this.boardSize; y++)
+      for (let x = 0; x < this.boardSize; x++) {
+        let v = [x, y]
+        let k = vertexKey(v)
+        if (visited.has(k) || this.trueBoard.get(v) === 0) continue
+        let chain = this.trueBoard.getChain(v)
+        for (let cv of chain) visited.add(vertexKey(cv))
+        let vSetKey = chain.map(vertexKey).sort().join(';')
+        let libKey = libertySetKey(this.trueBoard.getLiberties(v))
+        if (initialGroups.get(vSetKey) === libKey) continue
+        questions.push(chain[Math.floor(this.random() * chain.length)])
+      }
+
+    // Fisher-Yates shuffle
+    for (let i = questions.length - 1; i > 0; i--) {
+      let j = Math.floor(this.random() * (i + 1))
+      ;[questions[i], questions[j]] = [questions[j], questions[i]]
+    }
+
+    return questions.slice(0, this.maxQuestions)
   }
 
   _advanceComparison() {
