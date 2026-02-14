@@ -336,8 +336,21 @@ export class QuizEngine {
       this.comparisonPair = this.showingMove ? null : (pairs[0] || null)
       this.questionVertex = null
     } else {
+      // liberty-end: no questions until last move
+      if (this.mode === 'liberty-end' && this.moveIndex < this.totalMoves) {
+        this.questions = []
+        this.questionIndex = 0
+        this.questionVertex = null
+        this.comparisonPair = null
+        this.moveProgress[this.moveProgress.length - 1] = { total: 0, results: [] }
+        this.questionsPerMove[this.questionsPerMove.length - 1] = 0
+        this.questionsAsked[this.questionsAsked.length - 1] = []
+        return
+      }
       this.peekGroupScores = this.getGroupScores()
-      let pool = this.peekGroupScores.filter(g => g.libsChanged)
+      let pool = this.mode === 'liberty-end'
+        ? this.peekGroupScores
+        : this.peekGroupScores.filter(g => g.libsChanged)
       let currentMoveKey = vertexKey(move.vertex)
       for (let g of pool) {
         g._justPlayed = g.vertices.some(v => vertexKey(v) === currentMoveKey) ? 0 : 1
@@ -364,10 +377,23 @@ export class QuizEngine {
   }
 
   _advanceLiberty(move) {
-    // Build question queue: all groups with changed liberties
-    // Sort uniform with comparison mode: liberties asc, just-played first, random tiebreak
+    // liberty-end: skip questions until the last move
+    if (this.mode === 'liberty-end' && this.moveIndex < this.totalMoves) {
+      this.questions = []
+      this.questionIndex = 0
+      this.questionVertex = null
+      this.comparisonPair = null
+      this.moveProgress.push({ total: 0, results: [] })
+      this.questionsAsked.push([])
+      return
+    }
+
+    // Build question queue
+    // liberty-end on last move: all groups. liberty: only groups with changed liberties.
     this.peekGroupScores = this.getGroupScores()
-    let pool = this.peekGroupScores.filter(g => g.libsChanged)
+    let pool = this.mode === 'liberty-end'
+      ? this.peekGroupScores
+      : this.peekGroupScores.filter(g => g.libsChanged)
     let currentMoveKey = vertexKey(move.vertex)
     for (let g of pool) {
       g._justPlayed = g.vertices.some(v => vertexKey(v) === currentMoveKey) ? 0 : 1

@@ -762,6 +762,7 @@ function ModeChoice({ mode, maxQ, onMode, onStart, onMaxQ }) {
         <span class="cfg-label">Mode</span>
         <div class="cfg-options">
           <button class={`cfg-opt${mode === 'liberty' ? ' active' : ''}`} onClick={() => onMode('liberty')}>Liberty</button>
+          <button class={`cfg-opt${mode === 'liberty-end' ? ' active' : ''}`} onClick={() => onMode('liberty-end')}>Lib@end</button>
           <button class={`cfg-opt${mode === 'comparison' ? ' active' : ''}`} onClick={() => onMode('comparison')}>Compare</button>
         </div>
       </div>
