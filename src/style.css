@@ -557,6 +557,11 @@ body {
   opacity: 0.3;
   pointer-events: none;
 }
+.btn-blocked {
+  opacity: 0.2;
+  text-decoration: line-through;
+  pointer-events: none;
+}
 
 /* Answer buttons */
 

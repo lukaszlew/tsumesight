@@ -95,7 +95,8 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
       let total = engine.results.length
       let accuracy = total > 0 ? engine.correct / total : 1
       let { avg } = computeStats(timesRef.current)
-      let scoreEntry = { accuracy, avgTimeMs: Math.round(avg), date: Date.now(), mode, moveTiming: moveTimingRef.current }
+      let totalMs = timesRef.current.reduce((a, b) => a + b, 0) + engine.errors * 5000
+      let scoreEntry = { accuracy, avgTimeMs: Math.round(avg), totalMs: Math.round(totalMs), errors: engine.errors, date: Date.now(), mode, moveTiming: moveTimingRef.current }
       onSolved(engine.correct, total, scoreEntry)
       playComplete()
     }
@@ -211,14 +212,14 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
         e.preventDefault()
         let hasQuestion = engine.mode === 'comparison' ? engine.comparisonPair : engine.questionVertex
         if (engine.finished) setReviewStep(s => s === null ? 1 : s < totalReviewStepsRef.current ? s + 1 : 0)
-        else if (engine.mode === 'comparison' && engine.comparisonPair) submitAnswer(3)
+        else if (engine.mode === 'comparison' && engine.comparisonPair && !engine.blockedAnswers.has(3)) submitAnswer(3)
         else if (!hasQuestion) submitAnswer(0)
       }
       else if (e.key === 'PageUp') { e.preventDefault(); onPrev() }
       else if (e.key === 'PageDown') { e.preventDefault(); onNext() }
-      else if (engine.mode === 'comparison' && e.key === 'z') submitAnswer(1)
-      else if (engine.mode === 'comparison' && e.key === 'x') submitAnswer(2)
-      else if (engine.mode !== 'comparison' && e.key >= '1' && e.key <= '5') submitAnswer(parseInt(e.key))
+      else if (engine.mode === 'comparison' && e.key === 'z' && !engine.blockedAnswers.has(1)) submitAnswer(1)
+      else if (engine.mode === 'comparison' && e.key === 'x' && !engine.blockedAnswers.has(2)) submitAnswer(2)
+      else if (engine.mode !== 'comparison' && e.key >= '1' && e.key <= '5' && !engine.blockedAnswers.has(parseInt(e.key))) submitAnswer(parseInt(e.key))
     }
     function onKeyUp(e) {
       if (e.key === '?') setPeeking(false)
@@ -361,14 +362,6 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
       }
     }
 
-    // During retry: show move numbers on non-captured revealed stones
-    for (let { vertex, moveNumber } of engine.revealedStones) {
-      let [x, y] = vertex
-      if (engine.trueBoard.get(vertex) !== 0)
-        markerMap[y][x] = { type: 'label', label: String(moveNumber) }
-    }
-
-
     if (peeking) {
       // Show invisible stones as ghost stones
       for (let [, { vertex }] of engine.invisibleStones) {
@@ -507,7 +500,7 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
             <b>Hint</b>
             <button class="bar-btn" onClick={() => setRetryHint(false)}>X</button>
           </div>
-          <p>Wrong answer — all hidden stones are now revealed. Answer the same question again to continue. Future moves will show extra context.</p>
+          <p>Wrong answer — that choice is now blocked. Pick a different answer. Each error adds a 5s penalty.</p>
         </div>
       </div>}
       <div class="bottom-bar">
@@ -521,8 +514,8 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
             ? <div class="answer-buttons" />
             : <NextButton label="Next" onNext={() => submitAnswer(0)} />
           return engine.mode === 'comparison'
-            ? <ComparisonButtons onAnswer={submitAnswer} />
-            : <AnswerButtons onAnswer={submitAnswer} />
+            ? <ComparisonButtons onAnswer={submitAnswer} blocked={engine.blockedAnswers} />
+            : <AnswerButtons onAnswer={submitAnswer} blocked={engine.blockedAnswers} />
         })()}
       </div>
       </div>
@@ -596,19 +589,17 @@ export function computeStats(times, cap = 5000) {
 }
 
 function StatsBar({ engine, times, sgfId }) {
-  let total = engine.results.length
-  let pct = total > 0 ? Math.round(engine.correct / total * 100) : 0
-  let { avg, sd } = computeStats(times)
+  let totalMs = times.reduce((a, b) => a + b, 0) + engine.errors * 5000
+  let totalSec = (totalMs / 1000).toFixed(1)
   let scores = sgfId ? getScores(sgfId) : []
   let best = scores.length > 0 ? scores.reduce((b, s) =>
-    s.accuracy > b.accuracy || (s.accuracy === b.accuracy && s.avgTimeMs < b.avgTimeMs) ? s : b
+    (s.totalMs || Infinity) < (b.totalMs || Infinity) ? s : b
   ) : null
   return (
     <div class="stats-expanded">
       <div class="stats-grid">
-        <span class="stats-cell">{engine.correct}/{total} ({pct}%)</span>
-        {times.length > 0 && <span class="stats-cell">{Math.round(avg)}ms {sd > 0 ? `\u00b1${Math.round(sd)}ms` : ''}</span>}
-        {best && <span class="stats-cell stats-best">Best: {Math.round(best.accuracy * 100)}% {best.avgTimeMs}ms</span>}
+        <span class="stats-cell">{totalSec}s{engine.errors > 0 ? ` (${engine.errors} err +${engine.errors * 5}s)` : ''}</span>
+        {best && best.totalMs && <span class="stats-cell stats-best">Best: {(best.totalMs / 1000).toFixed(1)}s</span>}
         {scores.length > 0 && <span class="stats-cell stats-runs">Run #{scores.length + 1}</span>}
       </div>
     </div>
@@ -703,11 +694,11 @@ function TimeChart({ moveTiming, moves, reviewMoveIndex }) {
   )
 }
 
-function AnswerButtons({ onAnswer }) {
+function AnswerButtons({ onAnswer, blocked }) {
   return (
     <div class="answer-buttons">
       {[1, 2, 3, 4, 5].map(l => (
-        <button key={l} class="bar-btn ans-btn" title={`Group has ${l === 5 ? '5 or more' : l} libert${l === 1 ? 'y' : 'ies'} (key ${l})`} onClick={() => onAnswer(l)}>
+        <button key={l} class={`bar-btn ans-btn${blocked.has(l) ? ' btn-blocked' : ''}`} disabled={blocked.has(l)} title={`Group has ${l === 5 ? '5 or more' : l} libert${l === 1 ? 'y' : 'ies'} (key ${l})`} onClick={() => onAnswer(l)}>
           {l === 5 ? '5+' : l}
         </button>
       ))}
@@ -731,12 +722,12 @@ function NextButton({ label = 'Next', onNext }) {
   )
 }
 
-function ComparisonButtons({ onAnswer }) {
+function ComparisonButtons({ onAnswer, blocked }) {
   return (
     <div class="answer-buttons">
-      <button class="ans-btn comp-btn" title="Group Z has more liberties (key Z)" onClick={() => onAnswer(1)}>Z</button>
-      <button class="ans-btn comp-btn" title="Both groups have equal liberties (Space)" onClick={() => onAnswer(3)}>=</button>
-      <button class="ans-btn comp-btn" title="Group X has more liberties (key X)" onClick={() => onAnswer(2)}>X</button>
+      <button class={`ans-btn comp-btn${blocked.has(1) ? ' btn-blocked' : ''}`} disabled={blocked.has(1)} title="Group Z has more liberties (key Z)" onClick={() => onAnswer(1)}>Z</button>
+      <button class={`ans-btn comp-btn${blocked.has(3) ? ' btn-blocked' : ''}`} disabled={blocked.has(3)} title="Both groups have equal liberties (Space)" onClick={() => onAnswer(3)}>=</button>
+      <button class={`ans-btn comp-btn${blocked.has(2) ? ' btn-blocked' : ''}`} disabled={blocked.has(2)} title="Group X has more liberties (key X)" onClick={() => onAnswer(2)}>X</button>
     </div>
   )
 }

@@ -118,16 +118,15 @@ describe('QuizEngine', () => {
       expect(engine.wrong).toBe(1)
     })
 
-    it('materializes invisible stones on wrong answer', () => {
+    it('blocks wrong answer and keeps stones invisible', () => {
       let engine = new QuizEngine(simpleSgf)
       engine.advance() // B[ee]
       engine.advance(); engine.activateQuestions() // W[ce]
       expect(engine.invisibleStones.size).toBe(2)
       engine.answer(1) // wrong
-      expect(engine.invisibleStones.size).toBe(0)
-      // Stones now visible on base
-      expect(engine.baseSignMap[4][4]).toBe(1) // B at ee
-      expect(engine.baseSignMap[4][2]).toBe(-1) // W at ce
+      expect(engine.invisibleStones.size).toBe(2) // still invisible
+      expect(engine.blockedAnswers.has(1)).toBe(true)
+      expect(engine.errors).toBe(1)
     })
 
     it('does not materialize on correct answer', () => {

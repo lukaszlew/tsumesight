@@ -52,7 +52,6 @@ export class QuizEngine {
 
     // Tracking
     this.invisibleStones = new Map() // vertexKey → {sign, vertex, moveNumber}
-    this.revealedStones = [] // [{vertex, moveNumber}] populated during retry
     this.staleness = new Map() // vertexKey → number (turns since last questioned, cap 4)
     for (let y = 0; y < this.boardSize; y++)
       for (let x = 0; x < this.boardSize; x++)
@@ -68,10 +67,12 @@ export class QuizEngine {
     this.comparisonPair = null // {v1, v2, libs1, libs2} for comparison mode
     this.correct = 0
     this.wrong = 0
+    this.errors = 0 // total wrong answers (for 5s penalty)
     this.results = []
     this.moveProgress = [] // [{total, correct}] per played move
     this.boardRange = computeRange(sgfString) // [minX, minY, maxX, maxY] or null
     this.retrying = false
+    this.blockedAnswers = new Set() // wrong answers blocked for current question
     this.showingMove = false
     this.showWindow = 1 // how many recent stones visible during show phase (grows on wrong answers)
     this.finished = false
@@ -153,6 +154,7 @@ export class QuizEngine {
 
   activateQuestions() {
     this.showingMove = false
+    this.blockedAnswers.clear()
     if (this.mode === 'comparison') {
       this.comparisonPair = this.questions[this.questionIndex] || null
     } else {
@@ -172,11 +174,15 @@ export class QuizEngine {
     let trueLiberties = Math.min(this.trueBoard.getLiberties(v).length, 5)
     let isCorrect = liberties === trueLiberties
 
-    // Retry after wrong — don't record, restore hidden state on correct
+    // Retry after wrong — don't record, block wrong choice, advance on correct
     if (this.retrying) {
-      if (!isCorrect) return { correct: false, trueLiberties, done: false }
+      if (!isCorrect) {
+        this.errors++
+        this.blockedAnswers.add(liberties)
+        return { correct: false, trueLiberties, done: false }
+      }
       this.retrying = false
-      this._restoreSaved()
+      this.blockedAnswers.clear()
       this._advanceQuestion()
       let done = this.questionIndex >= this.questions.length
       return { correct: true, trueLiberties, done }
@@ -187,9 +193,10 @@ export class QuizEngine {
 
     if (!isCorrect) {
       this.wrong++
+      this.errors++
       this.showWindow++
       mp.results.push('failed')
-      this._saveAndMaterialize()
+      this.blockedAnswers.add(liberties)
       this.retrying = true
       return { correct: false, trueLiberties, done: false }
     }
@@ -209,9 +216,13 @@ export class QuizEngine {
     let isCorrect = value === trueAnswer
 
     if (this.retrying) {
-      if (!isCorrect) return { correct: false, trueAnswer, done: false }
+      if (!isCorrect) {
+        this.errors++
+        this.blockedAnswers.add(value)
+        return { correct: false, trueAnswer, done: false }
+      }
       this.retrying = false
-      this._restoreSaved()
+      this.blockedAnswers.clear()
       this._advanceQuestion()
       let done = this.questionIndex >= this.questions.length
       return { correct: true, trueAnswer, done }
@@ -222,9 +233,10 @@ export class QuizEngine {
 
     if (!isCorrect) {
       this.wrong++
+      this.errors++
       this.showWindow++
       mp.results.push('failed')
-      this._saveAndMaterialize()
+      this.blockedAnswers.add(value)
       this.retrying = true
       return { correct: false, trueAnswer, done: false }
     }
@@ -249,24 +261,6 @@ export class QuizEngine {
         : null
       this.comparisonPair = null
     }
-  }
-
-  _saveAndMaterialize() {
-    this._savedBaseSignMap = this.baseSignMap.map(row => [...row])
-    this._savedInvisibleStones = new Map(this.invisibleStones)
-    this._savedStaleness = new Map(this.staleness)
-    this.revealedStones = [...this.invisibleStones.values()].map(({ vertex, moveNumber }) => ({ vertex, moveNumber }))
-    this.materialize()
-  }
-
-  _restoreSaved() {
-    this.baseSignMap = this._savedBaseSignMap
-    this.invisibleStones = this._savedInvisibleStones
-    this.staleness = this._savedStaleness
-    this._savedBaseSignMap = null
-    this._savedInvisibleStones = null
-    this._savedStaleness = null
-    this.revealedStones = []
   }
 
   materialize() {
