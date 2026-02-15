@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'preact/hooks'
 import { Goban } from '@sabaki/shudan'
-import Board from '@sabaki/go-board'
 import { QuizEngine } from './engine.js'
-import { parseSgf } from './sgf-utils.js'
 import { playCorrect, playWrong, playComplete, isSoundEnabled, toggleSound, resetStreak } from './sounds.js'
 import { kv, kvSet, kvRemove, getScores, getBestScore } from './db.js'
 
@@ -51,6 +49,7 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
   let [modeHint, setModeHint] = useState(false)
   let [settingsHint, setSettingsHint] = useState(false)
   let [markedLiberties, setMarkedLiberties] = useState(new Set())
+  let [reviewVertex, setReviewVertex] = useState(null) // vertex key clicked in review
   let markMode = true // TODO: make configurable, hardcoded for now
 
   // Initialize engine once (possibly replaying saved history)
@@ -190,13 +189,17 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
   }, [markedLiberties])
 
   let onVertexClick = useCallback((evt, vertex) => {
+    let key = `${vertex[0]},${vertex[1]}`
+    // Review mode: toggle liberty display for clicked question
+    if (engine.finished) {
+      setReviewVertex(prev => prev === key ? null : key)
+      return
+    }
     if (!markMode || !engine.questionVertex) return
-    let [x, y] = vertex
     // Clicking the questioned group's vertex submits
     let qv = engine.questionVertex
-    if (x === qv[0] && y === qv[1]) { submitMarks(); return }
+    if (vertex[0] === qv[0] && vertex[1] === qv[1]) { submitMarks(); return }
     // Allow toggling any intersection (user may think a liberty is under a stone)
-    let key = `${x},${y}`
     setMarkedLiberties(prev => {
       let next = new Set(prev)
       if (next.has(key)) next.delete(key)
@@ -277,36 +280,44 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
   let signMap, markerMap, ghostStoneMap, paintMap
 
   if (engine.finished) {
-    // Show full variation with move numbers on stones
-    let parsed = parseSgf(sgf)
-    let reviewBoard = Board.fromDimensions(size)
-    for (let [x, y] of parsed.setupBlack) reviewBoard.set([x, y], 1)
-    for (let [x, y] of parsed.setupWhite) reviewBoard.set([x, y], -1)
-    let moves = parsed.moves.filter(m => m.vertex != null)
+    // Show final board with ✓/✗ on questioned groups
+    signMap = engine.trueBoard.signMap.map(row => [...row])
     markerMap = makeEmptyMap(size)
     ghostStoneMap = makeEmptyMap(size)
     paintMap = makeEmptyMap(size)
 
-    // Replay all moves, track move numbers per vertex
-    let moveNums = new Map()
-    for (let i = 0; i < moves.length; i++) {
-      let key = `${moves[i].vertex[0]},${moves[i].vertex[1]}`
-      if (!moveNums.has(key)) moveNums.set(key, [])
-      moveNums.get(key).push(i + 1)
-      try { reviewBoard = reviewBoard.makeMove(moves[i].sign, moves[i].vertex) } catch { break }
-    }
-
-    // Label stones with up to 2 move numbers
-    for (let y = 0; y < size; y++)
-      for (let x = 0; x < size; x++) {
-        if (reviewBoard.signMap[y][x] === 0) continue
-        let nums = moveNums.get(`${x},${y}`)
-        if (!nums) continue // setup stone
-        let label = nums.length <= 2 ? nums.join(',') : nums.slice(-2).join(',')
-        markerMap[y][x] = { type: 'label', label }
+    // Flatten questions and pair with results
+    let qByVertex = new Map()
+    let ri = 0
+    for (let moveQs of engine.questionsAsked)
+      for (let q of moveQs) {
+        if (q.vertex) qByVertex.set(`${q.vertex[0]},${q.vertex[1]}`, { ...q, correct: engine.results[ri] })
+        ri++
       }
 
-    signMap = reviewBoard.signMap
+    // Place ✓/✗ markers with colored backgrounds
+    for (let [key, q] of qByVertex) {
+      let [x, y] = key.split(',').map(Number)
+      markerMap[y][x] = { type: 'label', label: q.correct ? '✓' : '✗' }
+      paintMap[y][x] = q.correct ? 'rgba(0,180,0,0.3)' : 'rgba(200,0,0,0.3)'
+    }
+
+    // Clicked question: show true liberties + wrong marks
+    if (reviewVertex && qByVertex.has(reviewVertex)) {
+      let q = qByVertex.get(reviewVertex)
+      let trueSet = new Set(q.trueLibs || [])
+      let marksSet = new Set(q.marks || [])
+      for (let k of trueSet) {
+        let [x, y] = k.split(',').map(Number)
+        paintMap[y][x] = 'rgba(0,200,0,0.5)'
+      }
+      for (let k of marksSet) {
+        if (!trueSet.has(k)) {
+          let [x, y] = k.split(',').map(Number)
+          paintMap[y][x] = 'rgba(200,0,0,0.5)'
+        }
+      }
+    }
   } else {
     signMap = engine.getDisplaySignMap()
     markerMap = makeEmptyMap(size)
@@ -368,7 +379,7 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
             markerMap={markerMap}
             ghostStoneMap={ghostStoneMap}
             paintMap={paintMap}
-            onVertexClick={markMode ? onVertexClick : undefined}
+            onVertexClick={markMode || engine.finished ? onVertexClick : undefined}
             rangeX={rangeX}
             rangeY={rangeY}
             showCoordinates={false}
