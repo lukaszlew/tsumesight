@@ -214,6 +214,8 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
         else if (engine.mode === 'comparison' && engine.comparisonPair) submitAnswer(3)
         else if (!hasQuestion) submitAnswer(0)
       }
+      else if (e.key === 'PageUp') { e.preventDefault(); onPrev() }
+      else if (e.key === 'PageDown') { e.preventDefault(); onNext() }
       else if (engine.mode === 'comparison' && e.key === 'z') submitAnswer(1)
       else if (engine.mode === 'comparison' && e.key === 'x') submitAnswer(2)
       else if (engine.mode !== 'comparison' && e.key >= '1' && e.key <= '5') submitAnswer(parseInt(e.key))
