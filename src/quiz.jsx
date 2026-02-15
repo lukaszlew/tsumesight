@@ -50,8 +50,6 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
   let [introHint, setIntroHint] = useState(false)
   let [modeHint, setModeHint] = useState(false)
   let [settingsHint, setSettingsHint] = useState(false)
-  let [reviewStep, setReviewStep] = useState(null) // null = not reviewing
-  let totalReviewStepsRef = useRef(0)
   let [markedLiberties, setMarkedLiberties] = useState(new Set())
   let markMode = true // TODO: make configurable, hardcoded for now
 
@@ -99,7 +97,6 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
       let scoreEntry = { accuracy, avgTimeMs: Math.round(avg), totalMs: Math.round(totalMs), errors: engine.errors, date: Date.now(), mode }
       onSolved(engine.correct, total, scoreEntry)
       playComplete()
-      if (markMode) setReviewStep(0)
     }
   }
 
@@ -212,24 +209,15 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
   useEffect(() => {
     function onKeyDown(e) {
       if (e.key === 'Escape') { e.preventDefault(); if (anyHintRef.current) { setRetryHint(false); setIntroHint(false); setModeHint(false); setSettingsHint(false) } else if (showConfigRef.current) setShowConfig(false); else if (showHelpRef.current) setShowHelp(false); else onBack() }
-      else if (e.key === 'ArrowLeft') {
-        e.preventDefault()
-        if (e.shiftKey) onPrev()
-        else if (engine.finished) setReviewStep(s => s === null ? totalReviewStepsRef.current : s > 0 ? s - 1 : totalReviewStepsRef.current)
-      }
-      else if (e.key === 'ArrowRight') {
-        e.preventDefault()
-        if (e.shiftKey) onNext()
-        else if (engine.finished) setReviewStep(s => s === null ? 1 : s < totalReviewStepsRef.current ? s + 1 : 0)
-      }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); onPrev() }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); onNext() }
       else if (e.key === '?') {
         e.preventDefault()
         setPeeking(true)
       }
       else if (e.key === ' ') {
         e.preventDefault()
-        if (engine.finished) setReviewStep(s => (s ?? 0) >= totalReviewStepsRef.current ? 0 : (s ?? 0) + 1)
-        else if (!engine.questionVertex) submitAnswer(0)
+        if (!engine.finished && !engine.questionVertex) submitAnswer(0)
       }
       else if (e.key === 'PageUp') { e.preventDefault(); onPrev() }
       else if (e.key === 'PageDown') { e.preventDefault(); onNext() }
@@ -284,19 +272,12 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
     return () => ro.disconnect()
   }, [cols, rows])
 
-  // Compute total review steps: 1 per stone + 1 per question
-  totalReviewStepsRef.current = 0
-  if (engine.finished) {
-    for (let i = 0; i < engine.totalMoves; i++)
-      totalReviewStepsRef.current += 1 + (engine.questionsAsked[i]?.length || 0)
-  }
-
   // Build display maps
   let size = engine.boardSize
   let signMap, markerMap, ghostStoneMap, paintMap
 
-  if (engine.finished && reviewStep !== null) {
-    // Review mode: decode reviewStep into movesShown + current question
+  if (engine.finished) {
+    // Show full variation with move numbers on stones
     let parsed = parseSgf(sgf)
     let reviewBoard = Board.fromDimensions(size)
     for (let [x, y] of parsed.setupBlack) reviewBoard.set([x, y], 1)
@@ -306,42 +287,25 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
     ghostStoneMap = makeEmptyMap(size)
     paintMap = makeEmptyMap(size)
 
-    let movesShown = 0, showingQuestion = null, remaining = reviewStep
-    for (let i = 0; i < engine.totalMoves && remaining > 0; i++) {
-      remaining--
-      movesShown = i + 1
-      showingQuestion = null
-      let qCount = engine.questionsAsked[i]?.length || 0
-      for (let j = 0; j < qCount && remaining > 0; j++) {
-        remaining--
-        showingQuestion = { moveIdx: i, qIdx: j }
-      }
-    }
-
-    for (let i = 0; i < movesShown && i < moves.length; i++) {
+    // Replay all moves, track move numbers per vertex
+    let moveNums = new Map()
+    for (let i = 0; i < moves.length; i++) {
+      let key = `${moves[i].vertex[0]},${moves[i].vertex[1]}`
+      if (!moveNums.has(key)) moveNums.set(key, [])
+      moveNums.get(key).push(i + 1)
       try { reviewBoard = reviewBoard.makeMove(moves[i].sign, moves[i].vertex) } catch { break }
     }
 
-    // Show color-coded marks for the current question
-    if (showingQuestion) {
-      let q = engine.questionsAsked[showingQuestion.moveIdx][showingQuestion.qIdx]
-      if (q.vertex) {
-        let [qx, qy] = q.vertex
-        markerMap[qy][qx] = { type: 'label', label: '❓' }
+    // Label stones with up to 2 move numbers
+    for (let y = 0; y < size; y++)
+      for (let x = 0; x < size; x++) {
+        if (reviewBoard.signMap[y][x] === 0) continue
+        let nums = moveNums.get(`${x},${y}`)
+        if (!nums) continue // setup stone
+        let label = nums.length <= 2 ? nums.join(',') : nums.slice(-2).join(',')
+        markerMap[y][x] = { type: 'label', label }
       }
-      let marksSet = new Set(q.marks || [])
-      let trueSet = new Set(q.trueLibs || [])
-      for (let k of marksSet) {
-        let [x, y] = k.split(',').map(Number)
-        paintMap[y][x] = trueSet.has(k) ? 'rgba(0,200,0,0.5)' : 'rgba(200,0,0,0.5)'
-      }
-      for (let k of trueSet) {
-        if (!marksSet.has(k)) {
-          let [x, y] = k.split(',').map(Number)
-          paintMap[y][x] = 'rgba(0,200,0,0.25)'
-        }
-      }
-    }
+
     signMap = reviewBoard.signMap
   } else {
     signMap = engine.getDisplaySignMap()
@@ -413,10 +377,7 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
           />}
         </div>
 
-        {engine.finished && <SummaryPanel onRetry={onRetry} onNextUnsolved={onNextUnsolved}
-          reviewStep={reviewStep} totalSteps={totalReviewStepsRef.current}
-          onReviewBack={() => setReviewStep(s => s === null ? totalReviewStepsRef.current : s > 0 ? s - 1 : totalReviewStepsRef.current)}
-          onReviewForward={() => setReviewStep(s => s === null ? 1 : s < totalReviewStepsRef.current ? s + 1 : 0)} />}
+        {engine.finished && <SummaryPanel onRetry={onRetry} onNextUnsolved={onNextUnsolved} />}
       </div>
 
       <div class="problem-name">
@@ -428,12 +389,8 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
         <button class="bar-btn" title="Back to library (Esc)" onClick={onBack}>☰</button>
         <button class="bar-btn" title="Restart this problem" onClick={onRetry}>↺</button>
         <div class="nav-group">
-          <button class={`bar-btn${!engine.finished ? ' btn-inactive' : ''}`} title="Review step back (←)" onClick={() => setReviewStep(s => s === null ? totalReviewStepsRef.current : s > 0 ? s - 1 : totalReviewStepsRef.current)}>⏪</button>
-          <button class={`bar-btn${!engine.finished ? ' btn-inactive' : ''}`} title="Review step forward (→/Space)" onClick={() => setReviewStep(s => s === null ? 1 : s < totalReviewStepsRef.current ? s + 1 : 0)}>⏩</button>
-        </div>
-        <div class="nav-group">
-          <button class="bar-btn" title="Previous problem (Shift+←)" onClick={onPrev}>◀</button>
-          <button class="bar-btn" title="Next problem (Shift+→)" onClick={onNext}>▶</button>
+          <button class="bar-btn" title="Previous problem (←)" onClick={onPrev}>◀</button>
+          <button class="bar-btn" title="Next problem (→)" onClick={onNext}>▶</button>
         </div>
         <div class="nav-group">
           <button class="bar-btn" title="Settings (Esc to close)" onClick={() => setShowConfig(c => !c)}>⚙</button>
@@ -443,13 +400,6 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
 
       <div class="bottom-bar">
         {(() => {
-          if (engine.finished && markMode) {
-            let atEnd = reviewStep >= totalReviewStepsRef.current
-            return <>
-              <StatsBar engine={engine} times={timesRef.current} sgfId={sgfId} />
-              <NextButton label={atEnd ? '↺' : 'Step'} onNext={() => setReviewStep(s => s >= totalReviewStepsRef.current ? 0 : s + 1)} />
-            </>
-          }
           if (engine.finished) return <StatsBar engine={engine} times={timesRef.current} sgfId={sgfId} />
           if (engine.moveIndex === 0) return <ModeChoice onStart={() => submitAnswer(0)} />
           if (markMode) return engine.questionVertex
@@ -514,16 +464,10 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
 }
 
 
-function SummaryPanel({ onRetry, onNextUnsolved, reviewStep, totalSteps, onReviewBack, onReviewForward }) {
-  let displayStep = reviewStep === null ? totalSteps : reviewStep
+function SummaryPanel({ onRetry, onNextUnsolved }) {
   return (
     <div class="summary-panel">
       <div class="scoring-title">Quiz Complete</div>
-      <div class="review-controls">
-        <button class="bar-btn" title="Step back (←)" onClick={onReviewBack}>◀</button>
-        <span class="review-counter">{displayStep}/{totalSteps}</span>
-        <button class="bar-btn" title="Step forward (→/Space)" onClick={onReviewForward}>▶</button>
-      </div>
       <button class="back-btn" title="Restart this problem from the beginning" onClick={onRetry}>Retry</button>
       <button class="back-btn" title="Jump to next unsolved problem" onClick={onNextUnsolved}>Next Unsolved</button>
     </div>
@@ -623,8 +567,7 @@ function HelpOverlay({ onClose }) {
         <table class="help-table">
           <tr><td class="help-key">☰</td><td>Back to library</td><td class="help-shortcut">Esc</td></tr>
           <tr><td class="help-key">↺</td><td>Restart this problem</td><td /></tr>
-          <tr><td class="help-key">⏪ ⏩</td><td>Review steps (when finished)</td><td class="help-shortcut">← →</td></tr>
-          <tr><td class="help-key">◀ ▶</td><td>Previous / next problem</td><td class="help-shortcut">Shift+← →</td></tr>
+          <tr><td class="help-key">◀ ▶</td><td>Previous / next problem</td><td class="help-shortcut">← →</td></tr>
           <tr><td class="help-key">⚙</td><td>Open settings</td><td /></tr>
         </table>
         <div class="help-section">Answering</div>
@@ -636,10 +579,6 @@ function HelpOverlay({ onClose }) {
         <div class="help-section">Board</div>
         <table class="help-table">
           <tr><td class="help-key">?</td><td>Hold to reveal hidden stones</td><td class="help-shortcut">? / hold board</td></tr>
-        </table>
-        <div class="help-section">Review (after completion)</div>
-        <table class="help-table">
-          <tr><td class="help-key">⏪ ⏩</td><td>Step through moves &amp; questions</td><td class="help-shortcut">← → Space</td></tr>
         </table>
       </div>
     </div>
