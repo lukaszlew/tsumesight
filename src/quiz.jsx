@@ -42,15 +42,13 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
   let [showDuration, setShowDuration] = useState(() => kv('quizShowDuration', 'manual'))
   let questionStartRef = useRef(null)
   let timesRef = useRef([])
-  let moveTimingRef = useRef([]) // [{moveViewMs, questionTimes: [ms...]}]
-  let moveViewStartRef = useRef(null)
   let [showConfig, _setShowConfig] = useState(false)
   let showConfigRef = useRef(false)
   let setShowConfig = (v) => { let next = typeof v === 'function' ? v(showConfigRef.current) : v; showConfigRef.current = next; _setShowConfig(next) }
   let [wrongFlash, setWrongFlash] = useState(false)
   let [retryHint, setRetryHint] = useState(false)
   let [introHint, setIntroHint] = useState(false)
-  let [modeHint, setModeHint] = useState(null)
+  let [modeHint, setModeHint] = useState(false)
   let [settingsHint, setSettingsHint] = useState(false)
   let [reviewStep, setReviewStep] = useState(null) // null = not reviewing
   let totalReviewStepsRef = useRef(0)
@@ -96,7 +94,7 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
       let accuracy = total > 0 ? engine.correct / total : 1
       let { avg } = computeStats(timesRef.current)
       let totalMs = timesRef.current.reduce((a, b) => a + b, 0) + engine.errors * 5000
-      let scoreEntry = { accuracy, avgTimeMs: Math.round(avg), totalMs: Math.round(totalMs), errors: engine.errors, date: Date.now(), mode, moveTiming: moveTimingRef.current }
+      let scoreEntry = { accuracy, avgTimeMs: Math.round(avg), totalMs: Math.round(totalMs), errors: engine.errors, date: Date.now(), mode }
       onSolved(engine.correct, total, scoreEntry)
       playComplete()
     }
@@ -113,37 +111,21 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
     }
   }
 
-  let trackAdvance = () => {
-    moveViewStartRef.current = performance.now()
-  }
-
-  let trackActivate = () => {
-    let moveViewMs = moveViewStartRef.current !== null
-      ? performance.now() - moveViewStartRef.current : 0
-    moveViewStartRef.current = null
-    moveTimingRef.current.push({ moveViewMs, questionTimes: [] })
-  }
-
   let submitAnswer = useCallback((value) => {
     if (anyHintRef.current) return
-    let hasQuestion = engine.mode === 'comparison' ? engine.comparisonPair : engine.questionVertex
-    if (!hasQuestion) {
+    if (!engine.questionVertex) {
       if (engine.showingMove) {
-        trackActivate()
         engine.activateQuestions()
         if (engine.moveIndex === 1 && !kv('seenIntroHint')) {
           kvSet('seenIntroHint', '1')
           setIntroHint(true)
         }
-        let activated = engine.mode === 'comparison' ? engine.comparisonPair : engine.questionVertex
-        if (!activated && !engine.finished) {
+        if (!engine.questionVertex && !engine.finished) {
           engine.advance()
-          trackAdvance()
           checkAdvanceHints()
         }
       } else if (!engine.finished) {
         engine.advance()
-        trackAdvance()
         checkAdvanceHints()
       }
       checkFinished()
@@ -157,25 +139,18 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
         let elapsed = performance.now() - questionStartRef.current
         timesRef.current.push(elapsed)
         questionStartRef.current = null
-        let mt = moveTimingRef.current
-        if (mt.length > 0) mt[mt.length - 1].questionTimes.push({ ms: elapsed, failed: false })
       }
       historyRef.current.push(!wasRetrying)
       saveHistory(quizKey, historyRef.current)
       playCorrect()
       if (result.done) {
         engine.advance()
-        trackAdvance()
         checkAdvanceHints()
       }
       let total = engine.questionsPerMove.reduce((a, b) => a + b, 0)
       onProgress({ correct: engine.correct, done: engine.results.length, total })
     } else {
-      // Record failed attempt time, restart timer for retry
       if (questionStartRef.current !== null) {
-        let elapsed = performance.now() - questionStartRef.current
-        let mt = moveTimingRef.current
-        if (mt.length > 0) mt[mt.length - 1].questionTimes.push({ ms: elapsed, failed: true })
         questionStartRef.current = performance.now()
       }
       playWrong()
@@ -193,7 +168,7 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
   // Keyboard shortcuts
   useEffect(() => {
     function onKeyDown(e) {
-      if (e.key === 'Escape') { e.preventDefault(); if (anyHintRef.current) { setRetryHint(false); setIntroHint(false); setModeHint(null); setSettingsHint(false) } else if (showConfigRef.current) setShowConfig(false); else if (showHelpRef.current) setShowHelp(false); else onBack() }
+      if (e.key === 'Escape') { e.preventDefault(); if (anyHintRef.current) { setRetryHint(false); setIntroHint(false); setModeHint(false); setSettingsHint(false) } else if (showConfigRef.current) setShowConfig(false); else if (showHelpRef.current) setShowHelp(false); else onBack() }
       else if (e.key === 'ArrowLeft') {
         e.preventDefault()
         if (e.shiftKey) onPrev()
@@ -210,16 +185,12 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
       }
       else if (e.key === ' ') {
         e.preventDefault()
-        let hasQuestion = engine.mode === 'comparison' ? engine.comparisonPair : engine.questionVertex
         if (engine.finished) setReviewStep(s => s === null ? 1 : s < totalReviewStepsRef.current ? s + 1 : 0)
-        else if (engine.mode === 'comparison' && engine.comparisonPair && !engine.blockedAnswers.has(3)) submitAnswer(3)
-        else if (!hasQuestion) submitAnswer(0)
+        else if (!engine.questionVertex) submitAnswer(0)
       }
       else if (e.key === 'PageUp') { e.preventDefault(); onPrev() }
       else if (e.key === 'PageDown') { e.preventDefault(); onNext() }
-      else if (engine.mode === 'comparison' && e.key === 'z' && !engine.blockedAnswers.has(1)) submitAnswer(1)
-      else if (engine.mode === 'comparison' && e.key === 'x' && !engine.blockedAnswers.has(2)) submitAnswer(2)
-      else if (engine.mode !== 'comparison' && e.key >= '1' && e.key <= '5' && !engine.blockedAnswers.has(parseInt(e.key))) submitAnswer(parseInt(e.key))
+      else if (e.key >= '1' && e.key <= '5' && !engine.blockedAnswers.has(parseInt(e.key))) submitAnswer(parseInt(e.key))
     }
     function onKeyUp(e) {
       if (e.key === '?') setPeeking(false)
@@ -235,16 +206,14 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
   // Start question timer when a question appears
   useEffect(() => {
     if (!engine) return
-    let hasQ = engine.mode === 'comparison' ? engine.comparisonPair : engine.questionVertex
-    if (hasQ && questionStartRef.current === null) {
+    if (engine.questionVertex && questionStartRef.current === null) {
       questionStartRef.current = performance.now()
-      let hintKey = engine.mode === 'comparison' ? 'seenComparisonHint' : 'seenLibertyHint'
-      if (!kv(hintKey)) {
-        kvSet(hintKey, '1')
-        setModeHint(engine.mode)
+      if (!kv('seenLibertyHint')) {
+        kvSet('seenLibertyHint', '1')
+        setModeHint(true)
       }
     }
-    if (!hasQ) questionStartRef.current = null
+    if (!engine.questionVertex) questionStartRef.current = null
   })
 
   // Auto-advance after timed show duration
@@ -271,17 +240,6 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
     return () => ro.disconnect()
   }, [cols, rows])
 
-  // Color Z/X comparison markers blue (only those, not move numbers)
-  useEffect(() => {
-    let el = boardRowRef.current
-    if (!el) return
-    for (let m of el.querySelectorAll('.shudan-marker')) {
-      let t = m.textContent
-      if (t === 'Z' || t === 'X') m.style.setProperty('color', '#6af', 'important')
-      else m.style.removeProperty('color')
-    }
-  })
-
   // Compute total review steps: 1 per stone + 1 per question
   totalReviewStepsRef.current = 0
   if (engine.finished) {
@@ -291,7 +249,7 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
 
   // Build display maps
   let size = engine.boardSize
-  let signMap, markerMap, ghostStoneMap, reviewMoveIndex = -1
+  let signMap, markerMap, ghostStoneMap
 
   if (engine.finished && reviewStep !== null) {
     // Review mode: decode reviewStep into movesShown + questionsShown
@@ -329,18 +287,9 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
           let [x, y] = q.vertex
           if (reviewBoard.get(q.vertex) !== 0) markerMap[y][x] = { type: 'label', label: '❓' }
         }
-        if (q.v1) {
-          let [x, y] = q.v1
-          if (reviewBoard.get(q.v1) !== 0) markerMap[y][x] = { type: 'label', label: 'Z' }
-        }
-        if (q.v2) {
-          let [x, y] = q.v2
-          if (reviewBoard.get(q.v2) !== 0) markerMap[y][x] = { type: 'label', label: 'X' }
-        }
       }
     }
     signMap = reviewBoard.signMap
-    reviewMoveIndex = movesShown - 1
   } else {
     signMap = engine.finished ? engine.trueBoard.signMap : engine.getDisplaySignMap()
     markerMap = makeEmptyMap(size)
@@ -372,12 +321,6 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
           ghostStoneMap[y][x] = { sign, faint: true }
         }
       }
-    } else if (engine.mode === 'comparison' && engine.comparisonPair) {
-      let { v1, v2 } = engine.comparisonPair
-      let [x1, y1] = v1
-      let [x2, y2] = v2
-      markerMap[y1][x1] = { type: 'label', label: 'Z' }
-      markerMap[y2][x2] = { type: 'label', label: 'X' }
     } else if (engine.questionVertex) {
       let [x, y] = engine.questionVertex
       markerMap[y][x] = { type: 'label', label: '❓' }
@@ -403,9 +346,7 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
   return (
     <div class="quiz">
       <div class="board-section">
-      {engine.finished
-        ? <StatsBar engine={engine} times={timesRef.current} sgfId={sgfId} />
-        : <ProgressBar questionsPerMove={engine.questionsPerMove} moveProgress={engine.moveProgress} questionIndex={engine.questionIndex} showingMove={engine.showingMove} moves={engine.moves} />}
+      {engine.finished && <StatsBar engine={engine} times={timesRef.current} sgfId={sgfId} />}
       <div class="board-row" ref={boardRowRef}>
         <div
           class={`board-container${wrongFlash ? ' wrong-flash' : ''}`}
@@ -477,12 +418,10 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
       {modeHint && <div class="overlay">
         <div class="overlay-content">
           <div class="overlay-header">
-            <b>{modeHint === 'comparison' ? 'Comparison mode' : 'Liberty mode'}</b>
-            <button class="bar-btn" onClick={() => setModeHint(null)}>X</button>
+            <b>Liberty mode</b>
+            <button class="bar-btn" onClick={() => setModeHint(false)}>X</button>
           </div>
-          {modeHint === 'comparison'
-            ? <p>Two groups are marked Z and X. Choose which has more liberties, or equal.</p>
-            : <p>A group is marked with &#x2753;. Count its liberties and pick the right number (1–4 or 5+).</p>}
+          <p>A group is marked with &#x2753;. Count its liberties and pick the right number (1–4 or 5+).</p>
         </div>
       </div>}
       {introHint && <div class="overlay">
@@ -505,17 +444,12 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
       </div>}
       <div class="bottom-bar">
         {(() => {
-          if (engine.finished) return moveTimingRef.current.length > 0
-            ? <TimeChart moveTiming={moveTimingRef.current} moves={engine.moves} reviewMoveIndex={reviewMoveIndex} />
-            : <div class="answer-buttons" />
+          if (engine.finished) return <div class="answer-buttons" />
           if (engine.moveIndex === 0) return <ModeChoice onStart={() => submitAnswer(0)} />
-          let hasQuestion = engine.mode === 'comparison' ? engine.comparisonPair : engine.questionVertex
-          if (!hasQuestion) return engine.showingMove && showDuration !== 'manual'
+          if (!engine.questionVertex) return engine.showingMove && showDuration !== 'manual'
             ? <div class="answer-buttons" />
             : <NextButton label="Next" onNext={() => submitAnswer(0)} />
-          return engine.mode === 'comparison'
-            ? <ComparisonButtons onAnswer={submitAnswer} blocked={engine.blockedAnswers} />
-            : <AnswerButtons onAnswer={submitAnswer} blocked={engine.blockedAnswers} />
+          return <AnswerButtons onAnswer={submitAnswer} blocked={engine.blockedAnswers} />
         })()}
       </div>
       </div>
@@ -541,46 +475,6 @@ function SummaryPanel({ onRetry, onNextUnsolved, reviewStep, totalSteps, onRevie
 }
 
 
-function ProgressBar({ questionsPerMove, moveProgress, questionIndex, showingMove, moves }) {
-  let total = questionsPerMove.length
-  let currentMove = moveProgress.length - 1
-  let CONTEXT = 3
-  let needsWindow = total > CONTEXT * 2 + 1
-  let start = needsWindow ? Math.max(0, Math.min(currentMove - CONTEXT, total - CONTEXT * 2 - 1)) : 0
-  let end = needsWindow ? Math.min(total, start + CONTEXT * 2 + 1) : total
-
-  let correctCount = moveProgress.reduce((sum, mp) => sum + mp.results.filter(r => r === 'correct').length, 0)
-  let totalCount = questionsPerMove.reduce((sum, q) => sum + q, 0)
-
-  return (
-    <div class="progress-bar">
-      <span class="progress-score"><span class="score-correct">{correctCount}</span><span class="score-slash">/{totalCount}</span></span>
-      <div class="progress-pips">
-        <span class={`progress-ellipsis${needsWindow && start > 0 ? '' : ' invisible'}`}>…</span>
-        {questionsPerMove.slice(start, end).map((qCount, offset) => {
-          let i = start + offset
-          let results = moveProgress[i] ? moveProgress[i].results : []
-          let isCurrent = i === currentMove
-          return (
-            <div key={i} class={`progress-move${isCurrent ? ' current' : ''}`}>
-              <span class={`move-stone${moves[i].sign === 1 ? ' stone-black' : ' stone-white'}${isCurrent && showingMove ? ' q-current' : ''}`}>{i + 1}</span>
-              {qCount === 0
-                ? <span class="check-skip" />
-                : Array.from({ length: qCount }, (_, j) => {
-                  let isActiveQ = isCurrent && !showingMove && j === questionIndex
-                  let cls = results[j] === 'correct' ? 'q-correct' : results[j] === 'failed' ? 'q-failed' : 'q-pending'
-                  if (isActiveQ) cls += ' q-current'
-                  return <span key={j} class={cls}>{results[j] === 'correct' ? '✓' : results[j] === 'failed' ? '✗' : '?'}</span>
-                })}
-            </div>
-          )
-        })}
-        <span class={`progress-ellipsis${needsWindow && end < total ? '' : ' invisible'}`}>…</span>
-      </div>
-    </div>
-  )
-}
-
 export function computeStats(times, cap = 5000) {
   let capped = times.map(t => Math.min(t, cap))
   let avg = capped.length > 0 ? capped.reduce((a, b) => a + b, 0) / capped.length : 0
@@ -602,94 +496,6 @@ function StatsBar({ engine, times, sgfId }) {
         {best && best.totalMs && <span class="stats-cell stats-best">Best: {(best.totalMs / 1000).toFixed(1)}s</span>}
         {scores.length > 0 && <span class="stats-cell stats-runs">Run #{scores.length + 1}</span>}
       </div>
-    </div>
-  )
-}
-
-
-function TimeChart({ moveTiming, moves, reviewMoveIndex }) {
-  let moveCount = moveTiming.length
-  let barW = 10
-  let barGap = 1
-  let chartH = 200
-
-  // Count total bars per move (1 moveView + N questions), compute x offsets
-  let moveOffsets = [] // [{x, barCount}]
-  let totalBars = 0
-  for (let m of moveTiming) {
-    let count = 1 + m.questionTimes.length
-    moveOffsets.push({ x: totalBars * (barW + barGap), barCount: count })
-    totalBars += count
-  }
-
-  let axisW = 30
-  let chartW = totalBars * (barW + barGap)
-  let svgW = axisW + chartW + 4
-  let labelH = 14
-
-  // Fixed 5s Y-axis
-  let maxTime = 5000
-  let ticks = [1000, 2000, 3000, 4000, 5000]
-
-  let barH = (ms) => Math.max(1, ms / maxTime * chartH)
-  let fmt = (ms) => ms >= 1000 ? (ms / 1000) + 's' : ms + 'ms'
-
-  let dragRef = useRef(null)
-  let chartRef = useRef(null)
-  let onMouseDown = (e) => { dragRef.current = { x: e.clientX, scrollLeft: e.currentTarget.scrollLeft }; e.currentTarget.style.cursor = 'grabbing' }
-  let onMouseMove = (e) => { if (!dragRef.current) return; e.currentTarget.scrollLeft = dragRef.current.scrollLeft - (e.clientX - dragRef.current.x) }
-  let onMouseUp = (e) => { dragRef.current = null; e.currentTarget.style.cursor = '' }
-
-  // Auto-scroll to keep highlighted bar visible
-  useEffect(() => {
-    let el = chartRef.current
-    if (!el || reviewMoveIndex < 0 || reviewMoveIndex >= moveCount) return
-    let { x: hx, barCount } = moveOffsets[reviewMoveIndex]
-    let left = axisW + hx - 10
-    let right = axisW + hx + barCount * (barW + barGap) + 10
-    if (left < el.scrollLeft) el.scrollLeft = left
-    else if (right > el.scrollLeft + el.clientWidth) el.scrollLeft = right - el.clientWidth
-  }, [reviewMoveIndex])
-
-  return (
-    <div class="time-chart" ref={chartRef} onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}>
-      <svg width={svgW} height={chartH + labelH} viewBox={`0 0 ${svgW} ${chartH + labelH}`}>
-        {/* Y-axis ticks and gridlines */}
-        {ticks.map(v => {
-          let y = chartH - v / maxTime * chartH
-          return [
-            <line key={`grid-${v}`} x1={axisW} y1={y} x2={svgW} y2={y} stroke="#333" stroke-width="0.5" />,
-            <text key={`tick-${v}`} x={axisW - 3} y={y + 3} text-anchor="end" fill="#666" font-size="7">{fmt(v)}</text>
-          ]
-        })}
-        {/* Highlight current review step */}
-        {reviewMoveIndex >= 0 && reviewMoveIndex < moveCount && (() => {
-          let { x: hx, barCount } = moveOffsets[reviewMoveIndex]
-          let groupW = barCount * (barW + barGap) - barGap
-          return <rect x={axisW + hx - 1} y={0} width={groupW + 2} height={chartH} fill="rgba(255,255,255,0.08)" />
-        })()}
-        {/* Bars */}
-        {moveTiming.map((m, i) => {
-          let { x: mx } = moveOffsets[i]
-          let x0 = axisW + mx
-          let bars = []
-          // Current run bars — move-view bar colored by stone color
-          let h = barH(m.moveViewMs)
-          let moveColor = moves[i]?.sign === 1 ? '#222' : '#ddd'
-          bars.push(<rect key={`mv-${i}`} x={x0} y={chartH - h} width={barW} height={h} fill={moveColor} />)
-          for (let j = 0; j < m.questionTimes.length; j++) {
-            let qx = x0 + (j + 1) * (barW + barGap)
-            let qh = barH(m.questionTimes[j].ms)
-            let fill = m.questionTimes[j].failed ? '#c44' : '#4a4'
-            bars.push(<rect key={`q-${i}-${j}`} x={qx} y={chartH - qh} width={barW} height={qh} fill={fill} />)
-          }
-          // Move number label under the move-view bar
-          bars.push(<text key={`lbl-${i}`} x={x0 + barW / 2} y={chartH + 10} text-anchor="middle" fill="#888" font-size="7">{i + 1}</text>)
-          return bars
-        })}
-        {/* Baseline */}
-        <line x1={axisW} y1={chartH} x2={svgW} y2={chartH} stroke="#555" stroke-width="0.5" />
-      </svg>
     </div>
   )
 }
@@ -718,16 +524,6 @@ function NextButton({ label = 'Next', onNext }) {
   return (
     <div class="answer-buttons">
       <button class="bar-btn next-btn" title={`${label} (Space)`} onClick={onNext}>{label}</button>
-    </div>
-  )
-}
-
-function ComparisonButtons({ onAnswer, blocked }) {
-  return (
-    <div class="answer-buttons">
-      <button class={`ans-btn comp-btn${blocked.has(1) ? ' btn-blocked' : ''}`} disabled={blocked.has(1)} title="Group Z has more liberties (key Z)" onClick={() => onAnswer(1)}>Z</button>
-      <button class={`ans-btn comp-btn${blocked.has(3) ? ' btn-blocked' : ''}`} disabled={blocked.has(3)} title="Both groups have equal liberties (Space)" onClick={() => onAnswer(3)}>=</button>
-      <button class={`ans-btn comp-btn${blocked.has(2) ? ' btn-blocked' : ''}`} disabled={blocked.has(2)} title="Group X has more liberties (key X)" onClick={() => onAnswer(2)}>X</button>
     </div>
   )
 }
@@ -793,4 +589,3 @@ function HelpOverlay({ onClose }) {
     </div>
   )
 }
-

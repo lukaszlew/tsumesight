@@ -256,14 +256,6 @@ body {
   flex-shrink: 1;
   min-width: 0;
 }
-.file-counter {
-  font-size: 0.85rem;
-  color: #999;
-  min-width: 3ch;
-  text-align: center;
-}
-
-
 .board-section {
   display: contents;
 }
@@ -346,111 +338,6 @@ body {
 }
 
 
-/* Progress bar (below board) */
-.progress-bar {
-  height: 90%;
-  width: 100%;
-  align-self: center;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  container-type: size;
-}
-.progress-pips {
-  display: flex;
-  gap: 1px;
-  align-items: flex-start;
-  max-width: 100%;
-  min-width: 0;
-}
-.progress-score {
-  white-space: nowrap;
-  padding-right: 0.4rem;
-  font-size: min(60cqh, 8cqw);
-  font-weight: 500;
-}
-.progress-score .score-correct {
-  color: #6a6;
-}
-.progress-score .score-slash {
-  color: #8a8580;
-}
-.progress-ellipsis {
-  color: #666;
-  font-size: 0.75rem;
-  padding: 0 0.2rem;
-}
-.progress-ellipsis.invisible {
-  visibility: hidden;
-}
-.progress-move {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  align-items: center;
-  padding: 2px;
-  flex-shrink: 1;
-  min-width: 0;
-  max-height: 100cqh;
-  overflow: hidden;
-}
-.move-stone {
-  width: 30cqh;
-  max-width: 100%;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  font-size: 14cqh;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 1;
-}
-.move-stone.stone-black {
-  background: radial-gradient(circle at 35% 35%, #444, #111);
-  color: #ccc;
-  border: 1px solid #555;
-  box-shadow: 1px 1px 3px rgba(0,0,0,.5);
-}
-.move-stone.stone-white {
-  background: radial-gradient(circle at 35% 35%, #f5f0e8, #b8b0a5);
-  color: #2a2520;
-  border: 1px solid #a09888;
-  box-shadow: 1px 1px 3px rgba(0,0,0,.3);
-}
-.q-pending, .q-correct, .q-failed {
-  font-size: 20cqh;
-  line-height: 1;
-  flex-shrink: 1;
-  transition: color 0.3s ease;
-}
-.q-pending {
-  color: #6a6560;
-}
-.q-correct {
-  color: #5a5;
-}
-.q-failed {
-  color: #c55;
-}
-.q-current {
-  position: relative;
-}
-.q-current::after {
-  content: '';
-  position: absolute;
-  inset: -3px;
-  border: 2px solid rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  z-index: -1;
-}
-.check-skip {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-}
-
 .stats-grid {
   display: flex;
   flex-wrap: wrap;
@@ -477,21 +364,6 @@ body {
   align-items: center;
   overflow: hidden;
 }
-.time-chart {
-  width: 90%;
-  overflow-x: auto;
-  overflow-y: hidden;
-  flex: 1;
-  min-height: 0;
-  cursor: grab;
-  -webkit-overflow-scrolling: touch;
-}
-.time-chart svg {
-  display: block;
-  height: 100%;
-  margin: 0 auto;
-}
-
 .scoring-title {
   font-weight: bold;
   color: #eee;
@@ -527,7 +399,7 @@ body {
   outline: 2px solid #888;
   outline-offset: -1px;
 }
-/* Comparison labels: wood circle only on empty intersections (below grid lines) */
+/* Move-number labels: wood circle only on empty intersections (below grid lines) */
 .shudan-vertex.shudan-marker_label.shudan-sign_0::before {
   content: '';
   position: absolute;
@@ -602,14 +474,6 @@ body {
   background: linear-gradient(180deg, #222, #1a1a1a);
   box-shadow: inset 0 2px 4px rgba(0,0,0,.4);
 }
-.comp-btn {
-  color: #6af;
-  border-color: #3a5a8a;
-}
-.comp-btn:hover {
-  border-color: #6a9ad0;
-  box-shadow: 0 2px 8px rgba(100,170,255,.2), inset 0 1px 0 rgba(255,255,255,.08);
-}
 .ans-btn:nth-child(4) {
   grid-column: 2 / 4;
 }
@@ -675,13 +539,6 @@ body {
   border-top: 1px solid #444;
   margin: 0.4rem 0;
 }
-.summary-correct {
-  color: #4c4;
-}
-.summary-wrong {
-  color: #c44;
-}
-
 /* Overlays (help, config) */
 .overlay {
   position: fixed;
