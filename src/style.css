@@ -412,6 +412,16 @@ body {
   transform: translate(-50%, -50%);
 }
 
+/* Review markers: green checkmarks, red crosses */
+.shudan-vertex[title="✓"] .shudan-marker {
+  color: #0c0 !important;
+  -webkit-text-stroke: .03em #060;
+}
+.shudan-vertex[title="✗"] .shudan-marker {
+  color: #f44 !important;
+  -webkit-text-stroke: .03em #800;
+}
+
 /* Grayed-out nav buttons */
 .btn-inactive {
   opacity: 0.3;

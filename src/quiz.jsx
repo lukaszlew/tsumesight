@@ -295,26 +295,25 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
         ri++
       }
 
-    // Place ✓/✗ markers with colored backgrounds
+    // Place ✓/✗ markers on questioned groups
     for (let [key, q] of qByVertex) {
       let [x, y] = key.split(',').map(Number)
       markerMap[y][x] = { type: 'label', label: q.correct ? '✓' : '✗' }
-      paintMap[y][x] = q.correct ? 'rgba(0,180,0,0.3)' : 'rgba(200,0,0,0.3)'
     }
 
-    // Clicked question: show true liberties + wrong marks
+    // Clicked question: show true liberties as ghost stones + wrong marks
     if (reviewVertex && qByVertex.has(reviewVertex)) {
       let q = qByVertex.get(reviewVertex)
       let trueSet = new Set(q.trueLibs || [])
       let marksSet = new Set(q.marks || [])
       for (let k of trueSet) {
         let [x, y] = k.split(',').map(Number)
-        paintMap[y][x] = 'rgba(0,200,0,0.5)'
+        if (signMap[y][x] === 0) ghostStoneMap[y][x] = { sign: 1, type: 'good' }
       }
       for (let k of marksSet) {
         if (!trueSet.has(k)) {
           let [x, y] = k.split(',').map(Number)
-          paintMap[y][x] = 'rgba(200,0,0,0.5)'
+          if (signMap[y][x] === 0) ghostStoneMap[y][x] = { sign: -1, type: 'bad' }
         }
       }
     }
@@ -353,11 +352,11 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
     } else if (engine.questionVertex) {
       let [x, y] = engine.questionVertex
       markerMap[y][x] = { type: 'label', label: '❓' }
-      // Show user-marked liberties as painted backgrounds
+      // Show user-marked liberties as ghost stones
       if (markMode) {
         for (let key of markedLiberties) {
           let [mx, my] = key.split(',').map(Number)
-          paintMap[my][mx] = 'rgba(100,150,255,0.4)'
+          if (signMap[my][mx] === 0) ghostStoneMap[my][mx] = { sign: 1, type: 'interesting' }
         }
       }
     }
