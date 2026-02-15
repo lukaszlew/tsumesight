@@ -33,8 +33,8 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
   let [soundOn, setSoundOn] = useState(isSoundEnabled())
   let [vertexSize, setVertexSize] = useState(0)
   let boardRowRef = useRef(null)
-  let [mode, setMode] = useState(() => kv('quizMode', 'liberty'))
-  let [maxQ, setMaxQ] = useState(() => parseInt(kv('quizMaxQ', '2')))
+  let [mode] = useState(() => kv('quizMode', 'liberty-end'))
+  let [maxQ] = useState(() => parseInt(kv('quizMaxQ', '2')))
   let [error, setError] = useState(null)
   let [showHelp, _setShowHelp] = useState(false)
   let showHelpRef = useRef(false)
@@ -462,13 +462,7 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
       </div>
 
       {showConfig && <ConfigPanel
-        mode={mode} maxQ={maxQ} soundOn={soundOn} showDuration={showDuration}
-        onMaxQ={next => {
-          kvSet('quizMaxQ', String(next))
-          setMaxQ(next)
-          engine.maxQuestions = next
-          if (!engine.finished) { engine.recomputeQuestions(); rerender() }
-        }}
+        soundOn={soundOn} showDuration={showDuration}
         onSound={() => setSoundOn(toggleSound())}
         onShowDuration={next => {
           kvSet('quizShowDuration', next)
@@ -476,7 +470,7 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
         }}
         onClose={() => setShowConfig(false)}
       />}
-      {showHelp && <HelpOverlay mode={mode} onClose={() => setShowHelp(false)} />}
+      {showHelp && <HelpOverlay onClose={() => setShowHelp(false)} />}
 
       {settingsHint && <div class="overlay">
         <div class="overlay-content">
@@ -521,20 +515,7 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
           if (engine.finished) return moveTimingRef.current.length > 0
             ? <TimeChart moveTiming={moveTimingRef.current} moves={engine.moves} reviewMoveIndex={reviewMoveIndex} />
             : <div class="answer-buttons" />
-          if (engine.moveIndex === 0) return <ModeChoice mode={mode} maxQ={maxQ}
-            onMode={nextMode => {
-              kvSet('quizMode', nextMode)
-              setMode(nextMode)
-              engine.mode = nextMode
-              engine.recomputeQuestions()
-              rerender()
-            }}
-            onStart={() => submitAnswer(0)}
-            onMaxQ={next => {
-              kvSet('quizMaxQ', String(next))
-              setMaxQ(next)
-              engine.maxQuestions = next
-            }} />
+          if (engine.moveIndex === 0) return <ModeChoice onStart={() => submitAnswer(0)} />
           let hasQuestion = engine.mode === 'comparison' ? engine.comparisonPair : engine.questionVertex
           if (!hasQuestion) return engine.showingMove && showDuration !== 'manual'
             ? <div class="answer-buttons" />
@@ -734,25 +715,9 @@ function AnswerButtons({ onAnswer }) {
   )
 }
 
-function ModeChoice({ mode, maxQ, onMode, onStart, onMaxQ }) {
+function ModeChoice({ onStart }) {
   return (
     <div class="mode-choice">
-      <div class="cfg-row">
-        <span class="cfg-label">Mode</span>
-        <div class="cfg-options">
-          <button class={`cfg-opt${mode === 'liberty' ? ' active' : ''}`} onClick={() => onMode('liberty')}>Liberty</button>
-          <button class={`cfg-opt${mode === 'liberty-end' ? ' active' : ''}`} onClick={() => onMode('liberty-end')}>Lib@end</button>
-          <button class={`cfg-opt${mode === 'comparison' ? ' active' : ''}`} onClick={() => onMode('comparison')}>Compare</button>
-        </div>
-      </div>
-      {mode !== 'liberty-end' && <div class="cfg-row">
-        <span class="cfg-label">Questions</span>
-        <div class="cfg-options">
-          {[0, 1, 2, 3, 4].map(n => (
-            <button key={n} class={`cfg-opt${maxQ === n ? ' active' : ''}`} onClick={() => onMaxQ(n)}>{n}</button>
-          ))}
-        </div>
-      </div>}
       <button class="bar-btn next-btn" title="Start (Space)" onClick={onStart}>Start</button>
     </div>
   )
@@ -776,7 +741,7 @@ function ComparisonButtons({ onAnswer }) {
   )
 }
 
-function ConfigPanel({ mode, maxQ, soundOn, showDuration, onMaxQ, onSound, onShowDuration, onClose }) {
+function ConfigPanel({ soundOn, showDuration, onSound, onShowDuration, onClose }) {
   return (
     <div class="overlay" onClick={onClose}>
       <div class="overlay-content" onClick={e => e.stopPropagation()}>
@@ -784,14 +749,6 @@ function ConfigPanel({ mode, maxQ, soundOn, showDuration, onMaxQ, onSound, onSho
           <b>Settings</b>
           <button class="bar-btn" onClick={onClose}>X</button>
         </div>
-        {mode !== 'liberty-end' && <div class="cfg-row">
-          <span class="cfg-label">Questions</span>
-          <div class="cfg-options">
-            {[0, 1, 2, 3, 4].map(n => (
-              <button key={n} class={`cfg-opt${maxQ === n ? ' active' : ''}`} onClick={() => onMaxQ(n)}>{n}</button>
-            ))}
-          </div>
-        </div>}
         <div class="cfg-row">
           <span class="cfg-label">Show move</span>
           <div class="cfg-options">
@@ -812,7 +769,7 @@ function ConfigPanel({ mode, maxQ, soundOn, showDuration, onMaxQ, onSound, onSho
   )
 }
 
-function HelpOverlay({ mode, onClose }) {
+function HelpOverlay({ onClose }) {
   return (
     <div class="overlay" onClick={onClose}>
       <div class="overlay-content" onClick={e => e.stopPropagation()}>
@@ -825,21 +782,12 @@ function HelpOverlay({ mode, onClose }) {
           <tr><td class="help-key">↺</td><td>Restart this problem</td><td /></tr>
           <tr><td class="help-key">⏪ ⏩</td><td>Review steps (when finished)</td><td class="help-shortcut">← →</td></tr>
           <tr><td class="help-key">◀ ▶</td><td>Previous / next problem</td><td class="help-shortcut">Shift+← →</td></tr>
-          <tr><td class="help-key">⚙</td><td>Open settings (mode, questions, sound)</td><td /></tr>
+          <tr><td class="help-key">⚙</td><td>Open settings</td><td /></tr>
         </table>
         <div class="help-section">Answering</div>
         <table class="help-table">
-          {mode === 'comparison'
-            ? <>
-                <tr><td class="help-key">Z</td><td>Group marked "Z" has more liberties</td><td class="help-shortcut">Z</td></tr>
-                <tr><td class="help-key">=</td><td>Both groups have equal liberties</td><td class="help-shortcut">Space</td></tr>
-                <tr><td class="help-key">X</td><td>Group marked "X" has more liberties</td><td class="help-shortcut">X</td></tr>
-              </>
-            : <>
-                <tr><td class="help-key">1-4</td><td>Marked group has that many liberties</td><td class="help-shortcut">1-4</td></tr>
-                <tr><td class="help-key">5+</td><td>Marked group has 5 or more liberties</td><td class="help-shortcut">5</td></tr>
-              </>
-          }
+          <tr><td class="help-key">1-4</td><td>Marked group has that many liberties</td><td class="help-shortcut">1-4</td></tr>
+          <tr><td class="help-key">5+</td><td>Marked group has 5 or more liberties</td><td class="help-shortcut">5</td></tr>
           <tr><td class="help-key">Next</td><td>Advance when no question this move</td><td class="help-shortcut">Space</td></tr>
         </table>
         <div class="help-section">Board</div>
