@@ -505,141 +505,6 @@ describe('QuizEngine', () => {
     })
   })
 
-  describe('comparison mode', () => {
-    // B[ee]=[4,4] then W[de]=[3,4]: directly adjacent, different colors
-    // No setup stones → boardRange=null → no permanent filter
-    let compSgf = '(;SZ[9];B[ee];W[de])'
-
-    it('constructor accepts mode parameter', () => {
-      let engine = new QuizEngine(compSgf, 'comparison')
-      expect(engine.mode).toBe('comparison')
-    })
-
-    it('defaults to liberty mode', () => {
-      let engine = new QuizEngine(compSgf)
-      expect(engine.mode).toBe('liberty')
-    })
-
-    it('finds comparison pairs for adjacent groups sharing a liberty', () => {
-      let engine = new QuizEngine(compSgf, 'comparison')
-      engine.advance() // B[ba]
-      engine.advance(); engine.activateQuestions() // W[aa] — now B[1,0] and W[0,0]+[0,1] share liberty [1,1]
-      expect(engine.questions.length).toBeGreaterThanOrEqual(1)
-      let pair = engine.comparisonPair
-      expect(pair).not.toBe(null)
-      expect(Math.abs(pair.libs1 - pair.libs2)).toBeLessThanOrEqual(2)
-    })
-
-    it('sets questionVertex to null in comparison mode', () => {
-      let engine = new QuizEngine(compSgf, 'comparison')
-      engine.advance()
-      engine.advance()
-      expect(engine.questionVertex).toBe(null)
-    })
-
-    it('correct comparison answer returns correct=true', () => {
-      let engine = new QuizEngine(compSgf, 'comparison')
-      engine.advance(); engine.activateQuestions()
-      // Skip first move's questions (may be empty if no pairs)
-      while (engine.comparisonPair) {
-        let pair = engine.comparisonPair
-        let trueAnswer = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 2 : 3
-        engine.answer(trueAnswer)
-      }
-      engine.advance(); engine.activateQuestions()
-      if (!engine.comparisonPair) return // no pairs on this move
-      let pair = engine.comparisonPair
-      let trueAnswer = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 2 : 3
-      let result = engine.answer(trueAnswer)
-      expect(result.correct).toBe(true)
-      expect(result.trueAnswer).toBe(trueAnswer)
-    })
-
-    it('wrong comparison answer returns correct=false and enables retry', () => {
-      let engine = new QuizEngine(compSgf, 'comparison')
-      engine.advance(); engine.activateQuestions() // B[ba] — may or may not have pairs
-      while (engine.comparisonPair) {
-        let pair = engine.comparisonPair
-        let trueAnswer = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 2 : 3
-        engine.answer(trueAnswer)
-      }
-      engine.advance(); engine.activateQuestions() // W[aa] — should have pairs
-      if (!engine.comparisonPair) return
-      let pair = engine.comparisonPair
-      let trueAnswer = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 2 : 3
-      let wrongAnswer = trueAnswer === 1 ? 2 : 1
-      let result = engine.answer(wrongAnswer)
-      expect(result.correct).toBe(false)
-      expect(engine.retrying).toBe(true)
-      // Retry with correct answer
-      let retry = engine.answer(trueAnswer)
-      expect(retry.correct).toBe(true)
-    })
-
-    it('comparison mode skips moves with no qualifying pairs', () => {
-      // Two far-apart stones: no shared liberties
-      let sgf = '(;SZ[9];B[aa];W[ii])'
-      let engine = new QuizEngine(sgf, 'comparison')
-      engine.advance() // B[aa] — only one group, no pairs possible
-      expect(engine.questions.length).toBe(0)
-      expect(engine.comparisonPair).toBe(null)
-    })
-
-    it('finds pairs for directly adjacent different-color groups', () => {
-      // B[ee]=[4,4] then W[de]=[3,4] — directly adjacent, different colors
-      // They share no liberty (adjacent stones), but are directly adjacent
-      // B has 3 libs, W has 3 libs, diff=0, both libsChanged
-      let sgf = '(;SZ[9];B[ee];W[de])'
-      let engine = new QuizEngine(sgf, 'comparison')
-      engine.advance() // B[ee]
-      engine.advance() // W[de] — directly adjacent to B[ee]
-      expect(engine.questions.length).toBeGreaterThanOrEqual(1)
-    })
-
-    it('fromReplay works with comparison mode', () => {
-      let engine = new QuizEngine(compSgf, 'comparison')
-      let history = []
-      engine.advance(); engine.activateQuestions()
-      while (!engine.finished) {
-        if (!engine.comparisonPair) { engine.advance(); engine.activateQuestions(); continue }
-        let pair = engine.comparisonPair
-        let trueAnswer = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 2 : 3
-        let result = engine.answer(trueAnswer)
-        history.push(true)
-        if (result.done) { engine.advance(); engine.activateQuestions() }
-      }
-      let replayed = QuizEngine.fromReplay(compSgf, history, 'comparison')
-      expect(replayed.finished).toBe(true)
-      expect(replayed.correct).toBe(engine.correct)
-      expect(replayed.results).toEqual(engine.results)
-    })
-
-    it('questionsPerMove reflects comparison mode counts', () => {
-      let engine = new QuizEngine(compSgf, 'comparison')
-      // questionsPerMove should be precomputed for comparison mode
-      expect(engine.questionsPerMove.length).toBe(2) // 2 moves in this SGF
-    })
-
-    it('equal liberties gives trueAnswer=3', () => {
-      let engine = new QuizEngine(compSgf, 'comparison')
-      engine.advance(); engine.activateQuestions()
-      while (engine.comparisonPair) {
-        let pair = engine.comparisonPair
-        let ta = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 2 : 3
-        engine.answer(ta)
-      }
-      engine.advance(); engine.activateQuestions()
-      if (!engine.comparisonPair) return
-      let pair = engine.comparisonPair
-      // Both groups have 2 libs in this SGF
-      if (pair.libs1 === pair.libs2) {
-        let result = engine.answer(3)
-        expect(result.correct).toBe(true)
-        expect(result.trueAnswer).toBe(3)
-      }
-    })
-  })
-
   describe('maxQuestions parameter', () => {
     it('maxQuestions=0 produces no questions on any move', () => {
       let engine = new QuizEngine('(;SZ[9];B[ba];W[aa];B[ee])', 'liberty', true, 0)
@@ -670,15 +535,6 @@ describe('QuizEngine', () => {
       expect(engine.questions.length).toBe(1)
       engine.advance() // W[aa]
       expect(engine.questions.length).toBe(1)
-    })
-
-    it('maxQuestions=0 in comparison mode produces no pairs', () => {
-      let engine = new QuizEngine('(;SZ[9];B[ee];W[de])', 'comparison', true, 0)
-      while (!engine.finished) {
-        engine.advance()
-        expect(engine.questions.length).toBe(0)
-        expect(engine.comparisonPair).toBe(null)
-      }
     })
 
     it('maxQuestions=0 fromReplay with empty history finishes immediately', () => {
@@ -743,32 +599,6 @@ describe('QuizEngine', () => {
     })
   })
 
-  describe('comparison A/B spatial ordering', () => {
-    it('v1 (A) is more top-left than v2 (B)', () => {
-      // B[ee]=[4,4] then W[de]=[3,4] — adjacent, different colors
-      let sgf = '(;SZ[9];B[ee];W[de])'
-      let engine = new QuizEngine(sgf, 'comparison')
-      engine.advance() // B[ee]
-      engine.advance(); engine.activateQuestions() // W[de]
-      if (!engine.comparisonPair) return
-      let { v1, v2 } = engine.comparisonPair
-      // A should be top-left: smaller y, or same y then smaller x
-      let aIsTopLeft = v1[1] < v2[1] || (v1[1] === v2[1] && v1[0] <= v2[0])
-      expect(aIsTopLeft).toBe(true)
-    })
-
-    it('v1 (A) is above v2 (B) when vertically adjacent', () => {
-      // B[ec]=[4,2] then W[ed]=[4,3] — same column, different rows
-      let sgf = '(;SZ[9];B[ec];W[ed])'
-      let engine = new QuizEngine(sgf, 'comparison')
-      engine.advance()
-      engine.advance(); engine.activateQuestions()
-      if (!engine.comparisonPair) return
-      let { v1, v2 } = engine.comparisonPair
-      expect(v1[1]).toBeLessThanOrEqual(v2[1])
-    })
-  })
-
   describe('show window', () => {
     it('starts at 1', () => {
       let engine = new QuizEngine(simpleSgf)
@@ -804,24 +634,6 @@ describe('QuizEngine', () => {
           engine.advance(); engine.activateQuestions()
         }
       }
-    })
-
-    it('increments on wrong answer in comparison mode', () => {
-      let sgf = '(;SZ[9];B[ee];W[de])'
-      let engine = new QuizEngine(sgf, 'comparison')
-      engine.advance(); engine.activateQuestions()
-      while (engine.comparisonPair) {
-        let pair = engine.comparisonPair
-        let ta = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 2 : 3
-        engine.answer(ta)
-      }
-      engine.advance(); engine.activateQuestions()
-      if (!engine.comparisonPair) return
-      let pair = engine.comparisonPair
-      let trueAnswer = pair.libs1 > pair.libs2 ? 1 : pair.libs1 < pair.libs2 ? 2 : 3
-      let wrongAnswer = trueAnswer === 1 ? 2 : 1
-      engine.answer(wrongAnswer)
-      expect(engine.showWindow).toBe(2)
     })
 
     it('getWindowStones returns empty when showWindow=1', () => {
