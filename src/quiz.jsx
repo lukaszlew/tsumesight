@@ -197,8 +197,7 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
     // Clicking the questioned group's vertex submits
     let qv = engine.questionVertex
     if (x === qv[0] && y === qv[1]) { submitMarks(); return }
-    // Only allow toggling empty intersections
-    if (engine.trueBoard.get(vertex) !== 0) return
+    // Allow toggling any intersection (user may think a liberty is under a stone)
     let key = `${x},${y}`
     setMarkedLiberties(prev => {
       let next = new Set(prev)
@@ -450,10 +449,12 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
         {(() => {
           if (engine.finished) return <StatsBar engine={engine} times={timesRef.current} sgfId={sgfId} />
           if (engine.moveIndex === 0) return <ModeChoice onStart={() => submitAnswer(0)} />
+          if (markMode) return engine.questionVertex
+            ? null
+            : <NextButton label="Next" onNext={() => submitAnswer(0)} />
           if (!engine.questionVertex) return engine.showingMove && showDuration !== 'manual'
             ? <div class="answer-buttons" />
             : <NextButton label="Next" onNext={() => submitAnswer(0)} />
-          if (markMode) return <div class="answer-buttons" />
           return <AnswerButtons onAnswer={submitAnswer} blocked={engine.blockedAnswers} />
         })()}
       </div>

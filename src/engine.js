@@ -418,6 +418,7 @@ export class QuizEngine {
         let vSetKey = chain.map(vertexKey).sort().join(';')
         let libKey = libertySetKey(this.trueBoard.getLiberties(v))
         if (initialGroups.get(vSetKey) === libKey) continue
+        if (this.trueBoard.getLiberties(v).length > 5) continue
         questions.push(chain[Math.floor(this.random() * chain.length)])
       }
 
