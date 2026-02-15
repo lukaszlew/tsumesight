@@ -655,20 +655,9 @@ function TimeChart({ moveTiming, moves, reviewMoveIndex }) {
   let svgW = axisW + chartW + 4
   let labelH = 14
 
-  // Find max time across current and best, capped at 5000ms
-  let cap = 5000
-  let maxTime = 0
-  for (let m of moveTiming) {
-    maxTime = Math.max(maxTime, m.moveViewMs)
-    for (let t of m.questionTimes) maxTime = Math.max(maxTime, t.ms)
-  }
-  if (maxTime === 0) maxTime = 1000
-  maxTime = Math.min(maxTime, cap)
-
-  // Nice tick values
-  let ticks = []
-  let step = maxTime <= 500 ? 100 : maxTime <= 2000 ? 500 : maxTime <= 5000 ? 1000 : 2000
-  for (let v = step; v <= maxTime; v += step) ticks.push(v)
+  // Fixed 5s Y-axis
+  let maxTime = 5000
+  let ticks = [1000, 2000, 3000, 4000, 5000]
 
   let barH = (ms) => Math.max(1, ms / maxTime * chartH)
   let fmt = (ms) => ms >= 1000 ? (ms / 1000) + 's' : ms + 'ms'
