@@ -345,8 +345,6 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
 
   return (
     <div class="quiz">
-      <div class="board-section">
-      {engine.finished && <StatsBar engine={engine} times={timesRef.current} sgfId={sgfId} />}
       <div class="board-row" ref={boardRowRef}>
         <div
           class={`board-container${wrongFlash ? ' wrong-flash' : ''}`}
@@ -378,7 +376,8 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
         {dirName && <span class="problem-dir">{dirName}</span>}
         <span class="problem-file">{engine.gameName || filename?.replace(/\.sgf$/i, '') || 'Untitled'}</span>
       </div>
-      <div class="top-bar">
+
+      <div class="toolbar">
         <button class="bar-btn" title="Back to library (Esc)" onClick={onBack}>☰</button>
         <button class="bar-btn" title="Restart this problem" onClick={onRetry}>↺</button>
         <div class="nav-group">
@@ -393,6 +392,17 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
           <button class="bar-btn" title="Settings (Esc to close)" onClick={() => setShowConfig(c => !c)}>⚙</button>
           <button class="bar-btn" title="Show help" onClick={() => setShowHelp(h => !h)}>?</button>
         </div>
+      </div>
+
+      <div class="bottom-bar">
+        {(() => {
+          if (engine.finished) return <StatsBar engine={engine} times={timesRef.current} sgfId={sgfId} />
+          if (engine.moveIndex === 0) return <ModeChoice onStart={() => submitAnswer(0)} />
+          if (!engine.questionVertex) return engine.showingMove && showDuration !== 'manual'
+            ? <div class="answer-buttons" />
+            : <NextButton label="Next" onNext={() => submitAnswer(0)} />
+          return <AnswerButtons onAnswer={submitAnswer} blocked={engine.blockedAnswers} />
+        })()}
       </div>
 
       {showConfig && <ConfigPanel
@@ -442,17 +452,6 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
           <p>Wrong answer — that choice is now blocked. Pick a different answer. Each error adds a 5s penalty.</p>
         </div>
       </div>}
-      <div class="bottom-bar">
-        {(() => {
-          if (engine.finished) return <div class="answer-buttons" />
-          if (engine.moveIndex === 0) return <ModeChoice onStart={() => submitAnswer(0)} />
-          if (!engine.questionVertex) return engine.showingMove && showDuration !== 'manual'
-            ? <div class="answer-buttons" />
-            : <NextButton label="Next" onNext={() => submitAnswer(0)} />
-          return <AnswerButtons onAnswer={submitAnswer} blocked={engine.blockedAnswers} />
-        })()}
-      </div>
-      </div>
     </div>
   )
 }
