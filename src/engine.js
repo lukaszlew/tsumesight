@@ -168,6 +168,11 @@ export class QuizEngine {
     let trueSet = new Set(trueLibs.map(([x, y]) => `${x},${y}`))
 
     // Wrong marks (marked but not a liberty) + missed liberties (liberty but not marked)
+    // Store marks for review
+    let moveIdx = this.moveProgress.length - 1
+    this.questionsAsked[moveIdx][this.questionIndex].marks = [...markedSet]
+    this.questionsAsked[moveIdx][this.questionIndex].trueLibs = [...trueSet]
+
     let wrongMarks = 0
     for (let k of markedSet) if (!trueSet.has(k)) wrongMarks++
     let missed = 0

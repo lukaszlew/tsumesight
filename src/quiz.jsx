@@ -99,6 +99,7 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
       let scoreEntry = { accuracy, avgTimeMs: Math.round(avg), totalMs: Math.round(totalMs), errors: engine.errors, date: Date.now(), mode }
       onSolved(engine.correct, total, scoreEntry)
       playComplete()
+      if (markMode) setReviewStep(0)
     }
   }
 
@@ -227,7 +228,7 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
       }
       else if (e.key === ' ') {
         e.preventDefault()
-        if (engine.finished) setReviewStep(s => s === null ? 1 : s < totalReviewStepsRef.current ? s + 1 : 0)
+        if (engine.finished) setReviewStep(s => (s ?? 0) >= totalReviewStepsRef.current ? 0 : (s ?? 0) + 1)
         else if (!engine.questionVertex) submitAnswer(0)
       }
       else if (e.key === 'PageUp') { e.preventDefault(); onPrev() }
@@ -292,10 +293,10 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
 
   // Build display maps
   let size = engine.boardSize
-  let signMap, markerMap, ghostStoneMap
+  let signMap, markerMap, ghostStoneMap, paintMap
 
   if (engine.finished && reviewStep !== null) {
-    // Review mode: decode reviewStep into movesShown + questionsShown
+    // Review mode: decode reviewStep into movesShown + current question
     let parsed = parseSgf(sgf)
     let reviewBoard = Board.fromDimensions(size)
     for (let [x, y] of parsed.setupBlack) reviewBoard.set([x, y], 1)
@@ -303,40 +304,50 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
     let moves = parsed.moves.filter(m => m.vertex != null)
     markerMap = makeEmptyMap(size)
     ghostStoneMap = makeEmptyMap(size)
+    paintMap = makeEmptyMap(size)
 
-    let movesShown = 0, questionsShown = 0, remaining = reviewStep
+    let movesShown = 0, showingQuestion = null, remaining = reviewStep
     for (let i = 0; i < engine.totalMoves && remaining > 0; i++) {
       remaining--
       movesShown = i + 1
-      questionsShown = 0
+      showingQuestion = null
       let qCount = engine.questionsAsked[i]?.length || 0
-      let showQ = Math.min(remaining, qCount)
-      questionsShown = showQ
-      remaining -= showQ
+      for (let j = 0; j < qCount && remaining > 0; j++) {
+        remaining--
+        showingQuestion = { moveIdx: i, qIdx: j }
+      }
     }
 
     for (let i = 0; i < movesShown && i < moves.length; i++) {
       try { reviewBoard = reviewBoard.makeMove(moves[i].sign, moves[i].vertex) } catch { break }
-      let [x, y] = moves[i].vertex
-      if (reviewBoard.get(moves[i].vertex) !== 0)
-        markerMap[y][x] = { type: 'label', label: String(i + 1) }
     }
-    // Show question markers for the current move's revealed questions
-    if (movesShown > 0 && questionsShown > 0) {
-      let asked = engine.questionsAsked[movesShown - 1]
-      if (asked) for (let j = 0; j < questionsShown && j < asked.length; j++) {
-        let q = asked[j]
-        if (q.vertex) {
-          let [x, y] = q.vertex
-          if (reviewBoard.get(q.vertex) !== 0) markerMap[y][x] = { type: 'label', label: '❓' }
+
+    // Show color-coded marks for the current question
+    if (showingQuestion) {
+      let q = engine.questionsAsked[showingQuestion.moveIdx][showingQuestion.qIdx]
+      if (q.vertex) {
+        let [qx, qy] = q.vertex
+        markerMap[qy][qx] = { type: 'label', label: '❓' }
+      }
+      let marksSet = new Set(q.marks || [])
+      let trueSet = new Set(q.trueLibs || [])
+      for (let k of marksSet) {
+        let [x, y] = k.split(',').map(Number)
+        paintMap[y][x] = trueSet.has(k) ? 'rgba(0,200,0,0.5)' : 'rgba(200,0,0,0.5)'
+      }
+      for (let k of trueSet) {
+        if (!marksSet.has(k)) {
+          let [x, y] = k.split(',').map(Number)
+          paintMap[y][x] = 'rgba(0,200,0,0.25)'
         }
       }
     }
     signMap = reviewBoard.signMap
   } else {
-    signMap = engine.finished ? engine.trueBoard.signMap : engine.getDisplaySignMap()
+    signMap = engine.getDisplaySignMap()
     markerMap = makeEmptyMap(size)
     ghostStoneMap = makeEmptyMap(size)
+    paintMap = makeEmptyMap(size)
 
     // Show phase: opaque stone with move number for the just-played move
     if (engine.currentMove && engine.showingMove) {
@@ -375,22 +386,6 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
         }
       }
     }
-
-    // When finished but not reviewing, show all move numbers
-    if (engine.finished && reviewStep === null) {
-      let parsed = parseSgf(sgf)
-      let checkBoard = Board.fromDimensions(size)
-      for (let [x, y] of parsed.setupBlack) checkBoard.set([x, y], 1)
-      for (let [x, y] of parsed.setupWhite) checkBoard.set([x, y], -1)
-      let moves = parsed.moves.filter(m => m.vertex != null)
-      for (let i = 0; i < moves.length; i++) {
-        try { checkBoard = checkBoard.makeMove(moves[i].sign, moves[i].vertex) } catch { break }
-        let [x, y] = moves[i].vertex
-        if (checkBoard.get(moves[i].vertex) !== 0) {
-          markerMap[y][x] = { type: 'label', label: String(i + 1) }
-        }
-      }
-    }
   }
 
   return (
@@ -408,6 +403,7 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
             signMap={signMap}
             markerMap={markerMap}
             ghostStoneMap={ghostStoneMap}
+            paintMap={paintMap}
             onVertexClick={markMode ? onVertexClick : undefined}
             rangeX={rangeX}
             rangeY={rangeY}
@@ -447,6 +443,13 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
 
       <div class="bottom-bar">
         {(() => {
+          if (engine.finished && markMode) {
+            let atEnd = reviewStep >= totalReviewStepsRef.current
+            return <>
+              <StatsBar engine={engine} times={timesRef.current} sgfId={sgfId} />
+              <NextButton label={atEnd ? '↺' : 'Step'} onNext={() => setReviewStep(s => s >= totalReviewStepsRef.current ? 0 : s + 1)} />
+            </>
+          }
           if (engine.finished) return <StatsBar engine={engine} times={timesRef.current} sgfId={sgfId} />
           if (engine.moveIndex === 0) return <ModeChoice onStart={() => submitAnswer(0)} />
           if (markMode) return engine.questionVertex
