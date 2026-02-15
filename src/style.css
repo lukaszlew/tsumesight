@@ -480,7 +480,7 @@ body {
 .time-chart {
   width: 90%;
   overflow-x: auto;
-  padding: 0.25rem 0;
+  overflow-y: hidden;
   flex: 1;
   min-height: 0;
   cursor: grab;
@@ -488,6 +488,7 @@ body {
 }
 .time-chart svg {
   display: block;
+  height: 100%;
 }
 
 .scoring-title {

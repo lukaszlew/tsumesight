@@ -639,7 +639,7 @@ function TimeChart({ moveTiming, moves, reviewMoveIndex }) {
   let moveCount = moveTiming.length
   let barW = 10
   let barGap = 1
-  let [chartH, setChartH] = useState(120)
+  let chartH = 200
 
   // Count total bars per move (1 moveView + N questions), compute x offsets
   let moveOffsets = [] // [{x, barCount}]
@@ -667,18 +667,6 @@ function TimeChart({ moveTiming, moves, reviewMoveIndex }) {
   let onMouseDown = (e) => { dragRef.current = { x: e.clientX, scrollLeft: e.currentTarget.scrollLeft }; e.currentTarget.style.cursor = 'grabbing' }
   let onMouseMove = (e) => { if (!dragRef.current) return; e.currentTarget.scrollLeft = dragRef.current.scrollLeft - (e.clientX - dragRef.current.x) }
   let onMouseUp = (e) => { dragRef.current = null; e.currentTarget.style.cursor = '' }
-
-  // Dynamic chart height from container
-  useEffect(() => {
-    let el = chartRef.current
-    if (!el) return
-    let ro = new ResizeObserver(entries => {
-      let h = entries[0].contentRect.height
-      setChartH(Math.max(60, h - labelH - 8))
-    })
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
 
   // Auto-scroll to keep highlighted bar visible
   useEffect(() => {
