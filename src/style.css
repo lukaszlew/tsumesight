@@ -254,14 +254,14 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: calc(0.8 * var(--s));
+  gap: calc(2 * var(--s));
   width: 100%;
   padding: 0 calc(0.8 * var(--s));
   overflow: hidden;
   border-bottom: 1px solid rgba(140,110,50,.12);
 }
 .toolbar .bar-btn {
-  height: 90%;
+  height: 45%;
   aspect-ratio: 1;
   padding: 0;
   display: flex;
