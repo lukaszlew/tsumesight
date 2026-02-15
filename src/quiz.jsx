@@ -52,6 +52,8 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
   let [settingsHint, setSettingsHint] = useState(false)
   let [reviewStep, setReviewStep] = useState(null) // null = not reviewing
   let totalReviewStepsRef = useRef(0)
+  let [markedLiberties, setMarkedLiberties] = useState(new Set())
+  let markMode = true // TODO: make configurable, hardcoded for now
 
   // Initialize engine once (possibly replaying saved history)
   if (!engineRef.current && !error) {
@@ -165,6 +167,47 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
     rerender()
   }, [])
 
+  let submitMarks = useCallback(() => {
+    if (anyHintRef.current) return
+    if (!engine.questionVertex) return
+    let result = engine.answerMark(markedLiberties)
+    if (questionStartRef.current !== null) {
+      let elapsed = performance.now() - questionStartRef.current
+      timesRef.current.push(elapsed + result.penalties * 3000)
+      questionStartRef.current = null
+    }
+    historyRef.current.push(result.penalties === 0)
+    saveHistory(quizKey, historyRef.current)
+    if (result.penalties === 0) playCorrect()
+    else playWrong()
+    setMarkedLiberties(new Set())
+    if (result.done) {
+      engine.advance()
+      checkAdvanceHints()
+    }
+    let total = engine.questionsPerMove.reduce((a, b) => a + b, 0)
+    onProgress({ correct: engine.correct, done: engine.results.length, total })
+    checkFinished()
+    rerender()
+  }, [markedLiberties])
+
+  let onVertexClick = useCallback((evt, vertex) => {
+    if (!markMode || !engine.questionVertex) return
+    let [x, y] = vertex
+    // Clicking the questioned group's vertex submits
+    let qv = engine.questionVertex
+    if (x === qv[0] && y === qv[1]) { submitMarks(); return }
+    // Only allow toggling empty intersections
+    if (engine.trueBoard.get(vertex) !== 0) return
+    let key = `${x},${y}`
+    setMarkedLiberties(prev => {
+      let next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }, [markMode, submitMarks])
+
   // Keyboard shortcuts
   useEffect(() => {
     function onKeyDown(e) {
@@ -190,7 +233,7 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
       }
       else if (e.key === 'PageUp') { e.preventDefault(); onPrev() }
       else if (e.key === 'PageDown') { e.preventDefault(); onNext() }
-      else if (e.key >= '1' && e.key <= '5' && !engine.blockedAnswers.has(parseInt(e.key))) submitAnswer(parseInt(e.key))
+      else if (!markMode && e.key >= '1' && e.key <= '5' && !engine.blockedAnswers.has(parseInt(e.key))) submitAnswer(parseInt(e.key))
     }
     function onKeyUp(e) {
       if (e.key === '?') setPeeking(false)
@@ -203,11 +246,12 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
     }
   }, [submitAnswer])
 
-  // Start question timer when a question appears
+  // Start question timer / clear marks when a question appears
   useEffect(() => {
     if (!engine) return
     if (engine.questionVertex && questionStartRef.current === null) {
       questionStartRef.current = performance.now()
+      if (markMode) setMarkedLiberties(new Set())
       if (!kv('seenLibertyHint')) {
         kvSet('seenLibertyHint', '1')
         setModeHint(true)
@@ -324,6 +368,13 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
     } else if (engine.questionVertex) {
       let [x, y] = engine.questionVertex
       markerMap[y][x] = { type: 'label', label: '❓' }
+      // Show user-marked liberties as circles
+      if (markMode) {
+        for (let key of markedLiberties) {
+          let [mx, my] = key.split(',').map(Number)
+          markerMap[my][mx] = { type: 'circle' }
+        }
+      }
     }
 
     // When finished but not reviewing, show all move numbers
@@ -349,7 +400,7 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
         <div
           class={`board-container${wrongFlash ? ' wrong-flash' : ''}`}
           title="Hold to peek at hidden stones (?)"
-          onPointerDown={() => setPeeking(true)}
+          onPointerDown={() => { if (!markMode || !engine.questionVertex) setPeeking(true) }}
           onPointerUp={() => setPeeking(false)}
           onPointerLeave={() => setPeeking(false)}
         >
@@ -358,6 +409,7 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
             signMap={signMap}
             markerMap={markerMap}
             ghostStoneMap={ghostStoneMap}
+            onVertexClick={markMode ? onVertexClick : undefined}
             rangeX={rangeX}
             rangeY={rangeY}
             showCoordinates={false}
@@ -401,6 +453,7 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
           if (!engine.questionVertex) return engine.showingMove && showDuration !== 'manual'
             ? <div class="answer-buttons" />
             : <NextButton label="Next" onNext={() => submitAnswer(0)} />
+          if (markMode) return <div class="answer-buttons" />
           return <AnswerButtons onAnswer={submitAnswer} blocked={engine.blockedAnswers} />
         })()}
       </div>

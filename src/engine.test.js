@@ -148,6 +148,48 @@ describe('QuizEngine', () => {
     })
   })
 
+  describe('answerMark()', () => {
+    it('returns 0 penalties when all liberties correctly marked', () => {
+      let engine = new QuizEngine(simpleSgf)
+      engine.advance(); engine.activateQuestions() // B[ee]=[4,4], 4 liberties
+      let libs = engine.trueBoard.getLiberties([4, 4])
+      let marked = new Set(libs.map(([x, y]) => `${x},${y}`))
+      let result = engine.answerMark(marked)
+      expect(result.penalties).toBe(0)
+      expect(engine.correct).toBe(1)
+    })
+
+    it('penalizes wrong marks and missed liberties', () => {
+      let engine = new QuizEngine(simpleSgf)
+      engine.advance(); engine.activateQuestions() // B[ee]=[4,4], 4 liberties: [3,4],[5,4],[4,3],[4,5]
+      let marked = new Set(['3,4', '0,0']) // 1 correct, 1 wrong, 3 missed
+      let result = engine.answerMark(marked)
+      expect(result.penalties).toBe(4) // 1 wrong + 3 missed
+      expect(engine.errors).toBe(4)
+      expect(engine.wrong).toBe(1)
+    })
+
+    it('always advances to next question', () => {
+      let engine = new QuizEngine(simpleSgf)
+      engine.advance(); engine.activateQuestions()
+      let v1 = engine.questionVertex
+      engine.answerMark(new Set()) // all wrong, but still advances
+      expect(engine.questionVertex).not.toEqual(v1)
+    })
+
+    it('returns done when last question answered', () => {
+      let engine = new QuizEngine(simpleSgf)
+      engine.advance(); engine.activateQuestions()
+      // Answer all questions
+      while (engine.questionVertex) {
+        let libs = engine.trueBoard.getLiberties(engine.questionVertex)
+        let marked = new Set(libs.map(([x, y]) => `${x},${y}`))
+        let result = engine.answerMark(marked)
+        if (!engine.questionVertex) expect(result.done).toBe(true)
+      }
+    })
+  })
+
   describe('captures', () => {
     it('removes captured stones from trueBoard but keeps on display', () => {
       let engine = new QuizEngine(captureSgf)

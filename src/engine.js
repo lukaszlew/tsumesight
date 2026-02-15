@@ -157,6 +157,40 @@ export class QuizEngine {
     return this._answerLiberty(value)
   }
 
+  // Mark mode: user marks liberty positions on the board, then submits.
+  // markedSet: Set of "x,y" strings
+  // Returns { penalties, done }
+  answerMark(markedSet) {
+    let v = this.questionVertex
+    assert(v != null, 'No question to answer')
+
+    let trueLibs = this.trueBoard.getLiberties(v)
+    let trueSet = new Set(trueLibs.map(([x, y]) => `${x},${y}`))
+
+    // Wrong marks (marked but not a liberty) + missed liberties (liberty but not marked)
+    let wrongMarks = 0
+    for (let k of markedSet) if (!trueSet.has(k)) wrongMarks++
+    let missed = 0
+    for (let k of trueSet) if (!markedSet.has(k)) missed++
+    let penalties = wrongMarks + missed
+
+    this.errors += penalties
+    this.results.push(penalties === 0)
+    let mp = this.moveProgress[this.moveProgress.length - 1]
+    if (penalties === 0) {
+      this.correct++
+      mp.results.push('correct')
+    } else {
+      this.wrong++
+      mp.results.push('failed')
+    }
+
+    // Always advance to next question
+    this._advanceQuestion()
+    let done = this.questionIndex >= this.questions.length
+    return { penalties, done }
+  }
+
   _answerLiberty(liberties) {
     let v = this.questionVertex
     assert(v != null, 'No question to answer')
