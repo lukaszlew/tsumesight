@@ -378,11 +378,11 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
     } else if (engine.questionVertex) {
       let [x, y] = engine.questionVertex
       markerMap[y][x] = { type: 'label', label: '❓' }
-      // Show user-marked liberties as circles
+      // Show user-marked liberties as painted backgrounds
       if (markMode) {
         for (let key of markedLiberties) {
           let [mx, my] = key.split(',').map(Number)
-          markerMap[my][mx] = { type: 'circle' }
+          paintMap[my][mx] = 'rgba(100,150,255,0.4)'
         }
       }
     }
