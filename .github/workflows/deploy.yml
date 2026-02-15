@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
 
 permissions:
   contents: read
@@ -20,15 +20,29 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
+
+      # Build main branch
+      - uses: actions/checkout@v4
+        with:
+          ref: main
       - run: npm ci
-      - run: npm run build
+      - run: npx vite build --base /tsumesight/
+      - run: mv dist /tmp/site
+
+      # Build dev branch (if it exists)
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+      - run: npm ci
+      - run: npx vite build --base /tsumesight/dev/
+      - run: mv dist /tmp/site/dev
+
+      # Deploy combined artifact
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: /tmp/site
       - id: deployment
         uses: actions/deploy-pages@v4
