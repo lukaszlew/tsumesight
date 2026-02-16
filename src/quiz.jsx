@@ -2,11 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'preact/hooks'
 import { Goban } from '@sabaki/shudan'
 import { QuizEngine } from './engine.js'
 import { playCorrect, playWrong, playComplete, resetStreak } from './sounds.js'
-import { kv, kvSet, kvRemove, getScores } from './db.js'
-
-function saveHistory(quizKey, history) {
-  kvSet('quizHistory', JSON.stringify({ key: quizKey, history }))
-}
+import { kv, kvRemove, getScores } from './db.js'
 
 function makeEmptyMap(size, fill = null) {
   return Array.from({ length: size }, () => Array(size).fill(fill))
@@ -14,7 +10,6 @@ function makeEmptyMap(size, fill = null) {
 
 export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsolved, onProgress, onLoadError, onNextUnsolved }) {
   let engineRef = useRef(null)
-  let historyRef = useRef([])
   let solvedRef = useRef(false)
   let [, forceRender] = useState(0)
   let rerender = () => forceRender(n => n + 1)
@@ -87,8 +82,6 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       timesRef.current.push(elapsed + result.penalties * 3000)
       questionStartRef.current = null
     }
-    historyRef.current.push(result.penalties === 0)
-    saveHistory(quizKey, historyRef.current)
     if (result.penalties === 0) playCorrect()
     else {
       playWrong()

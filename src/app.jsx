@@ -162,7 +162,7 @@ export function App() {
     return (
       <ErrorBoundary onReset={clearSgf}>
         <Quiz key={`${active.id}:${attempt}`} quizKey={`${active.id}:${attempt}`} sgf={active.content}
-          sgfId={active.id} filename={active.filename} dirName={active.path}
+          sgfId={active.id}
           wasSolved={active.solved}
           onBack={clearSgf} onSolved={markSolved} onUnsolved={markUnsolved} onProgress={saveProgress} onLoadError={handleLoadError}
           onPrev={() => goStep(-1)} onNext={() => goStep(1)}

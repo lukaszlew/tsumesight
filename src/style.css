@@ -179,8 +179,11 @@ body {
   margin-top: 0.15rem;
 }
 .tile-best {
-  color: #c8a060;
   margin-left: 0.4rem;
+}
+.tile-perfect {
+  color: #4c4;
+  font-weight: 700;
 }
 .dir-tile {
   background: #1a2a3a;
@@ -273,7 +276,7 @@ body {
 }
 
 
-/* Quiz — 4-row grid: board / name / bottom-bar / empty */
+/* Quiz — 2-row grid: board / bottom-bar */
 
 .quiz {
   --s: min(1dvh, 1dvw);

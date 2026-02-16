@@ -6,6 +6,12 @@ import { decodeSgf } from './sgf-utils.js'
 
 const DEFAULT_URL = 'https://files.catbox.moe/v3phv1.zip'
 
+function scoreColor(accuracy) {
+  if (accuracy >= 0.8) return '#c8a060'
+  if (accuracy >= 0.5) return '#c80'
+  return '#c44'
+}
+
 let numInParens = /^(.*\()(\d+)(\)\..+)$/
 
 function padFilenames(records) {
@@ -367,7 +373,9 @@ export function Library({ onSelect, initialPath = '' }) {
                 <div class="tile-name">{name}</div>
                 <div class="tile-meta">
                   {s.moveCount}m
-                  {best ? <span class="tile-best">{Math.round(best.accuracy * 100)}%</span> : ''}
+                  {best ? <span class={`tile-best${best.accuracy >= 1 ? ' tile-perfect' : ''}`}
+                    style={best.accuracy < 1 ? { color: scoreColor(best.accuracy) } : undefined}
+                  >{Math.round(best.accuracy * 100)}%</span> : ''}
                 </div>
               </div>
             )
