@@ -11,6 +11,7 @@ body {
   background: #1c1a18;
   color: #e0e0e0;
   font-variant-numeric: tabular-nums;
+  font-size: 18px;
 }
 
 #app {
