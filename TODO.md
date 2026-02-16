@@ -1,33 +1,31 @@
 # TODO
 
-LL: Handle multiple variations through DFS and undo
+ <!-- Support branched SGF trees. Traverse variations via DFS, allow undo to explore alternate lines. -->
 
-LL: We need tooltips on everything that is unclear including all the buttons and move numbers on the tiles and the percentages etc. go through the whole UI. And suggest where we could put tooltips and how to make them more discoverable and overall how to teach the application in the learn by doing way.
+<!-- Spec: Cross-device sync for library and scores (e.g., cloud storage, export/import, or sync protocol). -->
 
-LL: In order to submit liberties we should press a button that is on the group itself, but I don't know how to teach user that they should click the question mark. Let's brainstorm here.
+Spec: Add tooltips to all non-obvious UI elements (buttons, tile numbers, percentages, move numbers). Design for learn-by-doing discoverability.
 
-LL: Font should be bigger on mobile it is somehow small at least on my my high resolution mobile.
+Spec: Place liberty submit action on the questioned group itself (tap the question mark on board). Needs onboarding UX to teach this interaction.
 
-LL: There should be no vibration on the long click.
+Spec: Suppress haptic feedback on long-press on go stones gesture.
 
-LL: We shouldn't have to hold to see the liberties. It should be a toggle
+Spec: In review mode, tap a group to toggle liberty display on/off (replace current hold-to-show).
 
-LL: When we move back from the replay to the problem, we have lost the state of the last solution. The replay should be just temporary thing and that state should not be touched at all.
+Spec: Replay must be a temporary overlay. Exiting replay restores the original finished state (engine, scores, review markers) exactly as before replay started.
 
-LL: There should be an option to hide a board so that the user can exercise from the beginning without interaction with the app. However, the second option is to require as a second phase re-entering the sequence, perhaps even it should be a first phase
+Spec: Blind mode — hide board and let user mentally replay the sequence. Optionally require re-entering the move sequence as a quiz phase (before or after liberty questions).
 
-LL: I should have somehow resolved sharing of the data between my phone, my local laptop, and my Chrome on laptop
+Spec: Compute a difficulty score per problem (e.g., move count, board complexity, liberty ranges, group count).
 
-LL: I should try to find some characteristics to classify the difficulty of the problem
+Spec: Minimize Shudan board padding/borders to maximize board size on screen. Rotate the board if needed
 
-LL: We should make sure the margins on the bored are as small as possible.
+Spec: Add back comparative question mode — "which group has more liberties?" User taps one of two highlighted groups. Reduces clicking tedium for high-liberty groups.
 
-LL: Clicking time of all the liberties as long we should find ways to prune the amount of questions. We should again try asking which of the two groups have more liberties and this time clicking one of them on board
+Spec: Auto-rotate board 90 degrees when the problem fits.
 
-LL: We should be rotating the boards if they fit mobile better this way,
+Spec: Show a back-to-library button on the finished/scores screen.
 
-LL: There should be back button when the problem is solved
+Spec: Mid-quiz replay — allow reviewing the move sequence while answering liberty questions without resetting progress.
 
-LL: When already answering the liberties just should be an option of seeing the sequence again. And not losing already answered questions.
-
-LL: Perhaps there should be a button to try again after the problem is solved
+Spec: Add a "Retry" button on the finished screen to re-attempt the same problem.
