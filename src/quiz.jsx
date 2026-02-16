@@ -301,20 +301,12 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
       markerMap[y][x] = { type: 'label', label: q.correct ? '✓' : '✗' }
     }
 
-    // Clicked question: show true liberties as ghost stones + wrong marks
+    // Clicked question: show user's marks (same visual as during play)
     if (reviewVertex && qByVertex.has(reviewVertex)) {
       let q = qByVertex.get(reviewVertex)
-      let trueSet = new Set(q.trueLibs || [])
-      let marksSet = new Set(q.marks || [])
-      for (let k of trueSet) {
+      for (let k of (q.marks || [])) {
         let [x, y] = k.split(',').map(Number)
-        if (signMap[y][x] === 0) ghostStoneMap[y][x] = { sign: 1, type: 'good' }
-      }
-      for (let k of marksSet) {
-        if (!trueSet.has(k)) {
-          let [x, y] = k.split(',').map(Number)
-          if (signMap[y][x] === 0) ghostStoneMap[y][x] = { sign: 1, type: 'interesting' }
-        }
+        if (signMap[y][x] === 0) ghostStoneMap[y][x] = { sign: 1, type: 'interesting' }
       }
     }
   } else {

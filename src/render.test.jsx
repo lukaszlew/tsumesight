@@ -616,15 +616,9 @@ function buildFinishedMaps(engine, reviewVertex = null) {
     let q = qByVertex.get(reviewVertex)
     let trueSet = new Set(q.trueLibs || [])
     let marksSet = new Set(q.marks || [])
-    for (let k of trueSet) {
-      let [x, y] = k.split(',').map(Number)
-      if (signMap[y][x] === 0) ghostStoneMap[y][x] = { sign: 1, type: 'good' }
-    }
     for (let k of marksSet) {
-      if (!trueSet.has(k)) {
-        let [x, y] = k.split(',').map(Number)
-        if (signMap[y][x] === 0) ghostStoneMap[y][x] = { sign: 1, type: 'interesting' }
-      }
+      let [x, y] = k.split(',').map(Number)
+      if (signMap[y][x] === 0) ghostStoneMap[y][x] = { sign: 1, type: 'interesting' }
     }
   }
 
@@ -854,25 +848,24 @@ describe('QuizEngine → Goban integration: finished review', () => {
         expect(typeof cell !== 'string').toBe(true)
   })
 
-  it('clicking a question vertex shows liberty ghosts', () => {
+  it('clicking a question vertex shows user marks as interesting ghosts', () => {
     let engine = playToFinish(SGF_5x5)
-    let q = engine.questionsAsked.flat().find(q => q.vertex && q.trueLibs)
+    let q = engine.questionsAsked.flat().find(q => q.vertex && q.marks && q.marks.length > 0)
     if (!q) return
     let rv = `${q.vertex[0]},${q.vertex[1]}`
     let maps = buildFinishedMaps(engine, rv)
     let c = renderGoban(maps)
-    // True liberties should have ghost_good class
-    let trueSet = new Set(q.trueLibs)
-    let goodCount = 0
-    for (let k of trueSet) {
+    // User marks shown as interesting ghosts (same as play mode)
+    let markCount = 0
+    for (let k of q.marks) {
       let [x, y] = k.split(',').map(Number)
-      let v = getVertex(c, x, y)
       if (maps.signMap[y][x] === 0) {
-        expect(v.classList.contains('shudan-ghost_good')).toBe(true)
-        goodCount++
+        let v = getVertex(c, x, y)
+        expect(v.classList.contains('shudan-ghost_interesting')).toBe(true)
+        markCount++
       }
     }
-    expect(goodCount).toBeGreaterThan(0)
+    expect(markCount).toBeGreaterThan(0)
   })
 
   it('wrong marks show as interesting ghosts (same blue as play mode)', () => {
@@ -1030,7 +1023,7 @@ describe('display map integrity', () => {
     }
   })
 
-  it('true liberties shown as good, wrong marks as interesting (same as play)', () => {
+  it('review shows only user marks as interesting ghosts (same as play)', () => {
     // Engine where user marks only SOME liberties and one wrong vertex
     let engine = new QuizEngine(SGF_5x5, 'liberty-end', true, 2)
     while (!engine.finished) {
@@ -1051,20 +1044,20 @@ describe('display map integrity', () => {
     let c = renderGoban(maps)
     let trueSet = new Set(q.trueLibs)
     let marksSet = new Set(q.marks)
-    // All true liberties → green (good), whether user found them or not
-    for (let k of trueSet) {
-      let [x, y] = k.split(',').map(Number)
-      if (maps.signMap[y][x] !== 0) continue
-      let v = getVertex(c, x, y)
-      expect(v.classList.contains('shudan-ghost_good')).toBe(true)
-    }
-    // Wrong marks → blue (interesting), same color as during play
+    // All user marks → interesting ghosts
     for (let k of marksSet) {
-      if (trueSet.has(k)) continue
       let [x, y] = k.split(',').map(Number)
       if (maps.signMap[y][x] !== 0) continue
       let v = getVertex(c, x, y)
       expect(v.classList.contains('shudan-ghost_interesting')).toBe(true)
+    }
+    // Unmarked true liberties → no ghost
+    for (let k of trueSet) {
+      if (marksSet.has(k)) continue
+      let [x, y] = k.split(',').map(Number)
+      if (maps.signMap[y][x] !== 0) continue
+      let v = getVertex(c, x, y)
+      expect(v.querySelector('.shudan-ghost')).toBeNull()
     }
   })
 
