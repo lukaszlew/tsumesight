@@ -270,23 +270,34 @@ export function Library({ onSelect, initialPath = '' }) {
     <div class="library">
       <h1>TsumeSight</h1>
 
+      {filesHere.length > 0 && (() => {
+        let unsolved = filesHere.find(s => !s.solved)
+        if (unsolved) {
+          let select = () => onSelect({ id: unsolved.id, content: unsolved.content, path: unsolved.path || '', filename: unsolved.filename })
+          return <button class="next-hero" title="First unsolved problem" onClick={select}>Next</button>
+        }
+        let imperfect = filesHere.find(s => { let b = getBestScore(s.id); return !b || b.accuracy < 1 })
+        if (imperfect) {
+          let select = () => onSelect({ id: imperfect.id, content: imperfect.content, path: imperfect.path || '', filename: imperfect.filename })
+          return <button class="next-hero" title="All solved — first without 100% accuracy" onClick={select}>Next</button>
+        }
+        return <div class="complete-badge">All Perfect</div>
+      })()}
+
       <div class="upload-row">
-        <label class="upload-btn">
+        <label class="upload-sm">
           Upload files
           <input type="file" accept=".sgf,.zip,.tar.gz,.tgz,.tar" multiple onChange={handleFiles} hidden />
         </label>
-        <button class="upload-btn" onClick={handleFolder}>
-          Upload folder
-        </button>
-        <span class="upload-hint">SGF, ZIP, tar.gz</span>
-        {canInstall && <button class="upload-btn" onClick={handleInstall}>Add to Home Screen</button>}
+        <button class="upload-sm" onClick={handleFolder}>Folder</button>
+        <form class="url-row-inline" onSubmit={handleUrl}>
+          <input class="url-input" type="text" placeholder="URL..." name="url"
+            value={sgfs.length === 0 && !loading ? DEFAULT_URL : undefined} />
+          <button class="upload-sm" type="submit">Fetch</button>
+        </form>
+        {canInstall && <button class="upload-sm" onClick={handleInstall}>Install</button>}
         <button class="delete-btn" title="Delete all data and re-download defaults" onClick={handleReset}>Reset</button>
       </div>
-      <form class="url-row" onSubmit={handleUrl}>
-        <input class="url-input" type="text" placeholder="Paste URL to SGF or archive..." name="url"
-          value={sgfs.length === 0 && !loading ? DEFAULT_URL : undefined} />
-        <button class="upload-btn" type="submit">Fetch</button>
-      </form>
 
       {importing && (
         <p class="loading">Importing {importing.done}/{importing.total}...</p>
@@ -309,19 +320,6 @@ export function Library({ onSelect, initialPath = '' }) {
             {filesHere.some(s => !s.solved && s.done > 0) ? '/' + filesHere.filter(s => !s.solved && s.done > 0).length : ''}
             /{filesHere.length}
           </span>
-          {filesHere.length > 0 && (() => {
-            let unsolved = filesHere.find(s => !s.solved)
-            if (unsolved) {
-              let select = () => onSelect({ id: unsolved.id, content: unsolved.content, path: unsolved.path || '', filename: unsolved.filename })
-              return <button class="next-btn" title="First unsolved problem" onClick={select}>Next</button>
-            }
-            let imperfect = filesHere.find(s => { let b = getBestScore(s.id); return !b || b.accuracy < 1 })
-            if (imperfect) {
-              let select = () => onSelect({ id: imperfect.id, content: imperfect.content, path: imperfect.path || '', filename: imperfect.filename })
-              return <button class="next-btn" title="All solved — first without 100% accuracy" onClick={select}>Next</button>
-            }
-            return <span class="complete-badge">All Perfect</span>
-          })()}
         </div>
       )}
 
