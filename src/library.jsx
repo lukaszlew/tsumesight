@@ -289,12 +289,12 @@ export function Library({ onSelect, initialPath = '' }) {
           Upload files
           <input type="file" accept=".sgf,.zip,.tar.gz,.tgz,.tar" multiple onChange={handleFiles} hidden />
         </label>
-        <button class="upload-sm" onClick={handleFolder}>Folder</button>
-        <form class="url-row-inline" onSubmit={handleUrl}>
-          <input class="url-input" type="text" placeholder="URL..." name="url"
-            value={sgfs.length === 0 && !loading ? DEFAULT_URL : undefined} />
-          <button class="upload-sm" type="submit">Fetch</button>
-        </form>
+        <button class="upload-sm" onClick={handleFolder}>Upload folder</button>
+        <button class="upload-sm" onClick={() => {
+          let url = prompt('Enter URL to SGF or archive:',
+            sgfs.length === 0 ? DEFAULT_URL : '')
+          if (url) handleUrl({ preventDefault() {}, target: { elements: { url: { value: url } } } })
+        }}>Upload from URL</button>
         {canInstall && <button class="upload-sm" onClick={handleInstall}>Install</button>}
         <button class="delete-btn" title="Delete all data and re-download defaults" onClick={handleReset}>Reset</button>
       </div>
