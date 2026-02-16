@@ -207,7 +207,6 @@ body {
   transform: scale(0.97);
 }
 .tile-solved {
-  border-left-color: #4c4;
 }
 .tile-num {
   font-size: 1rem;

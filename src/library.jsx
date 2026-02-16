@@ -410,9 +410,9 @@ export function Library({ onSelect, initialPath = '' }) {
               <div key={s.id} class={`tile file-tile${s.solved ? ' tile-solved' : ''}`}
                 onClick={() => onSelect({ id: s.id, content: s.content, path: s.path || '', filename: s.filename, solved: s.solved })} {...lp}>
                 <span class="tile-num">{s.moveCount || '?'}</span>
-                {best && <span class={`tile-acc${best.accuracy >= 1 ? ' tile-perfect' : ''}`}
-                  style={best.accuracy < 1 ? { color: scoreColor(best.accuracy) } : undefined}
-                >{Math.round(best.accuracy * 100)}%</span>}
+                <span class={`tile-acc${best && best.accuracy >= 1 ? ' tile-perfect' : ''}`}
+                  style={best && best.accuracy < 1 ? { color: scoreColor(best.accuracy) } : undefined}
+                >{best ? Math.round(best.accuracy * 100) + '%' : ''}</span>
               </div>
             )
           })}
