@@ -154,11 +154,16 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
   useEffect(() => {
     function onKeyDown(e) {
       if (e.key === 'Escape') { e.preventDefault(); onBack() }
-      else if (e.key === ' ') { e.preventDefault(); advance() }
+      else if (e.key === ' ') {
+        e.preventDefault()
+        if (engine.finished) onNextUnsolved()
+        else if (engine.questionVertex) submitMarks()
+        else advance()
+      }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [advance])
+  }, [advance, submitMarks])
 
   // Start question timer / clear marks when a question appears
   useEffect(() => {
