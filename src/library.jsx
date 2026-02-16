@@ -85,6 +85,7 @@ export function Library({ onSelect, initialPath = '' }) {
   let [importing, setImporting] = useState(null) // { done, total } or null
   let [cwd, setCwd] = useState(initialPath)
   let [canInstall, setCanInstall] = useState(!!deferredPrompt)
+  let [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => {
     let onPrompt = (e) => { e.preventDefault(); deferredPrompt = e; setCanInstall(true) }
@@ -311,21 +312,29 @@ export function Library({ onSelect, initialPath = '' }) {
         return <div class="complete-badge">All Perfect</div>
       })()}
 
-      <div class="upload-row">
-        <label class="upload-sm">
-          Upload files
-          <input type="file" accept=".sgf,.zip,.tar.gz,.tgz,.tar" multiple onChange={handleFiles} hidden />
-        </label>
-        <button class="upload-sm" onClick={handleFolder}>Upload folder</button>
-        <button class="upload-sm" onClick={() => {
-          let url = prompt('Enter URL to SGF or archive:', DEFAULT_URL)
-          if (url) handleUrl({ preventDefault() {}, target: { elements: { url: { value: url } } } })
-        }}>Upload from URL</button>
-        {canInstall && <button class="upload-sm" onClick={handleInstall}>Install</button>}
-        <button class="upload-sm reset-btn" title="Delete all data and re-download defaults" onClick={handleReset}>Reset</button>
-        {isDev
-          ? <a class="version-link" href="../">Go to Prod</a>
-          : <a class="version-link" href="dev/">Go to Dev</a>}
+      <div class="menu-wrap">
+        <button class="menu-toggle" onClick={() => setMenuOpen(v => !v)}>☰</button>
+        {menuOpen && <>
+          <div class="menu-backdrop" onClick={() => setMenuOpen(false)} />
+          <div class="menu-dropdown">
+            <label class="menu-item">
+              Upload files
+              <input type="file" accept=".sgf,.zip,.tar.gz,.tgz,.tar" multiple onChange={e => { setMenuOpen(false); handleFiles(e) }} hidden />
+            </label>
+            <button class="menu-item" onClick={() => { setMenuOpen(false); handleFolder() }}>Upload folder</button>
+            <button class="menu-item" onClick={() => {
+              setMenuOpen(false)
+              let url = prompt('Enter URL to SGF or archive:', DEFAULT_URL)
+              if (url) handleUrl({ preventDefault() {}, target: { elements: { url: { value: url } } } })
+            }}>Upload from URL</button>
+            {canInstall && <button class="menu-item" onClick={() => { setMenuOpen(false); handleInstall() }}>Install app</button>}
+            <button class="menu-item menu-danger" onClick={() => { setMenuOpen(false); handleReset() }}>Reset all data</button>
+            <div class="menu-sep" />
+            {isDev
+              ? <a class="menu-item" href="../">Go to Prod</a>
+              : <a class="menu-item" href="dev/">Go to Dev</a>}
+          </div>
+        </>}
       </div>
 
       {importing && (

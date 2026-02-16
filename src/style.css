@@ -27,6 +27,9 @@ body {
 
 /* Library */
 
+.library {
+  position: relative;
+}
 .library h1 {
   text-align: center;
   margin-bottom: 1.5rem;
@@ -81,45 +84,70 @@ body {
   transform: scale(0.97);
 }
 
-.upload-row {
-  display: flex;
-  gap: 0.4rem;
-  margin-bottom: 1rem;
-  justify-content: center;
-  align-items: center;
-  flex-wrap: wrap;
+/* Hamburger menu */
+.menu-wrap {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
 }
-.upload-sm {
-  text-align: center;
-  padding: 0.3rem 0.7rem;
-  background: #333;
-  color: #aaa;
-  border: 1px solid #444;
-  border-radius: 4px;
+.menu-toggle {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 1.5rem;
   cursor: pointer;
-  font-size: 0.75rem;
-  transition: all 0.15s ease;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  line-height: 1;
 }
-.upload-sm:hover {
-  background: #444;
-  color: #ddd;
+.menu-toggle:hover {
+  color: #ccc;
+  background: #333;
 }
-.reset-btn {
-  color: #a66;
-  border-color: #644;
+.menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
 }
-.reset-btn:hover {
-  color: #f88;
-  background: #433;
+.menu-dropdown {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 100;
+  background: #2a2826;
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 0.3rem 0;
+  min-width: 180px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.5);
 }
-.version-link {
-  font-size: 0.65rem;
-  color: #666;
+.menu-item {
+  display: block;
+  width: 100%;
+  padding: 0.6rem 1rem;
+  background: none;
+  border: none;
+  color: #ccc;
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
   text-decoration: none;
-  letter-spacing: 0.05em;
 }
-.version-link:hover {
-  color: #999;
+.menu-item:hover {
+  background: #383530;
+  color: #fff;
+}
+.menu-danger {
+  color: #a66;
+}
+.menu-danger:hover {
+  color: #f88;
+  background: #3a2525;
+}
+.menu-sep {
+  height: 1px;
+  background: #444;
+  margin: 0.3rem 0;
 }
 
 .empty-msg, .loading {
