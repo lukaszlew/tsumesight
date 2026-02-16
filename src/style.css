@@ -195,10 +195,9 @@ body {
 }
 .file-tile {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   min-height: 2.6rem;
-  padding: 0.5rem 0.6rem;
+  padding: 0.5rem 0;
 }
 .tile:hover {
   background: #2e2c28;
@@ -217,6 +216,7 @@ body {
   line-height: 1;
   width: 40%;
   text-align: center;
+  padding: 0 0.6rem;
 }
 .tile-solved .tile-num {
   color: #bbb;
@@ -227,6 +227,7 @@ body {
   color: #c8a060;
   width: 60%;
   text-align: center;
+  padding: 0 0.6rem;
   border-left: 2px solid;
   border-image: linear-gradient(to bottom, transparent, #887, transparent) 1;
 }
