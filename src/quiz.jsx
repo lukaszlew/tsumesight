@@ -103,9 +103,6 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       advance()
       return
     }
-    // Clicking the questioned group's vertex submits
-    let qv = engine.questionVertex
-    if (vertex[0] === qv[0] && vertex[1] === qv[1]) { submitMarks(); return }
     // Toggle liberty mark
     setMarkedLiberties(prev => {
       let next = new Set(prev)
@@ -113,7 +110,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       else next.add(key)
       return next
     })
-  }, [submitMarks, advance])
+  }, [advance])
 
   // Review mode: hold to show liberties
   let onVertexPointerDown = useCallback((evt, vertex) => {
@@ -148,12 +145,15 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     function onKeyDown(e) {
       if (e.repeat) return
       if (e.key === 'Escape') { e.preventDefault(); onBack() }
-      else if (e.key === 'Enter' && preSolve) { e.preventDefault(); toggleSolved() }
-      else if (e.key === ' ') {
+      else if (e.key === 'Enter') {
         e.preventDefault()
         if (engine.finished) onNextUnsolved()
         else if (engine.questionVertex) submitMarks()
-        else advance()
+        else if (preSolve) toggleSolved()
+      }
+      else if (e.key === ' ') {
+        e.preventDefault()
+        if (!engine.finished && !engine.questionVertex) advance()
       }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -297,12 +297,14 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
               <StatsBar sgfId={sgfId} />
               <button class="next-hero" onClick={onNextUnsolved}>Next</button>
             </>
-          : preSolve
-            ? <div class="bottom-bar-row">
-                <button class="bar-btn" onClick={onBack}>&#x25C2; Back</button>
-                <button class="bar-btn mark-solved-btn" onClick={toggleSolved}>{wasSolved ? 'Mark as unsolved' : 'Mark as solved'}</button>
-              </div>
-            : null
+          : engine.questionVertex
+            ? <button class="next-hero" onClick={submitMarks}>Submit</button>
+            : preSolve
+              ? <div class="bottom-bar-row">
+                  <button class="bar-btn" onClick={onBack}>&#x25C2; Back</button>
+                  <button class="bar-btn mark-solved-btn" onClick={toggleSolved}>{wasSolved ? 'Mark as unsolved' : 'Mark as solved'}</button>
+                </div>
+              : null
         }
       </div>
     </div>
