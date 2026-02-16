@@ -1,24 +1,26 @@
 # TODO
 
-## Needs conversation
+## Skip for now
 
 Spec: Support branched SGF trees. Traverse variations via DFS, allow undo to explore alternate lines.
 
 Spec: Cross-device sync for library and scores (e.g., cloud storage, export/import, or sync protocol).
 
-Spec: Add tooltips to all non-obvious UI elements (buttons, tile numbers, percentages, move numbers). Design for learn-by-doing discoverability.
+Spec: Blind mode — starts from initial position, user guesses moves similar to liberty guessing. Needs experimentation to find the right format.
 
-Spec: Place liberty submit action on the questioned group itself (tap the question mark on board). Needs onboarding UX to teach this interaction.
+Spec: Difficulty heuristic — primary factor is move count, secondary is number of small-liberty small groups. Needs experimentation. Display on tiles for now.
 
-Spec: Blind mode — hide board and let user mentally replay the sequence. Optionally require re-entering the move sequence as a quiz phase (before or after liberty questions).
+## Needs more design
 
-Spec: Compute a difficulty score per problem (e.g., move count, board complexity, liberty ranges, group count).
-
-Spec: Add back comparative question mode — "which group has more liberties?" User taps one of two highlighted groups. Reduces clicking tedium for high-liberty groups.
-
-Spec: Mid-quiz replay — allow reviewing the move sequence while answering liberty questions without resetting progress.
+Spec: Comparative question mode — new mode selectable from menu. After each move, highlight 2 opposite-color groups, user taps the one with more liberties. If only 1 changed group, skip question. Pair selection heuristic: prefer small liberty difference, tiebreak by last-move group. Build spanning tree on group adjacency graph to select pairs. More design needed on pair selection.
 
 ## Can implement now
+
+Spec: Tooltips for Go players new to the app. Standard tooltip behavior on all non-obvious UI elements (buttons, tile numbers, percentages). Users know Go but not what to do on each screen.
+
+Spec: Submit liberties by tapping the question mark on the questioned group. Require minimum 1 mark before tap submits. Remove the separate Submit button.
+
+Spec: Mid-quiz replay — "replay" button during liberty questions resets board to initial position, user taps through the full sequence, then returns to the question. No progress lost.
 
 Spec: Suppress haptic feedback on long-press on go stones gesture.
 
