@@ -275,7 +275,7 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
       markerMap[y][x] = { type: 'label', label: '❓' }
       for (let key of markedLiberties) {
         let [mx, my] = key.split(',').map(Number)
-        if (signMap[my][mx] === 0) ghostStoneMap[my][mx] = { sign: 1, type: 'interesting' }
+        if (signMap[my][mx] === 0) markerMap[my][mx] = { type: 'circle' }
       }
     }
   }
