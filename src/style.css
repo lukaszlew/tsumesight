@@ -529,7 +529,7 @@ body {
   filter: drop-shadow(0 0 1px #000);
 }
 /* Error crosses: red in review */
-.board-container.finished .shudan-vertex.shudan-marker_cross .shudan-marker line {
+.board-container.finished .shudan-vertex.shudan-marker_cross .shudan-marker path {
   stroke: #f44 !important;
   stroke-width: 3px;
   filter: drop-shadow(0 0 1px #000);
