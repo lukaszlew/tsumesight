@@ -216,7 +216,7 @@ body {
   color: #bbb;
   line-height: 1;
   width: 40%;
-  text-align: left;
+  text-align: center;
 }
 .tile-solved .tile-num {
   color: #bbb;
@@ -225,9 +225,10 @@ body {
   font-size: 0.75rem;
   font-weight: 600;
   color: #c8a060;
+  width: 60%;
+  text-align: center;
   border-left: 2px solid;
-  border-image: linear-gradient(to bottom, transparent, #665, transparent) 1;
-  padding-left: 0.4rem;
+  border-image: linear-gradient(to bottom, transparent, #887, transparent) 1;
 }
 .tile-perfect {
   color: #4c4;
