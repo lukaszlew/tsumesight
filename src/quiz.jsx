@@ -145,15 +145,17 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
     })
   }, [submitMarks, advance])
 
-  let skip = useCallback(() => {
+  let markSolved = useCallback(() => {
     onSolved(0, 0, null)
     onNextUnsolved()
   }, [])
 
   // Keyboard shortcuts
   useEffect(() => {
+    let preSolve = !engine.finished && engine.results.length === 0
     function onKeyDown(e) {
       if (e.key === 'Escape') { e.preventDefault(); onBack() }
+      else if (e.key === 'Enter' && preSolve) { e.preventDefault(); markSolved() }
       else if (e.key === ' ') {
         e.preventDefault()
         if (engine.finished) onNextUnsolved()
@@ -313,7 +315,7 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
               <button class="bar-btn ctx-btn" onClick={onNextUnsolved}>Next</button>
             </>
           : preSolve
-            ? <button class="bar-btn ctx-btn" onClick={skip}>Skip</button>
+            ? <button class="bar-btn mark-solved-btn" onClick={markSolved}>✓ Mark as solved</button>
             : null
         }
       </div>

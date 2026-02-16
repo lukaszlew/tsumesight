@@ -103,27 +103,60 @@ body {
   letter-spacing: 0.05em;
 }
 
-.sgf-table {
-  width: 100%;
-  border-collapse: collapse;
+.tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 1rem;
 }
-.sgf-table th {
-  text-align: left;
-  padding: 0.5rem;
-  border-bottom: 1px solid #444;
-  color: #aaa;
-  font-size: 0.85rem;
-}
-.sgf-table td {
-  padding: 0.5rem;
-  border-bottom: 1px solid #333;
-}
-.sgf-row {
+.tile {
+  background: #252320;
+  border: 1px solid #3a3835;
+  border-left: 3px solid #3a3835;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: all 0.15s ease;
+  min-width: 0;
+  -webkit-user-select: none;
+  user-select: none;
 }
-.sgf-row:hover {
-  background: #2a2826;
+.tile:hover {
+  background: #2e2c28;
+  border-color: #4a4845;
+}
+.tile:active {
+  transform: scale(0.97);
+}
+.tile-solved {
+  border-left-color: #4c4;
+}
+.tile-name {
+  font-size: 0.85rem;
+  color: #ccc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tile-solved .tile-name {
+  color: #8a8;
+}
+.tile-meta {
+  font-size: 0.75rem;
+  color: #888;
+  margin-top: 0.15rem;
+}
+.tile-best {
+  color: #c8a060;
+  margin-left: 0.4rem;
+}
+.dir-tile {
+  background: #1a2a3a;
+  border-color: #2a3a4a;
+}
+.dir-tile:hover {
+  background: #253d54;
+  border-color: #3a5a7a;
 }
 
 .breadcrumbs {
@@ -164,12 +197,6 @@ body {
 .dir-stats {
   margin-left: auto;
   color: #999;
-}
-.dir-row td {
-  color: #aaa;
-}
-.solved-row td {
-  color: #686;
 }
 .score-good {
   color: #4c4;
@@ -275,12 +302,23 @@ body {
   transform: scale(0.9);
 }
 
-/* Contextual button (Skip / Next) */
+/* Contextual button (Next) */
 .ctx-btn {
   padding: calc(1.5 * var(--s)) calc(4 * var(--s));
   font-size: calc(2.5 * var(--s));
   border-radius: calc(1 * var(--s));
   margin-top: calc(1 * var(--s));
+}
+
+/* Mark as solved — side-aligned, green accent */
+.mark-solved-btn {
+  align-self: flex-end;
+  margin-right: calc(3 * var(--s));
+  padding: calc(1 * var(--s)) calc(2 * var(--s));
+  font-size: calc(1.8 * var(--s));
+  border-radius: calc(0.8 * var(--s));
+  border-color: #4c4;
+  color: #4c4;
 }
 
 .problem-name {

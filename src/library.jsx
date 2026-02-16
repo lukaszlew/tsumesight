@@ -60,13 +60,13 @@ async function collectSgfFiles(dirHandle, path) {
   return results
 }
 
-function ScoreCells({ correct, done, total }) {
-  if (!done && !total) return <><td></td><td></td><td></td></>
-  return <>
-    <td class="score-good">{correct || 0}</td>
-    <td>{done || 0}</td>
-    <td>{total}</td>
-  </>
+function useLongPress(callback, ms = 500) {
+  let timer = null
+  let onDown = (e) => {
+    timer = setTimeout(() => { timer = null; callback(e) }, ms)
+  }
+  let cancel = () => { if (timer) { clearTimeout(timer); timer = null } }
+  return { onPointerDown: onDown, onPointerUp: cancel, onPointerLeave: cancel, onPointerCancel: cancel }
 }
 
 let deferredPrompt = null
@@ -212,15 +212,13 @@ export function Library({ onSelect, initialPath = '' }) {
     }
   }
 
-  let handleDelete = async (e, id, name) => {
-    e.stopPropagation()
+  let handleDelete = async (id, name) => {
     if (!confirm(`Delete "${name}"?`)) return
     await deleteSgf(id)
     refresh()
   }
 
-  let handleDeleteDir = async (e, dirPath, dirName) => {
-    e.stopPropagation()
+  let handleDeleteDir = async (dirPath, dirName) => {
     if (!confirm(`Delete folder "${dirName}" and all its contents?`)) return
     await deleteSgfsByPrefix(dirPath)
     refresh()
@@ -318,52 +316,41 @@ export function Library({ onSelect, initialPath = '' }) {
 
       {!loading && sgfs.length === 0 && <WelcomeMessage />}
 
-      {(sortedDirs.length > 0 || filesHere.length > 0) && (
-        <table class="sgf-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Moves</th>
-              <th class="score-good">Good</th>
-              <th>Done</th>
-              <th>Total</th>
-              <th>Best</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedDirs.map(d => {
-              let { solved, started, total } = dirStats[d]
-              return (
-                <tr key={'d:' + d} onClick={() => setCwd(prefix + d)} class="sgf-row dir-row">
-                  <td>📁 {d}</td>
-                  <td></td>
-                  <td class="score-good">{solved}</td>
-                  <td>{started || ''}</td>
-                  <td>{total}</td>
-                  <td></td>
-                  <td>
-                    <button class="delete-btn" onClick={(e) => handleDeleteDir(e, prefix + d, d)}>🗑</button>
-                  </td>
-                </tr>
-              )
-            })}
-            {filesHere.map(s => {
-              let best = getBestScore(s.id)
-              return (
-              <tr key={s.id} onClick={() => onSelect({ id: s.id, content: s.content, path: s.path || '', filename: s.filename })} class={`sgf-row${s.solved ? ' solved-row' : ''}`}>
-                <td>{s.solved ? '✓ ' : ''}{s.filename}</td>
-                <td>{s.moveCount}</td>
-                <ScoreCells correct={s.correct} done={s.done} total={s.total} />
-                <td class="score-good">{best ? Math.round(best.accuracy * 100) + '%' : ''}</td>
-                <td>
-                  <button class="delete-btn" onClick={(e) => handleDelete(e, s.id, s.filename)}>🗑</button>
-                </td>
-              </tr>
-              )
-            })}
-          </tbody>
-        </table>
+      {sortedDirs.length > 0 && (
+        <div class="tile-grid">
+          {sortedDirs.map(d => {
+            let { solved, total } = dirStats[d]
+            let lp = useLongPress(() => handleDeleteDir(prefix + d, d))
+            return (
+              <div key={'d:' + d} class="tile dir-tile" onClick={() => setCwd(prefix + d)} {...lp}>
+                <div class="tile-name">📁 {d}</div>
+                <div class="tile-meta">
+                  <span class="score-good">{solved}</span>/{total}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {filesHere.length > 0 && (
+        <div class="tile-grid">
+          {filesHere.map(s => {
+            let best = getBestScore(s.id)
+            let name = s.filename.replace(/\.sgf$/i, '')
+            let lp = useLongPress(() => handleDelete(s.id, s.filename))
+            return (
+              <div key={s.id} class={`tile${s.solved ? ' tile-solved' : ''}`}
+                onClick={() => onSelect({ id: s.id, content: s.content, path: s.path || '', filename: s.filename })} {...lp}>
+                <div class="tile-name">{name}</div>
+                <div class="tile-meta">
+                  {s.moveCount}m
+                  {best ? <span class="tile-best">{Math.round(best.accuracy * 100)}%</span> : ''}
+                </div>
+              </div>
+            )
+          })}
+        </div>
       )}
     </div>
   )
