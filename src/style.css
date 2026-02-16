@@ -193,6 +193,12 @@ body {
   -webkit-user-select: none;
   user-select: none;
 }
+.file-tile {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 2.2rem;
+}
 .tile:hover {
   background: #2e2c28;
   border-color: #4a4845;
@@ -204,19 +210,18 @@ body {
   border-left-color: #4c4;
 }
 .tile-num {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 700;
   color: #bbb;
-  line-height: 1.2;
+  line-height: 1;
 }
 .tile-solved .tile-num {
   color: #8a8;
 }
 .tile-acc {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #c8a060;
-  margin-top: 0.1rem;
 }
 .tile-perfect {
   color: #4c4;

@@ -115,7 +115,22 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     setReplayModeSync(false)
     replayDataRef.current = null
     replayMarksRef.current = new Set()
-    onBack()
+    setMarkedLiberties(new Set())
+    // Fast-forward engine to finished state so we show the score screen
+    let eng = engineRef.current
+    while (!eng.finished) {
+      if (eng.questionVertex) {
+        let result = eng.answerMark(new Set())
+        if (result.done) eng.advance()
+      } else if (eng.showingMove) {
+        eng.activateQuestions()
+        if (!eng.questionVertex && !eng.finished) eng.advance()
+      } else {
+        eng.advance()
+      }
+    }
+    solvedRef.current = true
+    rerender()
   }
 
   let advance = useCallback(() => {

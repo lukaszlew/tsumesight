@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'preact/hooks'
-import { getAllSgfs, addSgfBatch, deleteSgf, deleteSgfsByPrefix, clearAll, getBestScore, getLatestScoreDate } from './db.js'
+import { getAllSgfs, addSgfBatch, deleteSgf, deleteSgfsByPrefix, clearAll, getBestScore, getLatestScoreDate, updateSgf } from './db.js'
 import { parseSgf } from './sgf-utils.js'
 import { isArchive, extractSgfs } from './archive.js'
 import { decodeSgf } from './sgf-utils.js'
@@ -115,6 +115,14 @@ export function Library({ onSelect, initialPath = '' }) {
 
   let refresh = async () => {
     let all = await getAllSgfs()
+    // Backfill moveCount for old records imported before this field existed
+    for (let s of all) {
+      if (s.moveCount != null) continue
+      try {
+        s.moveCount = parseSgf(s.content).moveCount
+        updateSgf(s.id, { moveCount: s.moveCount })
+      } catch {}
+    }
     setSgfs(all)
     setLoading(false)
   }
@@ -399,12 +407,12 @@ export function Library({ onSelect, initialPath = '' }) {
             let best = getBestScore(s.id)
             let lp = useLongPress(() => handleDelete(s.id, s.filename))
             return (
-              <div key={s.id} class={`tile${s.solved ? ' tile-solved' : ''}`}
+              <div key={s.id} class={`tile file-tile${s.solved ? ' tile-solved' : ''}`}
                 onClick={() => onSelect({ id: s.id, content: s.content, path: s.path || '', filename: s.filename, solved: s.solved })} {...lp}>
-                <div class="tile-num">{best ? best.total : s.moveCount}</div>
-                {best && <div class={`tile-acc${best.accuracy >= 1 ? ' tile-perfect' : ''}`}
+                <span class="tile-num">{s.moveCount || '?'}</span>
+                {best && <span class={`tile-acc${best.accuracy >= 1 ? ' tile-perfect' : ''}`}
                   style={best.accuracy < 1 ? { color: scoreColor(best.accuracy) } : undefined}
-                >{Math.round(best.accuracy * 100)}%</div>}
+                >{Math.round(best.accuracy * 100)}%</span>}
               </div>
             )
           })}
