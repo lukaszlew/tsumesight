@@ -226,26 +226,21 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
       }
     }
 
-    // Clicked question: green ghost for correct marks, red ghost for wrong,
-    // small red circle for missed liberties
+    // Clicked question: blue circles for correct, red crosses for errors
     if (reviewVertex && qByVertex.has(reviewVertex)) {
       let q = qByVertex.get(reviewVertex)
       let trueSet = new Set(q.trueLibs || [])
       let marksSet = new Set(q.marks || [])
       for (let k of marksSet) {
         let [x, y] = k.split(',').map(Number)
-        if (signMap[y][x] !== 0) {
-          markerMap[y][x] = { type: 'circle' }
-          continue
-        }
-        ghostStoneMap[y][x] = trueSet.has(k)
-          ? { sign: 1, type: 'good' }
-          : { sign: -1, type: 'bad' }
+        markerMap[y][x] = trueSet.has(k)
+          ? { type: 'circle' }
+          : { type: 'cross' }
       }
       for (let k of trueSet) {
         if (marksSet.has(k)) continue
         let [x, y] = k.split(',').map(Number)
-        if (signMap[y][x] === 0) markerMap[y][x] = { type: 'circle' }
+        markerMap[y][x] = { type: 'cross' }
       }
     }
   } else {
