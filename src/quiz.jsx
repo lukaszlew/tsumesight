@@ -54,7 +54,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       solvedRef.current = true
       let total = engine.results.length
       let accuracy = total > 0 ? engine.correct / total : 1
-      let totalMs = timesRef.current.reduce((a, b) => a + b, 0) + engine.errors * 5000
+      let totalMs = timesRef.current.reduce((a, b) => a + b, 0)
       let scoreEntry = { correct: engine.correct, total, accuracy, totalMs: Math.round(totalMs), errors: engine.errors, date: Date.now(), mode }
       onSolved(engine.correct, total, scoreEntry)
       playComplete()
@@ -78,7 +78,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     let result = engine.answerMark(markedLiberties)
     if (questionStartRef.current !== null) {
       let elapsed = performance.now() - questionStartRef.current
-      timesRef.current.push(elapsed + result.penalties * 3000)
+      timesRef.current.push(elapsed)
       questionStartRef.current = null
     }
     if (result.penalties === 0) playCorrect()
