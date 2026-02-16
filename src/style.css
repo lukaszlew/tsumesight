@@ -441,7 +441,8 @@ body {
 .score-table-wrap {
   overflow-y: auto;
   max-height: 100%;
-  width: 80%;
+  width: fit-content;
+  max-width: 80%;
 }
 .score-table {
   width: 100%;
@@ -490,17 +491,19 @@ body {
 }
 .replay-btn {
   background: none;
-  border: none;
-  color: #666;
+  border: 1px solid #555;
+  color: #888;
   cursor: pointer;
-  font-size: calc(1.4 * var(--s));
-  padding: calc(0.2 * var(--s)) calc(0.5 * var(--s));
+  font-size: calc(1.2 * var(--s));
+  padding: calc(0.3 * var(--s)) calc(0.4 * var(--s)) calc(0.3 * var(--s)) calc(0.55 * var(--s));
   line-height: 1;
-  border-radius: 3px;
-  transition: color 0.15s;
+  border-radius: calc(0.4 * var(--s));
+  transition: all 0.15s;
 }
 .replay-btn:hover {
   color: #4af;
+  border-color: #4af;
+  background: rgba(70, 170, 255, 0.1);
 }
 
 /* Replay indicator */
