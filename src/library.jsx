@@ -271,15 +271,30 @@ export function Library({ onSelect, initialPath = '' }) {
       <h1>TsumeSight</h1>
 
       {filesHere.length > 0 && (() => {
+        let solvedCount = filesHere.filter(s => s.solved).length
         let unsolved = filesHere.find(s => !s.solved)
         if (unsolved) {
           let select = () => onSelect({ id: unsolved.id, content: unsolved.content, path: unsolved.path || '', filename: unsolved.filename })
-          return <button class="next-hero" title="First unsolved problem" onClick={select}>Next</button>
+          return <>
+            <div class="progress-hero">
+              <span class="progress-num">{solvedCount}</span>
+              <span class="progress-sep">/</span>
+              <span class="progress-den">{filesHere.length}</span>
+            </div>
+            <button class="next-hero" title="First unsolved problem" onClick={select}>Next</button>
+          </>
         }
         let imperfect = filesHere.find(s => { let b = getBestScore(s.id); return !b || b.accuracy < 1 })
         if (imperfect) {
           let select = () => onSelect({ id: imperfect.id, content: imperfect.content, path: imperfect.path || '', filename: imperfect.filename })
-          return <button class="next-hero" title="All solved — first without 100% accuracy" onClick={select}>Next</button>
+          return <>
+            <div class="progress-hero complete">
+              <span class="progress-num">{solvedCount}</span>
+              <span class="progress-sep">/</span>
+              <span class="progress-den">{filesHere.length}</span>
+            </div>
+            <button class="next-hero" title="All solved — first without 100% accuracy" onClick={select}>Next</button>
+          </>
         }
         return <div class="complete-badge">All Perfect</div>
       })()}
@@ -291,8 +306,7 @@ export function Library({ onSelect, initialPath = '' }) {
         </label>
         <button class="upload-sm" onClick={handleFolder}>Upload folder</button>
         <button class="upload-sm" onClick={() => {
-          let url = prompt('Enter URL to SGF or archive:',
-            sgfs.length === 0 ? DEFAULT_URL : '')
+          let url = prompt('Enter URL to SGF or archive:', DEFAULT_URL)
           if (url) handleUrl({ preventDefault() {}, target: { elements: { url: { value: url } } } })
         }}>Upload from URL</button>
         {canInstall && <button class="upload-sm" onClick={handleInstall}>Install</button>}
@@ -315,11 +329,6 @@ export function Library({ onSelect, initialPath = '' }) {
               </span>
             </span>
           ))}
-          <span class="dir-stats">
-            <span class="score-good">{filesHere.filter(s => s.solved).length}</span>
-            {filesHere.some(s => !s.solved && s.done > 0) ? '/' + filesHere.filter(s => !s.solved && s.done > 0).length : ''}
-            /{filesHere.length}
-          </span>
         </div>
       )}
 

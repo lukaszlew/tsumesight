@@ -31,6 +31,30 @@ body {
   font-size: 1.5rem;
 }
 
+.progress-hero {
+  text-align: center;
+  margin-bottom: 0.5rem;
+  font-variant-numeric: tabular-nums;
+}
+.progress-num {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #4c4;
+}
+.progress-sep {
+  font-size: 1.8rem;
+  color: #555;
+  margin: 0 0.1rem;
+}
+.progress-den {
+  font-size: 1.8rem;
+  font-weight: 500;
+  color: #888;
+}
+.progress-hero.complete .progress-num {
+  color: #c8a060;
+}
+
 .next-hero {
   display: block;
   width: 100%;
@@ -193,10 +217,6 @@ body {
   color: #666;
   font-size: 1.2rem;
   margin: 0 0.1rem;
-}
-.dir-stats {
-  margin-left: auto;
-  color: #999;
 }
 .complete-badge {
   display: block;
