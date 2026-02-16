@@ -264,6 +264,14 @@ describe('ghostStoneMap rendering', () => {
     expect(v.classList.contains('shudan-ghost_interesting')).toBe(true)
   })
 
+  it('ghost type "doubtful" adds shudan-ghost_doubtful class', () => {
+    let ghostStoneMap = makeEmptyMap(5)
+    ghostStoneMap[2][0] = { sign: 1, type: 'doubtful' }
+    let c = renderGoban({ ghostStoneMap })
+    let v = getVertex(c, 0, 2)
+    expect(v.classList.contains('shudan-ghost_doubtful')).toBe(true)
+  })
+
   it('ghost stone on occupied vertex does NOT render ghost div', () => {
     let signMap = makeEmptyMap(5, 0)
     signMap[2][2] = 1
@@ -610,7 +618,8 @@ function buildFinishedMaps(engine, reviewVertex = null) {
     let marksSet = new Set(q.marks || [])
     for (let k of trueSet) {
       let [x, y] = k.split(',').map(Number)
-      if (signMap[y][x] === 0) ghostStoneMap[y][x] = { sign: 1, type: 'good' }
+      let type = marksSet.has(k) ? 'good' : 'doubtful'
+      if (signMap[y][x] === 0) ghostStoneMap[y][x] = { sign: 1, type }
     }
     for (let k of marksSet) {
       if (!trueSet.has(k)) {
@@ -1019,6 +1028,49 @@ describe('display map integrity', () => {
             if (maps.ghostStoneMap[y][x])
               expect(maps.signMap[y][x]).toBe(0)
       }
+    }
+  })
+
+  it('missed liberties shown as doubtful, correct marks as good, wrong marks as bad', () => {
+    // Engine where user marks only SOME liberties and one wrong vertex
+    let engine = new QuizEngine(SGF_5x5, 'liberty-end', true, 2)
+    while (!engine.finished) {
+      engine.advance(); engine.activateQuestions()
+      while (engine.questionVertex) {
+        let libs = engine.trueBoard.getLiberties(engine.questionVertex)
+        // Mark only the first liberty + one wrong vertex
+        let markedSet = new Set()
+        if (libs.length > 0) markedSet.add(`${libs[0][0]},${libs[0][1]}`)
+        markedSet.add('0,0') // likely wrong
+        engine.answerMark(markedSet)
+      }
+    }
+    let q = engine.questionsAsked.flat().find(q => q.vertex && q.trueLibs && q.marks)
+    if (!q) return
+    let rv = `${q.vertex[0]},${q.vertex[1]}`
+    let maps = buildFinishedMaps(engine, rv)
+    let c = renderGoban(maps)
+    let trueSet = new Set(q.trueLibs)
+    let marksSet = new Set(q.marks)
+    for (let k of trueSet) {
+      let [x, y] = k.split(',').map(Number)
+      if (maps.signMap[y][x] !== 0) continue
+      let v = getVertex(c, x, y)
+      if (marksSet.has(k)) {
+        // Correctly marked liberty → good (green)
+        expect(v.classList.contains('shudan-ghost_good')).toBe(true)
+      } else {
+        // Missed liberty → doubtful (purple)
+        expect(v.classList.contains('shudan-ghost_doubtful')).toBe(true)
+      }
+    }
+    for (let k of marksSet) {
+      if (trueSet.has(k)) continue
+      let [x, y] = k.split(',').map(Number)
+      if (maps.signMap[y][x] !== 0) continue
+      let v = getVertex(c, x, y)
+      // Wrong mark → bad (red)
+      expect(v.classList.contains('shudan-ghost_bad')).toBe(true)
     }
   })
 
