@@ -102,6 +102,14 @@ body {
   background: #444;
   color: #ddd;
 }
+.reset-btn {
+  color: #a66;
+  border-color: #644;
+}
+.reset-btn:hover {
+  color: #f88;
+  background: #433;
+}
 
 .empty-msg, .loading {
   text-align: center;
@@ -264,18 +272,6 @@ body {
   color: #4c4;
 }
 
-.delete-btn {
-  background: none;
-  border: none;
-  color: #a55;
-  cursor: pointer;
-  font-size: 1rem;
-  padding: 0.2rem 0.5rem;
-  transition: color 0.15s ease;
-}
-.delete-btn:hover {
-  color: #f66;
-}
 
 /* Quiz — 4-row grid: board / name / bottom-bar / empty */
 

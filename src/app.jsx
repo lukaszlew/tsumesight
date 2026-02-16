@@ -45,8 +45,8 @@ export function App() {
     setPosition({ index: idx + 1, total: siblings.length })
   }
 
-  function selectSgf({ id, content, path, filename }) {
-    let val = { id, content, path, filename }
+  function selectSgf({ id, content, path, filename, solved }) {
+    let val = { id, content, path, filename, solved: !!solved }
     kvSet('activeSgf', JSON.stringify(val))
     kvSet('lastPath', path)
     setActive(val)
@@ -106,6 +106,14 @@ export function App() {
     if (active.id) {
       updateSgf(active.id, { solved: true, correct, done })
       if (scoreEntry) addScore(active.id, scoreEntry)
+      setActive(prev => ({ ...prev, solved: true }))
+    }
+  }
+
+  function markUnsolved() {
+    if (active.id) {
+      updateSgf(active.id, { solved: false })
+      setActive(prev => ({ ...prev, solved: false }))
     }
   }
 
@@ -155,7 +163,8 @@ export function App() {
       <ErrorBoundary onReset={clearSgf}>
         <Quiz key={`${active.id}:${attempt}`} quizKey={`${active.id}:${attempt}`} sgf={active.content}
           sgfId={active.id} filename={active.filename} dirName={active.path}
-          onBack={clearSgf} onSolved={markSolved} onProgress={saveProgress} onLoadError={handleLoadError}
+          wasSolved={active.solved}
+          onBack={clearSgf} onSolved={markSolved} onUnsolved={markUnsolved} onProgress={saveProgress} onLoadError={handleLoadError}
           onPrev={() => goStep(-1)} onNext={() => goStep(1)}
           onNextUnsolved={goNextUnsolved}
           onRetry={() => setAttempt(a => a + 1)}

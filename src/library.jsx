@@ -274,7 +274,7 @@ export function Library({ onSelect, initialPath = '' }) {
         let solvedCount = filesHere.filter(s => s.solved).length
         let unsolved = filesHere.find(s => !s.solved)
         if (unsolved) {
-          let select = () => onSelect({ id: unsolved.id, content: unsolved.content, path: unsolved.path || '', filename: unsolved.filename })
+          let select = () => onSelect({ id: unsolved.id, content: unsolved.content, path: unsolved.path || '', filename: unsolved.filename, solved: unsolved.solved })
           return <>
             <div class="progress-hero">
               <span class="progress-num">{solvedCount}</span>
@@ -286,7 +286,7 @@ export function Library({ onSelect, initialPath = '' }) {
         }
         let imperfect = filesHere.find(s => { let b = getBestScore(s.id); return !b || b.accuracy < 1 })
         if (imperfect) {
-          let select = () => onSelect({ id: imperfect.id, content: imperfect.content, path: imperfect.path || '', filename: imperfect.filename })
+          let select = () => onSelect({ id: imperfect.id, content: imperfect.content, path: imperfect.path || '', filename: imperfect.filename, solved: imperfect.solved })
           return <>
             <div class="progress-hero complete">
               <span class="progress-num">{solvedCount}</span>
@@ -310,7 +310,7 @@ export function Library({ onSelect, initialPath = '' }) {
           if (url) handleUrl({ preventDefault() {}, target: { elements: { url: { value: url } } } })
         }}>Upload from URL</button>
         {canInstall && <button class="upload-sm" onClick={handleInstall}>Install</button>}
-        <button class="delete-btn" title="Delete all data and re-download defaults" onClick={handleReset}>Reset</button>
+        <button class="upload-sm reset-btn" title="Delete all data and re-download defaults" onClick={handleReset}>Reset</button>
       </div>
 
       {importing && (
@@ -363,7 +363,7 @@ export function Library({ onSelect, initialPath = '' }) {
             let lp = useLongPress(() => handleDelete(s.id, s.filename))
             return (
               <div key={s.id} class={`tile${s.solved ? ' tile-solved' : ''}`}
-                onClick={() => onSelect({ id: s.id, content: s.content, path: s.path || '', filename: s.filename })} {...lp}>
+                onClick={() => onSelect({ id: s.id, content: s.content, path: s.path || '', filename: s.filename, solved: s.solved })} {...lp}>
                 <div class="tile-name">{name}</div>
                 <div class="tile-meta">
                   {s.moveCount}m

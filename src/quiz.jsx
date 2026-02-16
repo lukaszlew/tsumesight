@@ -12,7 +12,7 @@ function makeEmptyMap(size, fill = null) {
   return Array.from({ length: size }, () => Array(size).fill(fill))
 }
 
-export function Quiz({ sgf, sgfId, quizKey, onBack, onSolved, onProgress, onLoadError, onNextUnsolved }) {
+export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsolved, onProgress, onLoadError, onNextUnsolved }) {
   let engineRef = useRef(null)
   let historyRef = useRef([])
   let solvedRef = useRef(false)
@@ -140,17 +140,23 @@ export function Quiz({ sgf, sgfId, quizKey, onBack, onSolved, onProgress, onLoad
     }
   }, [engine.finished])
 
-  let markSolved = useCallback(() => {
-    onSolved(0, 0, null)
-    onNextUnsolved()
-  }, [])
+  let toggleSolved = useCallback(() => {
+    if (wasSolved) {
+      onUnsolved()
+      onBack()
+    } else {
+      onSolved(0, 0, null)
+      onNextUnsolved()
+    }
+  }, [wasSolved])
 
   // Keyboard shortcuts
   useEffect(() => {
     let preSolve = !engine.finished && engine.results.length === 0
     function onKeyDown(e) {
+      if (e.repeat) return
       if (e.key === 'Escape') { e.preventDefault(); onBack() }
-      else if (e.key === 'Enter' && preSolve) { e.preventDefault(); markSolved() }
+      else if (e.key === 'Enter' && preSolve) { e.preventDefault(); toggleSolved() }
       else if (e.key === ' ') {
         e.preventDefault()
         if (engine.finished) onNextUnsolved()
@@ -302,7 +308,7 @@ export function Quiz({ sgf, sgfId, quizKey, onBack, onSolved, onProgress, onLoad
           : preSolve
             ? <div class="bottom-bar-row">
                 <button class="bar-btn" onClick={onBack}>&#x25C2; Back</button>
-                <button class="bar-btn mark-solved-btn" onClick={markSolved}>Mark as solved</button>
+                <button class="bar-btn mark-solved-btn" onClick={toggleSolved}>{wasSolved ? 'Mark as unsolved' : 'Mark as solved'}</button>
               </div>
             : null
         }
