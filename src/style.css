@@ -207,6 +207,8 @@ body {
   transform: scale(0.97);
 }
 .tile-solved {
+  opacity: 0.55;
+  background: #1a2a1a;
 }
 .tile-num {
   font-size: 1rem;
