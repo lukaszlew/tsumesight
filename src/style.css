@@ -285,7 +285,7 @@ body {
   width: min(100dvw, 100dvh);
   margin: 0 auto;
   display: grid;
-  grid-template-rows: 65% 10% 15% 10%;
+  grid-template-rows: 75% 25%;
   justify-items: center;
   background:
     linear-gradient(180deg,
@@ -372,42 +372,19 @@ body {
   margin-top: calc(1 * var(--s));
 }
 
-/* Mark as solved — side-aligned */
-.mark-solved-btn {
-  align-self: flex-end;
-  margin-right: calc(3 * var(--s));
-  padding: calc(1 * var(--s)) calc(2 * var(--s));
-  font-size: calc(1.8 * var(--s));
+.bottom-bar-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch;
+  width: 80%;
+  gap: calc(2 * var(--s));
+}
+.bottom-bar-row .bar-btn {
+  padding: calc(1.2 * var(--s)) calc(2.5 * var(--s));
+  font-size: calc(2 * var(--s));
   border-radius: calc(0.8 * var(--s));
 }
 
-.problem-name {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  line-height: 1.2;
-  width: 100%;
-  overflow: hidden;
-}
-.problem-dir {
-  font-size: calc(1.6 * var(--s));
-  color: #6a6560;
-  letter-spacing: 0.02em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 100%;
-}
-.problem-file {
-  font-size: calc(2 * var(--s));
-  color: #a09888;
-  letter-spacing: 0.01em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 100%;
-}
 
 /* Board (row 1) */
 .board-row {

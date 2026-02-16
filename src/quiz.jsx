@@ -12,7 +12,7 @@ function makeEmptyMap(size, fill = null) {
   return Array.from({ length: size }, () => Array(size).fill(fill))
 }
 
-export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved, onProgress, onLoadError, onNextUnsolved }) {
+export function Quiz({ sgf, sgfId, quizKey, onBack, onSolved, onProgress, onLoadError, onNextUnsolved }) {
   let engineRef = useRef(null)
   let historyRef = useRef([])
   let solvedRef = useRef(false)
@@ -291,12 +291,7 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
             animateStonePlacement={false}
           />}
         </div>
-        <button class="back-overlay" title="Back to library (Esc)" onClick={onBack}>&#x2190;</button>
-      </div>
-
-      <div class="problem-name">
-        {dirName && <span class="problem-dir">{dirName}</span>}
-        <span class="problem-file">{engine.gameName || filename?.replace(/\.sgf$/i, '') || 'Untitled'}</span>
+        {!preSolve && <button class="back-overlay" title="Back to library (Esc)" onClick={onBack}>&#x25C2;</button>}
       </div>
 
       <div class="bottom-bar">
@@ -306,7 +301,10 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
               <button class="bar-btn ctx-btn" onClick={onNextUnsolved}>Next</button>
             </>
           : preSolve
-            ? <button class="bar-btn mark-solved-btn" onClick={markSolved}>Mark as <span class="score-good">✓</span></button>
+            ? <div class="bottom-bar-row">
+                <button class="bar-btn" onClick={onBack}>&#x25C2; Back</button>
+                <button class="bar-btn mark-solved-btn" onClick={markSolved}>Mark as solved</button>
+              </div>
             : null
         }
       </div>
