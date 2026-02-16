@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'preact/hooks'
 import { Goban } from '@sabaki/shudan'
 import { QuizEngine } from './engine.js'
 import { playCorrect, playWrong, playComplete, resetStreak } from './sounds.js'
-import { kv, kvRemove, getScores } from './db.js'
+import { kv, kvRemove, getScores, addReplay, getReplay } from './db.js'
 
 function makeEmptyMap(size, fill = null) {
   return Array.from({ length: size }, () => Array(size).fill(fill))
@@ -23,6 +23,27 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   let [wrongFlash, setWrongFlash] = useState(false)
   let [markedLiberties, setMarkedLiberties] = useState(new Set())
   let [reviewVertex, setReviewVertex] = useState(null)
+
+  // Replay recording
+  let replayEventsRef = useRef([])
+  let replayStartRef = useRef(null)
+
+  // Replay playback
+  let [replayMode, setReplayMode] = useState(false)
+  let replayModeRef = useRef(false)
+  let replayDataRef = useRef(null)
+  let replayMarksRef = useRef(new Set())
+
+  function setReplayModeSync(val) {
+    replayModeRef.current = val
+    setReplayMode(val)
+  }
+
+  function recordEvent(evt) {
+    if (replayModeRef.current) return
+    if (!replayStartRef.current) replayStartRef.current = performance.now()
+    replayEventsRef.current.push({ ...evt, t: Math.round(performance.now() - replayStartRef.current) })
+  }
 
   // Initialize engine fresh every time, advance first move
   if (!engineRef.current && !error) {
@@ -50,15 +71,51 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   }
 
   let checkFinished = () => {
+    if (replayModeRef.current) return
     if (engine.finished && !solvedRef.current) {
       solvedRef.current = true
       let total = engine.results.length
       let accuracy = total > 0 ? engine.correct / total : 1
       let totalMs = timesRef.current.reduce((a, b) => a + b, 0)
-      let scoreEntry = { correct: engine.correct, total, accuracy, totalMs: Math.round(totalMs), errors: engine.errors, date: Date.now(), mode }
+      let date = Date.now()
+      let scoreEntry = { correct: engine.correct, total, accuracy, totalMs: Math.round(totalMs), errors: engine.errors, date, mode }
+      addReplay(sgfId, date, replayEventsRef.current)
       onSolved(engine.correct, total, scoreEntry)
       playComplete()
     }
+  }
+
+  function startReplay(scoreEntry) {
+    let events = getReplay(sgfId, scoreEntry.date)
+    if (!events || events.length === 0) return
+
+    // Reset engine
+    try {
+      engineRef.current = new QuizEngine(sgf, scoreEntry.mode || mode, true, maxQ)
+      engineRef.current.advance()
+    } catch { return }
+
+    // Reset state
+    solvedRef.current = false
+    setMarkedLiberties(new Set())
+    setReviewVertex(null)
+    setWrongFlash(false)
+    questionStartRef.current = null
+    timesRef.current = []
+    replayEventsRef.current = []
+    replayStartRef.current = null
+    replayMarksRef.current = new Set()
+    replayDataRef.current = events
+
+    setReplayModeSync(true)
+    rerender()
+  }
+
+  function exitReplayEarly() {
+    setReplayModeSync(false)
+    replayDataRef.current = null
+    replayMarksRef.current = new Set()
+    onBack()
   }
 
   let advance = useCallback(() => {
@@ -96,7 +153,9 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   }, [markedLiberties])
 
   let onVertexClick = useCallback((evt, vertex) => {
+    if (replayModeRef.current) { exitReplayEarly(); return }
     if (engine.finished) return
+    recordEvent({ v: [vertex[0], vertex[1]] })
     let key = `${vertex[0]},${vertex[1]}`
     // No question: tap = advance
     if (!engine.questionVertex) {
@@ -114,12 +173,12 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
 
   // Review mode: hold to show liberties
   let onVertexPointerDown = useCallback((evt, vertex) => {
-    if (!engine.finished) return
+    if (!engine.finished || replayModeRef.current) return
     setReviewVertex(`${vertex[0]},${vertex[1]}`)
   }, [])
 
   useEffect(() => {
-    if (!engine.finished) return
+    if (!engine.finished || replayMode) return
     let up = () => setReviewVertex(null)
     window.addEventListener('pointerup', up)
     window.addEventListener('pointercancel', up)
@@ -127,7 +186,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       window.removeEventListener('pointerup', up)
       window.removeEventListener('pointercancel', up)
     }
-  }, [engine.finished])
+  }, [engine.finished, replayMode])
 
   let toggleSolved = useCallback(() => {
     if (wasSolved) {
@@ -144,6 +203,10 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     let preSolve = !engine.finished && engine.results.length === 0
     function onKeyDown(e) {
       if (e.repeat) return
+      if (replayModeRef.current) {
+        if (e.key === 'Escape') { e.preventDefault(); exitReplayEarly() }
+        return
+      }
       if (e.key === 'Escape') { e.preventDefault(); onBack() }
       else if (e.key === 'Enter') {
         e.preventDefault()
@@ -152,17 +215,99 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       }
       else if (e.key === ' ') {
         e.preventDefault()
-        if (engine.questionVertex) submitMarks()
-        else if (!engine.finished) advance()
+        if (engine.questionVertex) {
+          recordEvent({ s: 1 })
+          submitMarks()
+        }
+        else if (!engine.finished) {
+          recordEvent({ a: 1 })
+          advance()
+        }
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [advance, submitMarks])
 
+  // Replay playback
+  useEffect(() => {
+    if (!replayMode) return
+    let events = replayDataRef.current
+    if (!events) return
+    let cancelled = false
+
+    async function play() {
+      for (let i = 0; i < events.length; i++) {
+        let delay = i === 0 ? events[i].t : events[i].t - events[i - 1].t
+        await new Promise(r => setTimeout(r, Math.max(0, delay)))
+        if (cancelled) return
+
+        let eng = engineRef.current
+        let evt = events[i]
+
+        if (evt.v) {
+          if (!eng.questionVertex) {
+            if (eng.showingMove) {
+              eng.activateQuestions()
+              if (!eng.questionVertex && !eng.finished) eng.advance()
+            } else if (!eng.finished) {
+              eng.advance()
+            }
+          } else {
+            let key = `${evt.v[0]},${evt.v[1]}`
+            let marks = replayMarksRef.current
+            if (marks.has(key)) marks.delete(key)
+            else marks.add(key)
+            replayMarksRef.current = new Set(marks)
+            setMarkedLiberties(new Set(marks))
+          }
+        } else if (evt.a) {
+          if (!eng.finished && !eng.questionVertex) {
+            if (eng.showingMove) {
+              eng.activateQuestions()
+              if (!eng.questionVertex && !eng.finished) eng.advance()
+            } else {
+              eng.advance()
+            }
+          }
+        } else if (evt.s) {
+          if (eng.questionVertex) {
+            let marks = replayMarksRef.current
+            let result = eng.answerMark(marks)
+            if (result.penalties === 0) playCorrect()
+            else {
+              playWrong()
+              setWrongFlash(true)
+              setTimeout(() => { if (!cancelled) setWrongFlash(false) }, 150)
+            }
+            replayMarksRef.current = new Set()
+            setMarkedLiberties(new Set())
+            if (result.done && !eng.finished) eng.advance()
+          }
+        }
+
+        if (!cancelled) rerender()
+      }
+
+      // Replay finished — pause briefly on final state, then show scores
+      if (!cancelled) {
+        await new Promise(r => setTimeout(r, 1500))
+        if (!cancelled) {
+          setReplayModeSync(false)
+          replayDataRef.current = null
+          rerender()
+        }
+      }
+    }
+
+    play()
+    return () => { cancelled = true }
+  }, [replayMode])
+
   // Start question timer / clear marks when a question appears
   useEffect(() => {
     if (!engine) return
+    if (replayModeRef.current) return
     if (engine.questionVertex && questionStartRef.current === null) {
       questionStartRef.current = performance.now()
       setMarkedLiberties(new Set())
@@ -190,7 +335,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   let size = engine.boardSize
   let signMap, markerMap, ghostStoneMap, paintMap
 
-  if (engine.finished) {
+  if (engine.finished && !replayMode) {
     signMap = engine.trueBoard.signMap.map(row => [...row])
     markerMap = makeEmptyMap(size)
     ghostStoneMap = makeEmptyMap(size)
@@ -273,7 +418,8 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   return (
     <div class="quiz">
       <div class="board-row" ref={boardRowRef}>
-        <div class={`board-container${wrongFlash ? ' wrong-flash' : ''}${engine.finished ? ' finished' : ''}`}>
+        {replayMode && <div class="replay-indicator">REPLAY</div>}
+        <div class={`board-container${wrongFlash ? ' wrong-flash' : ''}${engine.finished && !replayMode ? ' finished' : ''}`}>
           {vertexSize > 0 && <Goban
             vertexSize={vertexSize}
             signMap={signMap}
@@ -292,19 +438,21 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       </div>
 
       <div class="bottom-bar">
-        {engine.finished
-          ? <>
-              <StatsBar sgfId={sgfId} />
-              <button class="next-hero" onClick={onNextUnsolved}>Next</button>
-            </>
-          : engine.questionVertex
-            ? <button class="next-hero" onClick={submitMarks}>Submit</button>
-            : preSolve
-              ? <div class="bottom-bar-row">
-                  <button class="bar-btn" onClick={onBack}>&#x25C2; Back</button>
-                  <button class="bar-btn mark-solved-btn" onClick={toggleSolved}>{wasSolved ? 'Mark as unsolved' : 'Mark as solved'}</button>
-                </div>
-              : null
+        {replayMode
+          ? <div class="replay-exit-hint">Tap board or press Esc to exit</div>
+          : engine.finished
+            ? <>
+                <StatsBar sgfId={sgfId} onReplay={startReplay} />
+                <button class="next-hero" onClick={onNextUnsolved}>Next</button>
+              </>
+            : engine.questionVertex
+              ? <button class="next-hero" onClick={() => { recordEvent({ s: 1 }); submitMarks() }}>Submit</button>
+              : preSolve
+                ? <div class="bottom-bar-row">
+                    <button class="bar-btn" onClick={onBack}>&#x25C2; Back</button>
+                    <button class="bar-btn mark-solved-btn" onClick={toggleSolved}>{wasSolved ? 'Mark as unsolved' : 'Mark as solved'}</button>
+                  </div>
+                : null
         }
       </div>
     </div>
@@ -329,7 +477,7 @@ function scoreLabel(s) {
   return `${Math.round(s.accuracy * 100)}%`
 }
 
-function StatsBar({ sgfId }) {
+function StatsBar({ sgfId, onReplay }) {
   let scores = sgfId ? getScores(sgfId) : []
   let sorted = [...scores].sort((a, b) =>
     b.accuracy - a.accuracy || (a.totalMs || Infinity) - (b.totalMs || Infinity)
@@ -339,12 +487,16 @@ function StatsBar({ sgfId }) {
       <table class="score-table">
         {sorted.map((s, i) => {
           let isLatest = s === scores[scores.length - 1]
+          let hasReplay = sgfId && s.date && kv(`replay:${sgfId}:${s.date}`) != null
           return (
             <tr key={i} class={isLatest ? 'score-latest' : ''}>
               <td class="score-rank">{i + 1}.</td>
               <td class={`score-frac${s.accuracy >= 1 ? ' score-perfect' : ''}`}>{scoreLabel(s)}</td>
               <td class="score-time">{s.totalMs ? (s.totalMs / 1000).toFixed(1) + 's' : ''}</td>
               <td class="score-date">{s.date ? formatDate(s.date) : ''}</td>
+              {hasReplay && <td class="score-replay">
+                <button class="replay-btn" onClick={(e) => { e.stopPropagation(); onReplay(s) }}>{'\u25B6'}</button>
+              </td>}
             </tr>
           )
         })}

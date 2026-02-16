@@ -461,6 +461,45 @@ body {
 .score-latest .score-rank {
   color: #aaa;
 }
+.score-replay {
+  padding: 0 !important;
+}
+.replay-btn {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  font-size: calc(1.4 * var(--s));
+  padding: calc(0.2 * var(--s)) calc(0.5 * var(--s));
+  line-height: 1;
+  border-radius: 3px;
+  transition: color 0.15s;
+}
+.replay-btn:hover {
+  color: #4af;
+}
+
+/* Replay indicator */
+.replay-indicator {
+  position: absolute;
+  top: calc(1.5 * var(--s));
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,.6);
+  color: #f88;
+  padding: calc(0.3 * var(--s)) calc(1.2 * var(--s));
+  border-radius: calc(0.5 * var(--s));
+  font-size: calc(1.8 * var(--s));
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  z-index: 10;
+  pointer-events: none;
+}
+.replay-exit-hint {
+  color: #888;
+  font-size: calc(1.6 * var(--s));
+  text-align: center;
+}
 
 /* Wrong-answer flash */
 .wrong-flash {
