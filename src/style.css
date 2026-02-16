@@ -421,6 +421,11 @@ body {
   color: #f44 !important;
   -webkit-text-stroke: .03em #800;
 }
+/* Missed liberty circles: red */
+.shudan-vertex.shudan-marker_circle .shudan-marker circle {
+  stroke: #f44 !important;
+  fill: rgba(255, 68, 68, .15);
+}
 
 /* Grayed-out nav buttons */
 .btn-inactive {
