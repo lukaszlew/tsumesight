@@ -627,18 +627,14 @@ function buildFinishedMaps(engine, reviewVertex = null) {
     let marksSet = new Set(q.marks || [])
     for (let k of marksSet) {
       let [x, y] = k.split(',').map(Number)
-      if (signMap[y][x] !== 0) {
-        markerMap[y][x] = { type: 'circle' }
-        continue
-      }
-      ghostStoneMap[y][x] = trueSet.has(k)
-        ? { sign: 1, type: 'good' }
-        : { sign: -1, type: 'bad' }
+      markerMap[y][x] = trueSet.has(k)
+        ? { type: 'circle' }
+        : { type: 'cross' }
     }
     for (let k of trueSet) {
       if (marksSet.has(k)) continue
       let [x, y] = k.split(',').map(Number)
-      if (signMap[y][x] === 0) markerMap[y][x] = { type: 'circle' }
+      markerMap[y][x] = { type: 'cross' }
     }
   }
 
@@ -680,7 +676,7 @@ function buildPlayMaps(engine, peeking = false, markedLiberties = new Set()) {
     markerMap[y][x] = { type: 'label', label: '❓' }
     for (let key of markedLiberties) {
       let [mx, my] = key.split(',').map(Number)
-      if (signMap[my][mx] === 0) ghostStoneMap[my][mx] = { sign: 1, type: 'interesting' }
+      markerMap[my][mx] = { type: 'circle' }
     }
   }
 
@@ -751,7 +747,7 @@ describe('QuizEngine → Goban integration: peek mode', () => {
 })
 
 describe('QuizEngine → Goban integration: question phase with marks', () => {
-  it('marked liberties show as interesting ghosts on empty vertices', () => {
+  it('marked liberties show as circle markers', () => {
     let engine = new QuizEngine(SGF_5x5, 'liberty-end', true, 2)
     // Advance to last move to get questions
     while (!engine.finished) {
@@ -761,11 +757,11 @@ describe('QuizEngine → Goban integration: question phase with marks', () => {
     }
     if (!engine.questionVertex) return // skip if no questions
     let qv = engine.questionVertex
-    // Mark some adjacent empty vertices
+    // Mark some adjacent vertices
     let marks = new Set()
     for (let [dx, dy] of [[-1,0],[1,0],[0,-1],[0,1]]) {
       let nx = qv[0] + dx, ny = qv[1] + dy
-      if (nx >= 0 && nx < 5 && ny >= 0 && ny < 5 && engine.trueBoard.get([nx, ny]) === 0)
+      if (nx >= 0 && nx < 5 && ny >= 0 && ny < 5)
         marks.add(`${nx},${ny}`)
     }
     let maps = buildPlayMaps(engine, false, marks)
@@ -773,7 +769,7 @@ describe('QuizEngine → Goban integration: question phase with marks', () => {
     for (let key of marks) {
       let [x, y] = key.split(',').map(Number)
       let v = getVertex(c, x, y)
-      expect(v.classList.contains('shudan-ghost_interesting')).toBe(true)
+      expect(v.classList.contains('shudan-marker_circle')).toBe(true)
     }
   })
 })
@@ -875,27 +871,25 @@ describe('QuizEngine → Goban integration: finished review', () => {
         expect(typeof cell !== 'string').toBe(true)
   })
 
-  it('clicking a question vertex shows correct marks as good ghosts', () => {
+  it('holding a question vertex shows correct marks as blue circles', () => {
     let engine = playToFinish(SGF_5x5)
     let q = engine.questionsAsked.flat().find(q => q.vertex && q.marks && q.marks.length > 0)
     if (!q) return
     let rv = `${q.vertex[0]},${q.vertex[1]}`
     let maps = buildFinishedMaps(engine, rv)
     let c = renderGoban(maps)
-    // Perfect answers: all user marks are true liberties → green (good) ghosts
+    // Perfect answers: all user marks are true liberties → circles
     let markCount = 0
     for (let k of q.marks) {
       let [x, y] = k.split(',').map(Number)
-      if (maps.signMap[y][x] === 0) {
-        let v = getVertex(c, x, y)
-        expect(v.classList.contains('shudan-ghost_good')).toBe(true)
-        markCount++
-      }
+      let v = getVertex(c, x, y)
+      expect(v.classList.contains('shudan-marker_circle')).toBe(true)
+      markCount++
     }
     expect(markCount).toBeGreaterThan(0)
   })
 
-  it('wrong marks show as bad (red) ghosts', () => {
+  it('wrong marks show as red crosses', () => {
     let engine = new QuizEngine(SGF_5x5, 'liberty-end', true, 2)
     while (!engine.finished) {
       engine.advance()
@@ -915,15 +909,13 @@ describe('QuizEngine → Goban integration: finished review', () => {
     for (let k of (q.marks || [])) {
       if (!trueSet.has(k)) {
         let [x, y] = k.split(',').map(Number)
-        if (maps.signMap[y][x] === 0) {
-          let v = getVertex(c, x, y)
-          expect(v.classList.contains('shudan-ghost_bad')).toBe(true)
-        }
+        let v = getVertex(c, x, y)
+        expect(v.classList.contains('shudan-marker_cross')).toBe(true)
       }
     }
   })
 
-  it('missed liberties show as circle markers', () => {
+  it('missed liberties show as cross markers', () => {
     let engine = new QuizEngine(SGF_5x5, 'liberty-end', true, 2)
     while (!engine.finished) {
       engine.advance()
@@ -938,33 +930,35 @@ describe('QuizEngine → Goban integration: finished review', () => {
     let rv = `${q.vertex[0]},${q.vertex[1]}`
     let maps = buildFinishedMaps(engine, rv)
     let c = renderGoban(maps)
-    let circleCount = 0
+    let crossCount = 0
     for (let k of q.trueLibs) {
       let [x, y] = k.split(',').map(Number)
-      if (maps.signMap[y][x] === 0) {
-        let v = getVertex(c, x, y)
-        expect(v.classList.contains('shudan-marker_circle')).toBe(true)
-        expect(v.querySelector('svg.shudan-marker')).not.toBeNull()
-        circleCount++
-      }
+      let v = getVertex(c, x, y)
+      expect(v.classList.contains('shudan-marker_cross')).toBe(true)
+      crossCount++
     }
-    expect(circleCount).toBeGreaterThan(0)
+    expect(crossCount).toBeGreaterThan(0)
   })
 
-  it('non-selected question shows no liberty ghosts', () => {
+  it('non-selected question shows no liberty markers', () => {
     let engine = playToFinish(SGF_5x5)
     let maps = buildFinishedMaps(engine) // no reviewVertex
     let c = renderGoban(maps)
-    let ghosts = c.querySelectorAll('.shudan-ghost')
-    expect(ghosts.length).toBe(0)
+    let circles = c.querySelectorAll('.shudan-marker_circle')
+    let crosses = c.querySelectorAll('.shudan-marker_cross')
+    // Only label markers (✓ / mistake counts), no circles or crosses
+    expect(circles.length).toBe(0)
+    expect(crosses.length).toBe(0)
   })
 
-  it('selecting non-question vertex shows no liberty ghosts', () => {
+  it('selecting non-question vertex shows no liberty markers', () => {
     let engine = playToFinish(SGF_5x5)
     let maps = buildFinishedMaps(engine, '0,0')
     let c = renderGoban(maps)
-    let ghosts = c.querySelectorAll('.shudan-ghost')
-    expect(ghosts.length).toBe(0)
+    let circles = c.querySelectorAll('.shudan-marker_circle')
+    let crosses = c.querySelectorAll('.shudan-marker_cross')
+    expect(circles.length).toBe(0)
+    expect(crosses.length).toBe(0)
   })
 })
 
@@ -1055,7 +1049,7 @@ describe('display map integrity', () => {
     }
   })
 
-  it('ghost stones only placed on empty intersections in finished review', () => {
+  it('no ghost stones in finished review (circles/crosses used instead)', () => {
     let engine = new QuizEngine(SGF_5x5, 'liberty-end', true, 2)
     while (!engine.finished) {
       engine.advance(); engine.activateQuestions()
@@ -1064,7 +1058,6 @@ describe('display map integrity', () => {
         engine.answerMark(new Set(libs.map(([x, y]) => `${x},${y}`)))
       }
     }
-    // Select each questioned vertex and check ghosts
     for (let moveQs of engine.questionsAsked) {
       for (let q of moveQs) {
         if (!q.vertex || !q.trueLibs) continue
@@ -1072,13 +1065,12 @@ describe('display map integrity', () => {
         let maps = buildFinishedMaps(engine, rv)
         for (let y = 0; y < 5; y++)
           for (let x = 0; x < 5; x++)
-            if (maps.ghostStoneMap[y][x])
-              expect(maps.signMap[y][x]).toBe(0)
+            expect(maps.ghostStoneMap[y][x]).toBeNull()
       }
     }
   })
 
-  it('review: correct marks → good, wrong marks → bad, missed → circle', () => {
+  it('review: correct marks → circle, wrong marks → cross, missed → cross', () => {
     // Engine where user marks only SOME liberties and one wrong vertex
     let engine = new QuizEngine(SGF_5x5, 'liberty-end', true, 2)
     while (!engine.finished) {
@@ -1099,25 +1091,22 @@ describe('display map integrity', () => {
     let c = renderGoban(maps)
     let trueSet = new Set(q.trueLibs)
     let marksSet = new Set(q.marks)
-    // Correct user marks → good ghost
+    // Correct user marks → circle, wrong → cross
     for (let k of marksSet) {
       let [x, y] = k.split(',').map(Number)
-      if (maps.signMap[y][x] !== 0) continue
       let v = getVertex(c, x, y)
       if (trueSet.has(k)) {
-        expect(v.classList.contains('shudan-ghost_good')).toBe(true)
+        expect(v.classList.contains('shudan-marker_circle')).toBe(true)
       } else {
-        expect(v.classList.contains('shudan-ghost_bad')).toBe(true)
+        expect(v.classList.contains('shudan-marker_cross')).toBe(true)
       }
     }
-    // Unmarked true liberties → circle marker (not ghost)
+    // Unmarked true liberties → cross marker
     for (let k of trueSet) {
       if (marksSet.has(k)) continue
       let [x, y] = k.split(',').map(Number)
-      if (maps.signMap[y][x] !== 0) continue
       let v = getVertex(c, x, y)
-      expect(v.querySelector('.shudan-ghost')).toBeNull()
-      expect(v.classList.contains('shudan-marker_circle')).toBe(true)
+      expect(v.classList.contains('shudan-marker_cross')).toBe(true)
     }
   })
 
