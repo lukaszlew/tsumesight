@@ -127,7 +127,12 @@ export function Library({ onSelect, initialPath = '' }) {
     setLoading(false)
   }
 
-  useEffect(() => { refresh() }, [])
+  useEffect(() => {
+    refresh().then(async () => {
+      let all = await getAllSgfs()
+      if (all.length === 0) fetchUrl(DEFAULT_URL)
+    })
+  }, [])
 
   let parseAndCollect = (entries, pathPrefix, uploadedAt) => {
     let records = []
@@ -197,11 +202,7 @@ export function Library({ onSelect, initialPath = '' }) {
     refresh()
   }
 
-  let handleUrl = async (e) => {
-    e.preventDefault()
-    let input = e.target.elements.url
-    let url = input.value.trim()
-    if (!url) return
+  let fetchUrl = async (url) => {
     try {
       let resp = await fetch(url)
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
@@ -220,7 +221,6 @@ export function Library({ onSelect, initialPath = '' }) {
         allRecords = parseAndCollect([{ name: filename, content }], '', now)
       }
       if (allRecords.length > 0) await importBatch(allRecords)
-      input.value = ''
       refresh()
     } catch (err) {
       setImporting(null)
@@ -243,7 +243,9 @@ export function Library({ onSelect, initialPath = '' }) {
   let handleReset = async () => {
     if (!confirm('Delete all data and re-download default problems?')) return
     await clearAll()
-    location.reload()
+    setSgfs([])
+    setCwd('')
+    fetchUrl(DEFAULT_URL)
   }
 
   // Files in current directory, sorted by upload date then filename
@@ -347,7 +349,7 @@ export function Library({ onSelect, initialPath = '' }) {
             <button class="menu-item" onClick={() => {
               setMenuOpen(false)
               let url = prompt('Enter URL to SGF or archive:', DEFAULT_URL)
-              if (url) handleUrl({ preventDefault() {}, target: { elements: { url: { value: url } } } })
+              if (url) fetchUrl(url)
             }}>Upload from URL</button>
             {canInstall && <button class="menu-item" onClick={() => { setMenuOpen(false); handleInstall() }}>Install app</button>}
             <button class="menu-item menu-danger" onClick={() => { setMenuOpen(false); handleReset() }}>Reset all data</button>
