@@ -4,15 +4,6 @@ import { QuizEngine } from './engine.js'
 import { playCorrect, playWrong, playComplete, resetStreak } from './sounds.js'
 import { kv, kvSet, kvRemove, getScores } from './db.js'
 
-function loadHistory(quizKey) {
-  let saved = kv('quizHistory')
-  if (!saved) return null
-  try {
-    let data = JSON.parse(saved)
-    return data.key === quizKey ? data.history : null
-  } catch { return null }
-}
-
 function saveHistory(quizKey, history) {
   kvSet('quizHistory', JSON.stringify({ key: quizKey, history }))
 }
@@ -38,21 +29,12 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
   let [markedLiberties, setMarkedLiberties] = useState(new Set())
   let [reviewVertex, setReviewVertex] = useState(null)
 
-  // Initialize engine once (possibly replaying saved history)
+  // Initialize engine fresh every time, advance first move
   if (!engineRef.current && !error) {
     resetStreak()
     try {
-      let saved = loadHistory(quizKey)
-      if (saved && saved.length > 0) {
-        engineRef.current = QuizEngine.fromReplay(sgf, saved, mode, maxQ)
-        historyRef.current = [...saved]
-        if (engineRef.current.finished) {
-          solvedRef.current = true
-          onSolved(engineRef.current.correct, engineRef.current.results.length)
-        }
-      } else {
-        engineRef.current = new QuizEngine(sgf, mode, true, maxQ)
-      }
+      engineRef.current = new QuizEngine(sgf, mode, true, maxQ)
+      engineRef.current.advance()
     } catch (e) {
       kvRemove('quizHistory')
       setError(e.message)
