@@ -295,10 +295,19 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
         ri++
       }
 
-    // Place ✓/✗ markers on questioned groups
+    // Place ✓ or mistake-count markers on questioned groups
     for (let [key, q] of qByVertex) {
       let [x, y] = key.split(',').map(Number)
-      markerMap[y][x] = { type: 'label', label: q.correct ? '✓' : '✗' }
+      if (q.correct) {
+        markerMap[y][x] = { type: 'label', label: '✓' }
+      } else {
+        let trueSet = new Set(q.trueLibs || [])
+        let marksSet = new Set(q.marks || [])
+        let mistakes = 0
+        for (let k of marksSet) if (!trueSet.has(k)) mistakes++
+        for (let k of trueSet) if (!marksSet.has(k)) mistakes++
+        markerMap[y][x] = { type: 'label', label: String(mistakes) }
+      }
     }
 
     // Clicked question: green ghost for correct marks, red ghost for wrong,
@@ -369,7 +378,7 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
     <div class="quiz">
       <div class="board-row" ref={boardRowRef}>
         <div
-          class={`board-container${wrongFlash ? ' wrong-flash' : ''}`}
+          class={`board-container${wrongFlash ? ' wrong-flash' : ''}${engine.finished ? ' finished' : ''}`}
           title="Hold to peek at hidden stones (?)"
           onPointerDown={() => { if (!markMode || !engine.questionVertex) setPeeking(true) }}
           onPointerUp={() => setPeeking(false)}

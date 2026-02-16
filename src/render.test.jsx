@@ -491,7 +491,7 @@ describe('combined maps — review display scenarios', () => {
     expect(v2.classList.contains('shudan-ghost_-1')).toBe(true)
   })
 
-  it('full review scenario: multiple ✓/✗ with liberty display on one', () => {
+  it('full review scenario: ✓ and mistake count with liberty display', () => {
     let signMap = makeEmptyMap(9, 0)
     let markerMap = makeEmptyMap(9)
     let ghostStoneMap = makeEmptyMap(9)
@@ -502,8 +502,8 @@ describe('combined maps — review display scenarios', () => {
     signMap[5][5] = -1
     // Group 1 answered correctly
     markerMap[2][2] = { type: 'label', label: '✓' }
-    // Group 2 answered wrong
-    markerMap[5][5] = { type: 'label', label: '✗' }
+    // Group 2: 1 wrong mark + 4 missed liberties = 5 mistakes
+    markerMap[5][5] = { type: 'label', label: '5' }
 
     // Show liberties for group 2 (clicked)
     // True liberties of white stone at 5,5: 4,5 6,5 5,4 5,6
@@ -521,10 +521,10 @@ describe('combined maps — review display scenarios', () => {
     expect(g1.getAttribute('title')).toBe('✓')
     expect(g1.querySelector('.shudan-stone .shudan-marker').textContent).toBe('✓')
 
-    // Wrong group marker
+    // Wrong group marker: shows mistake count
     let g2 = getVertex(c, 5, 5)
-    expect(g2.getAttribute('title')).toBe('✗')
-    expect(g2.querySelector('.shudan-stone .shudan-marker').textContent).toBe('✗')
+    expect(g2.getAttribute('title')).toBe('5')
+    expect(g2.querySelector('.shudan-stone .shudan-marker').textContent).toBe('5')
 
     // True liberties are green ghosts
     for (let [x, y] of [[4,5],[6,5],[5,4],[5,6]]) {
@@ -609,7 +609,16 @@ function buildFinishedMaps(engine, reviewVertex = null) {
 
   for (let [key, q] of qByVertex) {
     let [x, y] = key.split(',').map(Number)
-    markerMap[y][x] = { type: 'label', label: q.correct ? '✓' : '✗' }
+    if (q.correct) {
+      markerMap[y][x] = { type: 'label', label: '✓' }
+    } else {
+      let trueSet = new Set(q.trueLibs || [])
+      let marksSet = new Set(q.marks || [])
+      let mistakes = 0
+      for (let k of marksSet) if (!trueSet.has(k)) mistakes++
+      for (let k of trueSet) if (!marksSet.has(k)) mistakes++
+      markerMap[y][x] = { type: 'label', label: String(mistakes) }
+    }
   }
 
   if (reviewVertex && qByVertex.has(reviewVertex)) {
@@ -816,7 +825,7 @@ describe('QuizEngine → Goban integration: finished review', () => {
     }
   })
 
-  it('wrong answers show ✗ markers', () => {
+  it('wrong answers show mistake count markers', () => {
     // Play with wrong answers
     let engine = new QuizEngine(SGF_5x5, 'liberty-end', true, 2)
     while (!engine.finished) {
@@ -829,11 +838,18 @@ describe('QuizEngine → Goban integration: finished review', () => {
     }
     let maps = buildFinishedMaps(engine)
     let c = renderGoban(maps)
+    // No ✗ markers — replaced by numeric mistake counts
     let crosses = c.querySelectorAll('[title="✗"]')
-    expect(crosses.length).toBeGreaterThan(0)
-    for (let v of crosses) {
-      let marker = v.querySelector('.shudan-marker')
-      expect(marker.textContent).toBe('✗')
+    expect(crosses.length).toBe(0)
+    // Should have non-✓ markers with numeric labels
+    let checkmarks = c.querySelectorAll('[title="✓"]')
+    let allMarked = c.querySelectorAll('.shudan-vertex.shudan-marker_label')
+    let mistakeMarkers = allMarked.length - checkmarks.length
+    expect(mistakeMarkers).toBeGreaterThan(0)
+    for (let v of allMarked) {
+      if (v.getAttribute('title') === '✓') continue
+      let label = v.querySelector('.shudan-marker').textContent
+      expect(parseInt(label)).toBeGreaterThan(0)
     }
   })
 
@@ -997,7 +1013,7 @@ describe('QuizEngine → Goban integration: tsumego with setup stones', () => {
     let engine = playToFinish(SGF_TSUMEGO)
     let maps = buildFinishedMaps(engine)
     let c = renderGoban(maps)
-    let totalMarkers = c.querySelectorAll('[title="✓"], [title="✗"]').length
+    let totalMarkers = c.querySelectorAll('.shudan-vertex.shudan-marker_label').length
     // qByVertex deduplicates by vertex, so count unique questioned vertices
     let uniqueQ = new Set()
     for (let moveQs of engine.questionsAsked)

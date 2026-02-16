@@ -412,12 +412,12 @@ body {
   transform: translate(-50%, -50%);
 }
 
-/* Review markers: green checkmarks, red crosses */
+/* Review markers: green checkmarks, red mistake counts */
 .shudan-vertex[title="✓"] .shudan-marker {
   color: #0c0 !important;
   -webkit-text-stroke: .03em #060;
 }
-.shudan-vertex[title="✗"] .shudan-marker {
+.board-container.finished .shudan-vertex.shudan-marker_label:not([title="✓"]) .shudan-marker {
   color: #f44 !important;
   -webkit-text-stroke: .03em #800;
 }
