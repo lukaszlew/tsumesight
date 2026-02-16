@@ -122,12 +122,8 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
   }, [markedLiberties])
 
   let onVertexClick = useCallback((evt, vertex) => {
+    if (engine.finished) return
     let key = `${vertex[0]},${vertex[1]}`
-    // Review mode: toggle liberty display for clicked question
-    if (engine.finished) {
-      setReviewVertex(prev => prev === key ? null : key)
-      return
-    }
     // No question: tap = advance
     if (!engine.questionVertex) {
       advance()
@@ -144,6 +140,23 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
       return next
     })
   }, [submitMarks, advance])
+
+  // Review mode: hold to show liberties
+  let onVertexPointerDown = useCallback((evt, vertex) => {
+    if (!engine.finished) return
+    setReviewVertex(`${vertex[0]},${vertex[1]}`)
+  }, [])
+
+  useEffect(() => {
+    if (!engine.finished) return
+    let up = () => setReviewVertex(null)
+    window.addEventListener('pointerup', up)
+    window.addEventListener('pointercancel', up)
+    return () => {
+      window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', up)
+    }
+  }, [engine.finished])
 
   let markSolved = useCallback(() => {
     onSolved(0, 0, null)
@@ -288,6 +301,7 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
             ghostStoneMap={ghostStoneMap}
             paintMap={paintMap}
             onVertexClick={onVertexClick}
+            onVertexPointerDown={onVertexPointerDown}
             rangeX={rangeX}
             rangeY={rangeY}
             showCoordinates={false}
