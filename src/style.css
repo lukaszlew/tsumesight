@@ -364,14 +364,6 @@ body {
   transform: scale(0.9);
 }
 
-/* Contextual button (Next) */
-.ctx-btn {
-  padding: calc(1.5 * var(--s)) calc(4 * var(--s));
-  font-size: calc(2.5 * var(--s));
-  border-radius: calc(1 * var(--s));
-  margin-top: calc(1 * var(--s));
-}
-
 .bottom-bar-row {
   display: flex;
   justify-content: space-between;

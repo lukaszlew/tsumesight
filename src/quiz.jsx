@@ -298,7 +298,7 @@ export function Quiz({ sgf, sgfId, quizKey, onBack, onSolved, onProgress, onLoad
         {engine.finished
           ? <>
               <StatsBar engine={engine} times={timesRef.current} sgfId={sgfId} />
-              <button class="bar-btn ctx-btn" onClick={onNextUnsolved}>Next</button>
+              <button class="next-hero" onClick={onNextUnsolved}>Next</button>
             </>
           : preSolve
             ? <div class="bottom-bar-row">
