@@ -178,6 +178,7 @@ body {
   background: #1a2a3a;
   border-color: #2a3a4a;
   border-top: 2px solid #4a7ab0;
+  grid-column: span 2;
 }
 .dir-tile .tile-name {
   color: #8ac;
