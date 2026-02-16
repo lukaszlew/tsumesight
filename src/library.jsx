@@ -242,6 +242,20 @@ export function Library({ onSelect, initialPath = '' }) {
   let filesHere = sgfs.filter(s => (s.path || '') === cwd)
     .sort((a, b) => (a.uploadedAt || 0) - (b.uploadedAt || 0) || a.filename.localeCompare(b.filename))
 
+  // Enter = next unsolved/imperfect problem
+  useEffect(() => {
+    function onKeyDown(e) {
+      if (e.key !== 'Enter') return
+      let next = filesHere.find(s => !s.solved)
+        || filesHere.find(s => { let b = getBestScore(s.id); return !b || b.accuracy < 1 })
+      if (!next) return
+      e.preventDefault()
+      onSelect({ id: next.id, content: next.content, path: next.path || '', filename: next.filename, solved: next.solved })
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [sgfs, cwd])
+
   // Subdirectories of current directory
   let subdirs = new Set()
   let prefix = cwd ? cwd + '/' : ''
