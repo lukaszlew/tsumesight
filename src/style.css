@@ -222,6 +222,9 @@ body {
   font-size: 0.75rem;
   font-weight: 600;
   color: #c8a060;
+  border-left: 1px solid #3a3835;
+  padding-left: 0.4rem;
+  margin-left: 0.4rem;
 }
 .tile-perfect {
   color: #4c4;
