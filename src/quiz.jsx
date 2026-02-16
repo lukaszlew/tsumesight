@@ -54,9 +54,8 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       solvedRef.current = true
       let total = engine.results.length
       let accuracy = total > 0 ? engine.correct / total : 1
-      let { avg } = computeStats(timesRef.current)
       let totalMs = timesRef.current.reduce((a, b) => a + b, 0) + engine.errors * 5000
-      let scoreEntry = { accuracy, avgTimeMs: Math.round(avg), totalMs: Math.round(totalMs), errors: engine.errors, date: Date.now(), mode }
+      let scoreEntry = { correct: engine.correct, total, accuracy, totalMs: Math.round(totalMs), errors: engine.errors, date: Date.now(), mode }
       onSolved(engine.correct, total, scoreEntry)
       playComplete()
     }
@@ -295,7 +294,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       <div class="bottom-bar">
         {engine.finished
           ? <>
-              <StatsBar engine={engine} times={timesRef.current} sgfId={sgfId} />
+              <StatsBar sgfId={sgfId} />
               <button class="next-hero" onClick={onNextUnsolved}>Next</button>
             </>
           : preSolve
@@ -317,20 +316,37 @@ export function computeStats(times, cap = 5000) {
   return { avg, sd }
 }
 
-function StatsBar({ engine, times, sgfId }) {
-  let totalMs = times.reduce((a, b) => a + b, 0) + engine.errors * 5000
-  let totalSec = (totalMs / 1000).toFixed(1)
+function formatDate(ts) {
+  let d = new Date(ts)
+  let months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  return `${months[d.getMonth()]} ${d.getDate()}`
+}
+
+function scoreLabel(s) {
+  if (s.correct != null && s.total != null) return `${s.correct}/${s.total}`
+  return `${Math.round(s.accuracy * 100)}%`
+}
+
+function StatsBar({ sgfId }) {
   let scores = sgfId ? getScores(sgfId) : []
-  let best = scores.length > 0 ? scores.reduce((b, s) =>
-    (s.totalMs || Infinity) < (b.totalMs || Infinity) ? s : b
-  ) : null
+  let sorted = [...scores].sort((a, b) =>
+    b.accuracy - a.accuracy || (a.totalMs || Infinity) - (b.totalMs || Infinity)
+  )
   return (
-    <div class="stats-expanded">
-      <div class="stats-grid">
-        <span class="stats-cell">{totalSec}s{engine.errors > 0 ? ` (${engine.errors} err +${engine.errors * 5}s)` : ''}</span>
-        {best && best.totalMs && <span class="stats-cell stats-best">Best: {(best.totalMs / 1000).toFixed(1)}s</span>}
-        {scores.length > 0 && <span class="stats-cell stats-runs">Run #{scores.length + 1}</span>}
-      </div>
+    <div class="score-table-wrap">
+      <table class="score-table">
+        {sorted.map((s, i) => {
+          let isLatest = s === scores[scores.length - 1]
+          return (
+            <tr key={i} class={isLatest ? 'score-latest' : ''}>
+              <td class="score-rank">{i + 1}.</td>
+              <td class={`score-frac${s.accuracy >= 1 ? ' score-perfect' : ''}`}>{scoreLabel(s)}</td>
+              <td class="score-time">{s.totalMs ? (s.totalMs / 1000).toFixed(1) + 's' : ''}</td>
+              <td class="score-date">{s.date ? formatDate(s.date) : ''}</td>
+            </tr>
+          )
+        })}
+      </table>
     </div>
   )
 }

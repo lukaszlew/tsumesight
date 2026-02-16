@@ -142,7 +142,7 @@ export function getBestScore(sgfId) {
   let scores = getScores(sgfId)
   if (scores.length === 0) return null
   return scores.reduce((best, s) =>
-    s.accuracy > best.accuracy || (s.accuracy === best.accuracy && s.avgTimeMs < best.avgTimeMs) ? s : best
+    s.accuracy > best.accuracy || (s.accuracy === best.accuracy && (s.totalMs || Infinity) < (best.totalMs || Infinity)) ? s : best
   )
 }
 

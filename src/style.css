@@ -2,6 +2,8 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 body {
@@ -374,28 +376,53 @@ body {
   overflow: hidden;
 }
 
-.stats-grid {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0 0.75rem;
-  color: #ccc;
-  font-size: calc(2 * var(--s));
+/* High score table */
+.score-table-wrap {
+  overflow-y: auto;
+  max-height: 100%;
+  width: 80%;
 }
-.stats-cell {
+.score-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: calc(1.8 * var(--s));
+  color: #ccc;
+  font-variant-numeric: tabular-nums;
+}
+.score-table tr {
+  border-bottom: 1px solid #333;
+}
+.score-table td {
+  padding: calc(0.3 * var(--s)) calc(0.8 * var(--s));
   white-space: nowrap;
 }
-.stats-best {
+.score-rank {
+  color: #666;
+  text-align: right;
+}
+.score-frac {
   color: #c8a060;
+  font-weight: 600;
 }
-.stats-runs {
-  color: #888;
+.score-perfect {
+  color: #4c4;
 }
-.stats-expanded {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+.score-time {
+  color: #aaa;
+  text-align: right;
+}
+.score-date {
+  color: #666;
+  text-align: right;
+}
+.score-latest td {
+  color: #fff;
+}
+.score-latest .score-frac {
+  color: #4c4;
+}
+.score-latest .score-rank {
+  color: #aaa;
 }
 
 /* Wrong-answer flash */
