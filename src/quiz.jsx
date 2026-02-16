@@ -291,7 +291,6 @@ export function Quiz({ sgf, sgfId, quizKey, onBack, onSolved, onProgress, onLoad
             animateStonePlacement={false}
           />}
         </div>
-        {!preSolve && <button class="back-overlay" title="Back to library (Esc)" onClick={onBack}>&#x25C2;</button>}
       </div>
 
       <div class="bottom-bar">

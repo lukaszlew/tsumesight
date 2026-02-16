@@ -336,33 +336,6 @@ body {
   background: #252320;
 }
 
-/* Back button overlay on board */
-.back-overlay {
-  position: absolute;
-  top: calc(1.5 * var(--s));
-  left: calc(1.5 * var(--s));
-  width: calc(5 * var(--s));
-  height: calc(5 * var(--s));
-  background: rgba(30, 28, 24, 0.7);
-  color: #ccc;
-  border: 1px solid rgba(74, 69, 64, 0.5);
-  border-radius: calc(1 * var(--s));
-  font-size: calc(2.5 * var(--s));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  z-index: 10;
-}
-.back-overlay:hover {
-  background: rgba(50, 48, 44, 0.85);
-  border-color: rgba(120, 115, 105, 0.6);
-  color: #eee;
-}
-.back-overlay:active {
-  transform: scale(0.9);
-}
 
 .bottom-bar-row {
   display: flex;
