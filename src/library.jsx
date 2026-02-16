@@ -5,6 +5,7 @@ import { isArchive, extractSgfs } from './archive.js'
 import { decodeSgf } from './sgf-utils.js'
 
 const DEFAULT_URL = 'https://files.catbox.moe/v3phv1.zip'
+const isDev = location.pathname.includes('/dev/')
 
 function scoreColor(accuracy) {
   if (accuracy >= 0.8) return '#c8a060'
@@ -322,6 +323,9 @@ export function Library({ onSelect, initialPath = '' }) {
         }}>Upload from URL</button>
         {canInstall && <button class="upload-sm" onClick={handleInstall}>Install</button>}
         <button class="upload-sm reset-btn" title="Delete all data and re-download defaults" onClick={handleReset}>Reset</button>
+        {isDev
+          ? <a class="upload-sm" href="../">Prod</a>
+          : <a class="upload-sm" href="dev/">Dev</a>}
       </div>
 
       {importing && (
