@@ -197,7 +197,8 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  height: 2.2rem;
+  min-height: 2.6rem;
+  padding: 0.5rem 0.6rem;
 }
 .tile:hover {
   background: #2e2c28;
