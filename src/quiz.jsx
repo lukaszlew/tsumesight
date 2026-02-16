@@ -148,12 +148,12 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       else if (e.key === 'Enter') {
         e.preventDefault()
         if (engine.finished) onNextUnsolved()
-        else if (engine.questionVertex) submitMarks()
         else if (preSolve) toggleSolved()
       }
       else if (e.key === ' ') {
         e.preventDefault()
-        if (!engine.finished && !engine.questionVertex) advance()
+        if (engine.questionVertex) submitMarks()
+        else if (!engine.finished) advance()
       }
     }
     window.addEventListener('keydown', onKeyDown)
