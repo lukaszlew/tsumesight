@@ -342,10 +342,12 @@ export function Library({ onSelect, initialPath = '' }) {
             let { solved, total } = dirStats[d]
             let lp = useLongPress(() => handleDeleteDir(prefix + d, d))
             return (
-              <div key={'d:' + d} class="tile dir-tile" onClick={() => setCwd(prefix + d)} {...lp}>
-                <div class="tile-name">📁 {d}</div>
-                <div class="tile-meta">
-                  <span class="score-good">{solved}</span>/{total}
+              <div key={'d:' + d} class={`tile dir-tile${solved === total ? ' dir-complete' : ''}`} onClick={() => setCwd(prefix + d)} {...lp}>
+                <div class="tile-name">{d}</div>
+                <div class="dir-count">
+                  <span class="dir-count-num">{solved}</span>
+                  <span class="dir-count-sep">/</span>
+                  <span class="dir-count-den">{total}</span>
                 </div>
               </div>
             )

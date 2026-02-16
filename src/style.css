@@ -177,10 +177,37 @@ body {
 .dir-tile {
   background: #1a2a3a;
   border-color: #2a3a4a;
+  border-top: 2px solid #4a7ab0;
+}
+.dir-tile .tile-name {
+  color: #8ac;
+  font-weight: 600;
 }
 .dir-tile:hover {
   background: #253d54;
   border-color: #3a5a7a;
+  border-top-color: #6a9ad0;
+}
+.dir-count {
+  font-variant-numeric: tabular-nums;
+  margin-top: 0.15rem;
+}
+.dir-count-num {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #4c4;
+}
+.dir-count-sep {
+  font-size: 0.85rem;
+  color: #445;
+  margin: 0 0.05rem;
+}
+.dir-count-den {
+  font-size: 0.85rem;
+  color: #668;
+}
+.dir-complete .dir-count-num {
+  color: #c8a060;
 }
 
 .breadcrumbs {
