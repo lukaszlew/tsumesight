@@ -412,6 +412,14 @@ body {
   font-size: calc(2 * var(--s));
   border-radius: calc(0.8 * var(--s));
 }
+.bottom-bar-row .next-hero {
+  width: auto;
+  flex: 1;
+  margin: 0;
+  padding: calc(1.2 * var(--s)) calc(2.5 * var(--s));
+  font-size: calc(2.2 * var(--s));
+  border-radius: calc(0.8 * var(--s));
+}
 
 
 /* Board (row 1) */
@@ -479,13 +487,12 @@ body {
   text-align: right;
 }
 .score-latest td {
-  color: #fff;
+  background: rgba(100, 100, 255, 0.08);
 }
-.score-latest .score-frac {
-  color: #4c4;
-}
-.score-latest .score-rank {
-  color: #aaa;
+.score-latest .score-rank::before {
+  content: '▸';
+  color: #88f;
+  margin-right: calc(0.3 * var(--s));
 }
 .score-replay {
   padding: 0 !important;
@@ -543,8 +550,12 @@ body {
 .shudan-goban {
   --shudan-board-background-color: #dcb35c;
   --shudan-board-border-color: #b8923a;
-  box-shadow: 0 4px 20px rgba(0,0,0,.5), 0 0 40px rgba(180,140,60,.1);
-  border-radius: 4px;
+  --shudan-board-border-width: .05em;
+  --shudan-padding: .1em;
+  box-shadow: 0 2px 12px rgba(0,0,0,.4);
+  border-radius: 3px;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
 }
 .shudan-goban-image {
   background-image: none;

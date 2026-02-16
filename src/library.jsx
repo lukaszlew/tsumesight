@@ -313,7 +313,7 @@ export function Library({ onSelect, initialPath = '' }) {
         if (unsolved) {
           let select = () => onSelect({ id: unsolved.id, content: unsolved.content, path: unsolved.path || '', filename: unsolved.filename, solved: unsolved.solved })
           return <>
-            <div class="progress-hero">
+            <div class="progress-hero" title="Problems solved in this folder">
               <span class="progress-num">{solvedCount}</span>
               <span class="progress-sep">/</span>
               <span class="progress-den">{filesHere.length}</span>
@@ -325,7 +325,7 @@ export function Library({ onSelect, initialPath = '' }) {
         if (imperfect) {
           let select = () => onSelect({ id: imperfect.id, content: imperfect.content, path: imperfect.path || '', filename: imperfect.filename, solved: imperfect.solved })
           return <>
-            <div class="progress-hero complete">
+            <div class="progress-hero complete" title="All problems solved">
               <span class="progress-num">{solvedCount}</span>
               <span class="progress-sep">/</span>
               <span class="progress-den">{filesHere.length}</span>
@@ -337,7 +337,7 @@ export function Library({ onSelect, initialPath = '' }) {
       })()}
 
       <div class="menu-wrap">
-        <button class="menu-toggle" onClick={() => setMenuOpen(v => !v)}>☰</button>
+        <button class="menu-toggle" title="Menu" onClick={() => setMenuOpen(v => !v)}>☰</button>
         {menuOpen && <>
           <div class="menu-backdrop" onClick={() => setMenuOpen(false)} />
           <div class="menu-dropdown">
@@ -367,7 +367,7 @@ export function Library({ onSelect, initialPath = '' }) {
 
       {cwd && (
         <div class="breadcrumbs">
-          <span class="crumb" onClick={() => setCwd('')}>⌂</span>
+          <span class="crumb" title="Go to root folder" onClick={() => setCwd('')}>⌂</span>
           {crumbs.map((c, i) => (
             <span key={i}>
               <span class="crumb-sep">›</span>
@@ -392,7 +392,7 @@ export function Library({ onSelect, initialPath = '' }) {
             return (
               <div key={'d:' + d} class={`tile dir-tile${solved === total ? ' dir-complete' : ''}`} onClick={() => setCwd(prefix + d)} {...lp}>
                 <div class="tile-name">{d}</div>
-                <div class="dir-count">
+                <div class="dir-count" title={`${solved} of ${total} solved`}>
                   <span class="dir-count-num">{solved}</span>
                   <span class="dir-count-sep">/</span>
                   <span class="dir-count-den">{total}</span>
@@ -411,8 +411,9 @@ export function Library({ onSelect, initialPath = '' }) {
             return (
               <div key={s.id} class={`tile file-tile${s.solved ? ' tile-solved' : ''}`}
                 onClick={() => onSelect({ id: s.id, content: s.content, path: s.path || '', filename: s.filename, solved: s.solved })} {...lp}>
-                <span class="tile-num">{s.moveCount || '?'}</span>
+                <span class="tile-num" title="Number of moves">{s.moveCount || '?'}</span>
                 <span class={`tile-acc${best && best.accuracy >= 1 ? ' tile-perfect' : ''}`}
+                  title="Best score"
                   style={best && best.accuracy < 1 ? { color: scoreColor(best.accuracy) } : undefined}
                 >{best ? Math.round(best.accuracy * 100) + '%' : ''}</span>
               </div>

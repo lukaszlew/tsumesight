@@ -8,12 +8,19 @@ function makeEmptyMap(size, fill = null) {
   return Array.from({ length: size }, () => Array(size).fill(fill))
 }
 
-export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsolved, onProgress, onLoadError, onNextUnsolved }) {
+function transpose(map) {
+  let rows = map.length
+  let cols = map[0].length
+  return Array.from({ length: cols }, (_, x) => Array.from({ length: rows }, (_, y) => map[y][x]))
+}
+
+export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsolved, onProgress, onLoadError, onNextUnsolved, onRetry }) {
   let engineRef = useRef(null)
   let solvedRef = useRef(false)
   let [, forceRender] = useState(0)
   let rerender = () => forceRender(n => n + 1)
   let [vertexSize, setVertexSize] = useState(0)
+  let [rotated, setRotated] = useState(false)
   let boardRowRef = useRef(null)
   let [mode] = useState(() => kv('quizMode', 'liberty-end'))
   let [maxQ] = useState(() => parseInt(kv('quizMaxQ', '2')))
@@ -33,6 +40,13 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   let replayModeRef = useRef(false)
   let replayDataRef = useRef(null)
   let replayMarksRef = useRef(new Set())
+  let savedEngineRef = useRef(null)
+  let savedSolvedRef = useRef(false)
+  let savedReviewVertexRef = useRef(null)
+
+  // Show sequence (step through moves during question phase)
+  let [seqIdx, setSeqIdx] = useState(0) // 0 = inactive, 1+ = showing move N
+  let seqSavedRef = useRef(null)
 
   function setReplayModeSync(val) {
     replayModeRef.current = val
@@ -89,21 +103,23 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     let events = getReplay(sgfId, scoreEntry.date)
     if (!events || events.length === 0) return
 
-    // Reset engine
+    // Save current state
+    savedEngineRef.current = engineRef.current
+    savedSolvedRef.current = solvedRef.current
+    savedReviewVertexRef.current = reviewVertex
+
+    // Create fresh engine for replay
     try {
       engineRef.current = new QuizEngine(sgf, scoreEntry.mode || mode, true, maxQ)
       engineRef.current.advance()
     } catch { return }
 
-    // Reset state
+    // Reset transient state
     solvedRef.current = false
     setMarkedLiberties(new Set())
     setReviewVertex(null)
     setWrongFlash(false)
     questionStartRef.current = null
-    timesRef.current = []
-    replayEventsRef.current = []
-    replayStartRef.current = null
     replayMarksRef.current = new Set()
     replayDataRef.current = events
 
@@ -111,26 +127,47 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     rerender()
   }
 
-  function exitReplayEarly() {
+  function restoreSavedState() {
     setReplayModeSync(false)
     replayDataRef.current = null
     replayMarksRef.current = new Set()
     setMarkedLiberties(new Set())
-    // Fast-forward engine to finished state so we show the score screen
-    let eng = engineRef.current
-    while (!eng.finished) {
-      if (eng.questionVertex) {
-        let result = eng.answerMark(new Set())
-        if (result.done) eng.advance()
-      } else if (eng.showingMove) {
-        eng.activateQuestions()
-        if (!eng.questionVertex && !eng.finished) eng.advance()
-      } else {
-        eng.advance()
-      }
-    }
-    solvedRef.current = true
+    // Restore saved engine and state
+    engineRef.current = savedEngineRef.current
+    solvedRef.current = savedSolvedRef.current
+    setReviewVertex(savedReviewVertexRef.current)
+    savedEngineRef.current = null
+    savedSolvedRef.current = false
+    savedReviewVertexRef.current = null
     rerender()
+  }
+
+  function exitReplayEarly() {
+    restoreSavedState()
+  }
+
+  function startShowSequence() {
+    seqSavedRef.current = { marks: markedLiberties, questionStart: questionStartRef.current }
+    setMarkedLiberties(new Set())
+    setSeqIdx(1)
+  }
+
+  function exitShowSequence() {
+    let saved = seqSavedRef.current
+    seqSavedRef.current = null
+    setSeqIdx(0)
+    if (saved) {
+      setMarkedLiberties(saved.marks)
+      questionStartRef.current = saved.questionStart
+    }
+  }
+
+  function advanceShowSequence() {
+    let targetIdx = engineRef.current.moveIndex
+    setSeqIdx(prev => {
+      if (prev >= targetIdx) { exitShowSequence(); return 0 }
+      return prev + 1
+    })
   }
 
   let advance = useCallback(() => {
@@ -169,12 +206,23 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
 
   let onVertexClick = useCallback((evt, vertex) => {
     if (replayModeRef.current) { exitReplayEarly(); return }
-    if (engine.finished) return
-    recordEvent({ v: [vertex[0], vertex[1]] })
+    if (seqIdx > 0) { advanceShowSequence(); return }
     let key = `${vertex[0]},${vertex[1]}`
+    // Review mode: toggle liberty display on tap
+    if (engine.finished) {
+      setReviewVertex(prev => prev === key ? null : key)
+      return
+    }
+    recordEvent({ v: [vertex[0], vertex[1]] })
     // No question: tap = advance
     if (!engine.questionVertex) {
       advance()
+      return
+    }
+    // Tapping the question mark with marks → submit
+    if (key === `${engine.questionVertex[0]},${engine.questionVertex[1]}` && markedLiberties.size > 0) {
+      recordEvent({ s: 1 })
+      submitMarks()
       return
     }
     // Toggle liberty mark
@@ -184,24 +232,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       else next.add(key)
       return next
     })
-  }, [advance])
-
-  // Review mode: hold to show liberties
-  let onVertexPointerDown = useCallback((evt, vertex) => {
-    if (!engine.finished || replayModeRef.current) return
-    setReviewVertex(`${vertex[0]},${vertex[1]}`)
-  }, [])
-
-  useEffect(() => {
-    if (!engine.finished || replayMode) return
-    let up = () => setReviewVertex(null)
-    window.addEventListener('pointerup', up)
-    window.addEventListener('pointercancel', up)
-    return () => {
-      window.removeEventListener('pointerup', up)
-      window.removeEventListener('pointercancel', up)
-    }
-  }, [engine.finished, replayMode])
+  }, [advance, markedLiberties, submitMarks])
 
   let toggleSolved = useCallback(() => {
     if (wasSolved) {
@@ -222,11 +253,20 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
         if (e.key === 'Escape') { e.preventDefault(); exitReplayEarly() }
         return
       }
+      if (seqIdx > 0) {
+        if (e.key === ' ') { e.preventDefault(); advanceShowSequence() }
+        else if (e.key === 'Escape') { e.preventDefault(); exitShowSequence() }
+        return
+      }
       if (e.key === 'Escape') { e.preventDefault(); onBack() }
       else if (e.key === 'Enter') {
         e.preventDefault()
         if (engine.finished) onNextUnsolved()
         else if (preSolve) toggleSolved()
+      }
+      else if ((e.key === 'r' || e.key === 'R') && engine.finished) {
+        e.preventDefault()
+        onRetry()
       }
       else if (e.key === ' ') {
         e.preventDefault()
@@ -304,14 +344,10 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
         if (!cancelled) rerender()
       }
 
-      // Replay finished — pause briefly on final state, then show scores
+      // Replay finished — pause briefly on final state, then restore original
       if (!cancelled) {
         await new Promise(r => setTimeout(r, 1500))
-        if (!cancelled) {
-          setReplayModeSync(false)
-          replayDataRef.current = null
-          rerender()
-        }
+        if (!cancelled) restoreSavedState()
       }
     }
 
@@ -340,7 +376,15 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     if (!el) return
     let ro = new ResizeObserver(entries => {
       let { width, height } = entries[0].contentRect
-      setVertexSize(Math.max(1, Math.floor(Math.min(width / (cols + 1), height / (rows + 1)))))
+      let normalSize = Math.floor(Math.min(width / (cols + 0.5), height / (rows + 0.5)))
+      let rotatedSize = Math.floor(Math.min(width / (rows + 0.5), height / (cols + 0.5)))
+      if (rotatedSize > normalSize * 1.1) {
+        setRotated(true)
+        setVertexSize(Math.max(1, rotatedSize))
+      } else {
+        setRotated(false)
+        setVertexSize(Math.max(1, normalSize))
+      }
     })
     ro.observe(el)
     return () => ro.disconnect()
@@ -350,7 +394,19 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   let size = engine.boardSize
   let signMap, markerMap, ghostStoneMap, paintMap
 
-  if (engine.finished && !replayMode) {
+  if (seqIdx > 0) {
+    // Show base position + only the current move stone (like during the quiz)
+    signMap = engine.baseSignMap.map(row => [...row])
+    markerMap = makeEmptyMap(size)
+    ghostStoneMap = makeEmptyMap(size)
+    paintMap = makeEmptyMap(size)
+    let move = engine.moves[seqIdx - 1]
+    if (move) {
+      let [x, y] = move.vertex
+      signMap[y][x] = move.sign
+      markerMap[y][x] = { type: 'label', label: String(seqIdx) }
+    }
+  } else if (engine.finished && !replayMode) {
     signMap = engine.trueBoard.signMap.map(row => [...row])
     markerMap = makeEmptyMap(size)
     ghostStoneMap = makeEmptyMap(size)
@@ -430,10 +486,26 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
 
   let preSolve = !engine.finished && engine.results.length === 0
 
+  // Apply rotation if needed
+  let displayRangeX = rangeX, displayRangeY = rangeY
+  if (rotated) {
+    signMap = transpose(signMap)
+    markerMap = transpose(markerMap)
+    ghostStoneMap = transpose(ghostStoneMap)
+    paintMap = transpose(paintMap)
+    displayRangeX = rangeY
+    displayRangeY = rangeX
+  }
+
+  let handleVertexClick = rotated
+    ? (evt, [x, y]) => onVertexClick(evt, [y, x])
+    : onVertexClick
+
   return (
     <div class="quiz">
       <div class="board-row" ref={boardRowRef}>
         {replayMode && <div class="replay-indicator">REPLAY</div>}
+        {seqIdx > 0 && <div class="replay-indicator">SEQUENCE</div>}
         <div class={`board-container${wrongFlash ? ' wrong-flash' : ''}${engine.finished && !replayMode ? ' finished' : ''}`}>
           {vertexSize > 0 && <Goban
             vertexSize={vertexSize}
@@ -441,10 +513,9 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
             markerMap={markerMap}
             ghostStoneMap={ghostStoneMap}
             paintMap={paintMap}
-            onVertexClick={onVertexClick}
-            onVertexPointerDown={onVertexPointerDown}
-            rangeX={rangeX}
-            rangeY={rangeY}
+            onVertexClick={handleVertexClick}
+            rangeX={displayRangeX}
+            rangeY={displayRangeY}
             showCoordinates={false}
             fuzzyStonePlacement={false}
             animateStonePlacement={false}
@@ -455,19 +526,25 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       <div class="bottom-bar">
         {replayMode
           ? <div class="replay-exit-hint">Tap board or press Esc to exit</div>
-          : engine.finished
-            ? <>
-                <StatsBar sgfId={sgfId} onReplay={startReplay} />
-                <button class="next-hero" onClick={onNextUnsolved}>Next</button>
-              </>
-            : engine.questionVertex
-              ? <button class="next-hero" onClick={() => { recordEvent({ s: 1 }); submitMarks() }}>Submit</button>
-              : preSolve
-                ? <div class="bottom-bar-row">
-                    <button class="bar-btn" onClick={onBack}>&#x25C2; Back</button>
-                    <button class="bar-btn mark-solved-btn" onClick={toggleSolved}>{wasSolved ? 'Mark as unsolved' : 'Mark as solved'}</button>
+          : seqIdx > 0
+            ? <div class="replay-exit-hint">Move {seqIdx}/{engine.moveIndex} — tap to advance</div>
+            : engine.finished
+              ? <>
+                  <StatsBar sgfId={sgfId} onReplay={startReplay} />
+                  <div class="bottom-bar-row">
+                    <button class="bar-btn" title="Return to library (Esc)" onClick={onBack}>&#x25C2; Back</button>
+                    <button class="bar-btn" title="Restart this problem (R)" onClick={onRetry}>Retry</button>
+                    <button class="next-hero" title="Next unsolved problem (Enter)" onClick={onNextUnsolved}>Next</button>
                   </div>
-                : null
+                </>
+              : engine.questionVertex
+                ? <button class="bar-btn" title="Show the move sequence again" onClick={startShowSequence}>&#x25B6; Sequence</button>
+                : preSolve
+                  ? <div class="bottom-bar-row">
+                      <button class="bar-btn" title="Return to library (Esc)" onClick={onBack}>&#x25C2; Back</button>
+                      <button class="bar-btn mark-solved-btn" title={wasSolved ? 'Remove solved mark' : 'Skip and mark as solved (Enter)'} onClick={toggleSolved}>{wasSolved ? 'Mark as unsolved' : 'Mark as solved'}</button>
+                    </div>
+                  : null
         }
       </div>
     </div>
@@ -510,7 +587,7 @@ function StatsBar({ sgfId, onReplay }) {
               <td class="score-time">{s.totalMs ? (s.totalMs / 1000).toFixed(1) + 's' : ''}</td>
               <td class="score-date">{s.date ? formatDate(s.date) : ''}</td>
               {hasReplay && <td class="score-replay">
-                <button class="replay-btn" onClick={(e) => { e.stopPropagation(); onReplay(s) }}>{'\u25B6'}</button>
+                <button class="replay-btn" title="Watch replay of this attempt" onClick={(e) => { e.stopPropagation(); onReplay(s) }}>{'\u25B6'}</button>
               </td>}
             </tr>
           )
