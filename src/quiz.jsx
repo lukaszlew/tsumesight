@@ -232,7 +232,10 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
       let marksSet = new Set(q.marks || [])
       for (let k of marksSet) {
         let [x, y] = k.split(',').map(Number)
-        if (signMap[y][x] !== 0) continue
+        if (signMap[y][x] !== 0) {
+          markerMap[y][x] = { type: 'circle' }
+          continue
+        }
         ghostStoneMap[y][x] = trueSet.has(k)
           ? { sign: 1, type: 'good' }
           : { sign: -1, type: 'bad' }
