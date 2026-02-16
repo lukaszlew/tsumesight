@@ -176,7 +176,7 @@ body {
 
 .tile-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
   gap: 0.4rem;
   margin-bottom: 1rem;
 }
@@ -215,6 +215,8 @@ body {
   font-weight: 700;
   color: #bbb;
   line-height: 1;
+  width: 40%;
+  text-align: left;
 }
 .tile-solved .tile-num {
   color: #bbb;
@@ -223,9 +225,9 @@ body {
   font-size: 0.75rem;
   font-weight: 600;
   color: #c8a060;
-  border-left: 1px solid #555;
+  border-left: 2px solid;
+  border-image: linear-gradient(to bottom, transparent, #665, transparent) 1;
   padding-left: 0.4rem;
-  margin-left: auto;
 }
 .tile-perfect {
   color: #4c4;
