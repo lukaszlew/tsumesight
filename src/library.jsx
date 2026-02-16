@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'preact/hooks'
-import { getAllSgfs, addSgfBatch, deleteSgf, deleteSgfsByPrefix, clearAll, getBestScore } from './db.js'
+import { getAllSgfs, addSgfBatch, deleteSgf, deleteSgfsByPrefix, clearAll, getBestScore, getLatestScoreDate } from './db.js'
 import { parseSgf } from './sgf-utils.js'
 import { isArchive, extractSgfs } from './archive.js'
 import { decodeSgf } from './sgf-utils.js'
@@ -251,23 +251,28 @@ export function Library({ onSelect, initialPath = '' }) {
       if (dir) subdirs.add(dir)
     }
   }
-  let sortedDirs = [...subdirs].sort()
-
-  // Directory stats: total, solved, and started counts
+  // Directory stats: total, solved, started counts, latest score date
   let dirStats = {}
-  for (let d of sortedDirs) {
+  for (let d of subdirs) {
     let dirPrefix = prefix + d
-    let total = 0, solved = 0, started = 0
+    let total = 0, solved = 0, started = 0, latestDate = 0
     for (let s of sgfs) {
       let p = s.path || ''
       if (p === dirPrefix || p.startsWith(dirPrefix + '/')) {
         total++
-        if (s.solved) solved++
+        if (s.solved) {
+          solved++
+          let d2 = getLatestScoreDate(s.id)
+          if (d2 > latestDate) latestDate = d2
+        }
         else if (s.done > 0) started++
       }
     }
-    dirStats[d] = { total, solved, started }
+    dirStats[d] = { total, solved, started, latestDate }
   }
+  let sortedDirs = [...subdirs].sort((a, b) =>
+    dirStats[b].latestDate - dirStats[a].latestDate || a.localeCompare(b)
+  )
 
   // Breadcrumb parts
   let crumbs = cwd ? cwd.split('/') : []

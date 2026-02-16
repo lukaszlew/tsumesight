@@ -146,6 +146,12 @@ export function getBestScore(sgfId) {
   )
 }
 
+export function getLatestScoreDate(sgfId) {
+  let scores = getScores(sgfId)
+  if (scores.length === 0) return 0
+  return Math.max(...scores.map(s => s.date || 0))
+}
+
 export async function clearAll() {
   let db = await openDb()
   await promisify(tx(db, 'readwrite').clear())
