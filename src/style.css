@@ -112,6 +112,15 @@ body {
   color: #f88;
   background: #433;
 }
+.version-link {
+  font-size: 0.65rem;
+  color: #666;
+  text-decoration: none;
+  letter-spacing: 0.05em;
+}
+.version-link:hover {
+  color: #999;
+}
 
 .empty-msg, .loading {
   text-align: center;

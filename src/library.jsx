@@ -324,8 +324,8 @@ export function Library({ onSelect, initialPath = '' }) {
         {canInstall && <button class="upload-sm" onClick={handleInstall}>Install</button>}
         <button class="upload-sm reset-btn" title="Delete all data and re-download defaults" onClick={handleReset}>Reset</button>
         {isDev
-          ? <a class="upload-sm" href="../">Prod</a>
-          : <a class="upload-sm" href="dev/">Dev</a>}
+          ? <a class="version-link" href="../">dev</a>
+          : <a class="version-link" href="dev/">prod</a>}
       </div>
 
       {importing && (
