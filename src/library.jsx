@@ -397,18 +397,14 @@ export function Library({ onSelect, initialPath = '' }) {
         <div class="tile-grid">
           {filesHere.map(s => {
             let best = getBestScore(s.id)
-            let name = s.filename.replace(/\.sgf$/i, '')
             let lp = useLongPress(() => handleDelete(s.id, s.filename))
             return (
               <div key={s.id} class={`tile${s.solved ? ' tile-solved' : ''}`}
                 onClick={() => onSelect({ id: s.id, content: s.content, path: s.path || '', filename: s.filename, solved: s.solved })} {...lp}>
-                <div class="tile-name">{name}</div>
-                <div class="tile-meta">
-                  {s.moveCount}m
-                  {best ? <span class={`tile-best${best.accuracy >= 1 ? ' tile-perfect' : ''}`}
-                    style={best.accuracy < 1 ? { color: scoreColor(best.accuracy) } : undefined}
-                  >{Math.round(best.accuracy * 100)}%</span> : ''}
-                </div>
+                <div class="tile-num">{best ? best.total : s.moveCount}</div>
+                {best && <div class={`tile-acc${best.accuracy >= 1 ? ' tile-perfect' : ''}`}
+                  style={best.accuracy < 1 ? { color: scoreColor(best.accuracy) } : undefined}
+                >{Math.round(best.accuracy * 100)}%</div>}
               </div>
             )
           })}

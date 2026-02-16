@@ -176,8 +176,8 @@ body {
 
 .tile-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+  gap: 0.4rem;
   margin-bottom: 1rem;
 }
 .tile {
@@ -185,10 +185,11 @@ body {
   border: 1px solid #3a3835;
   border-left: 3px solid #3a3835;
   border-radius: 6px;
-  padding: 0.5rem 0.75rem;
+  padding: 0.4rem 0.5rem;
   cursor: pointer;
   transition: all 0.15s ease;
   min-width: 0;
+  text-align: center;
   -webkit-user-select: none;
   user-select: none;
 }
@@ -202,6 +203,25 @@ body {
 .tile-solved {
   border-left-color: #4c4;
 }
+.tile-num {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #bbb;
+  line-height: 1.2;
+}
+.tile-solved .tile-num {
+  color: #8a8;
+}
+.tile-acc {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #c8a060;
+  margin-top: 0.1rem;
+}
+.tile-perfect {
+  color: #4c4;
+  font-weight: 700;
+}
 .tile-name {
   font-size: 0.85rem;
   color: #ccc;
@@ -211,18 +231,6 @@ body {
 }
 .tile-solved .tile-name {
   color: #8a8;
-}
-.tile-meta {
-  font-size: 0.75rem;
-  color: #888;
-  margin-top: 0.15rem;
-}
-.tile-best {
-  margin-left: 0.4rem;
-}
-.tile-perfect {
-  color: #4c4;
-  font-weight: 700;
 }
 .dir-tile {
   background: #1a2a3a;
