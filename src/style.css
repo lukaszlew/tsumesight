@@ -455,7 +455,7 @@ body {
   border-bottom: 1px solid #333;
 }
 .score-table td {
-  padding: calc(0.3 * var(--s)) calc(0.8 * var(--s));
+  padding: calc(0.5 * var(--s)) calc(1.2 * var(--s));
   white-space: nowrap;
 }
 .score-rank {
