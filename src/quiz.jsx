@@ -310,7 +310,7 @@ export function Quiz({ sgf, sgfId, quizKey, filename, dirName, onBack, onSolved,
               <button class="bar-btn ctx-btn" onClick={onNextUnsolved}>Next</button>
             </>
           : preSolve
-            ? <button class="bar-btn mark-solved-btn" onClick={markSolved}>✓ Mark as solved</button>
+            ? <button class="bar-btn mark-solved-btn" onClick={markSolved}>Mark as ✓</button>
             : null
         }
       </div>

@@ -372,15 +372,13 @@ body {
   margin-top: calc(1 * var(--s));
 }
 
-/* Mark as solved — side-aligned, green accent */
+/* Mark as solved — side-aligned */
 .mark-solved-btn {
   align-self: flex-end;
   margin-right: calc(3 * var(--s));
   padding: calc(1 * var(--s)) calc(2 * var(--s));
   font-size: calc(1.8 * var(--s));
   border-radius: calc(0.8 * var(--s));
-  border-color: #4c4;
-  color: #4c4;
 }
 
 .problem-name {
