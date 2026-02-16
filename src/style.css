@@ -198,6 +198,31 @@ body {
   margin-left: auto;
   color: #999;
 }
+.next-btn {
+  margin-left: 0.5rem;
+  padding: 0.3rem 0.8rem;
+  background: #2a6;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.15s ease;
+}
+.next-btn:hover {
+  background: #3b7;
+}
+.complete-badge {
+  margin-left: 0.5rem;
+  padding: 0.25rem 0.7rem;
+  background: linear-gradient(135deg, #2a5a2a, #3a7a3a);
+  color: #cda;
+  border: 1px solid #4a4;
+  border-radius: 5px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
 .score-good {
   color: #4c4;
 }

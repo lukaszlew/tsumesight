@@ -309,6 +309,19 @@ export function Library({ onSelect, initialPath = '' }) {
             {filesHere.some(s => !s.solved && s.done > 0) ? '/' + filesHere.filter(s => !s.solved && s.done > 0).length : ''}
             /{filesHere.length}
           </span>
+          {filesHere.length > 0 && (() => {
+            let unsolved = filesHere.find(s => !s.solved)
+            if (unsolved) {
+              let select = () => onSelect({ id: unsolved.id, content: unsolved.content, path: unsolved.path || '', filename: unsolved.filename })
+              return <button class="next-btn" title="First unsolved problem" onClick={select}>Next</button>
+            }
+            let imperfect = filesHere.find(s => { let b = getBestScore(s.id); return !b || b.accuracy < 1 })
+            if (imperfect) {
+              let select = () => onSelect({ id: imperfect.id, content: imperfect.content, path: imperfect.path || '', filename: imperfect.filename })
+              return <button class="next-btn" title="All solved — first without 100% accuracy" onClick={select}>Next</button>
+            }
+            return <span class="complete-badge">All Perfect</span>
+          })()}
         </div>
       )}
 
