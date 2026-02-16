@@ -2,7 +2,7 @@ import { useState, useEffect } from 'preact/hooks'
 import { Component } from 'preact'
 import { Library } from './library.jsx'
 import { Quiz } from './quiz.jsx'
-import { getAllSgfs, updateSgf, addScore, kv, kvSet, kvRemove } from './db.js'
+import { getAllSgfs, updateSgf, addScore, getBestScore, kv, kvSet, kvRemove } from './db.js'
 
 class ErrorBoundary extends Component {
   state = { error: null }
@@ -126,9 +126,19 @@ export function App() {
   async function goNextUnsolved() {
     let siblings = await getSiblings(active.path)
     let curIdx = siblings.findIndex(s => s.id === active.id)
+    // First unsolved
     for (let i = 1; i < siblings.length; i++) {
       let s = siblings[(curIdx + i) % siblings.length]
       if (!s.solved) {
+        selectSgf({ id: s.id, content: s.content, path: s.path || '', filename: s.filename })
+        return
+      }
+    }
+    // All solved — first non-perfect
+    for (let i = 1; i < siblings.length; i++) {
+      let s = siblings[(curIdx + i) % siblings.length]
+      let best = getBestScore(s.id)
+      if (!best || best.accuracy < 1) {
         selectSgf({ id: s.id, content: s.content, path: s.path || '', filename: s.filename })
         return
       }
