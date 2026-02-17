@@ -764,6 +764,14 @@ describe('QuizEngine', () => {
       expect(engine.comparisonQuestions.length).toBe(0)
     })
 
+    it('no comparison when only one group was asked in liberty phase', () => {
+      let engine = new QuizEngine(adjacentSgf, 'liberty', true, 1)
+      engine.advance() // B[ba] — 1 liberty question (one group)
+      engine.advance() // W[aa] — only 1 of 2 groups gets a liberty question
+      expect(engine.questions.length).toBe(1)
+      expect(engine.comparisonQuestions.length).toBe(0)
+    })
+
     it('Z is assigned to left-or-above stone', () => {
       let engine = new QuizEngine(adjacentSgf)
       engine.advance() // B[ba]

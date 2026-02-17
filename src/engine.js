@@ -514,14 +514,14 @@ export class QuizEngine {
       }
     }
 
-    // Find adjacent opposite-color pairs with |diff| <= 1, at least one asked
+    // Find adjacent opposite-color pairs with |diff| <= 1, both asked
     let seenPairs = new Set()
     for (let i = 0; i < groups.length; i++) {
       for (let j = i + 1; j < groups.length; j++) {
         let gi = groups[i], gj = groups[j]
         if (gi.sign === gj.sign) continue
         if (Math.abs(gi.libs - gj.libs) > 1) continue
-        if (!gi.wasAsked && !gj.wasAsked) continue
+        if (!gi.wasAsked || !gj.wasAsked) continue
         let borderPair = this._findBorderPair(gi, gj)
         if (!borderPair) continue
         let pairKey = i < j ? `${i},${j}` : `${j},${i}`
