@@ -14,6 +14,16 @@ Spec: Difficulty heuristic — primary factor is move count, secondary is number
 
 Spec: Comparative question mode — new mode selectable from menu. After each move, highlight 2 opposite-color groups, user taps the one with more liberties. If only 1 changed group, skip question. Pair selection heuristic: prefer small liberty difference, tiebreak by last-move group. Build spanning tree on group adjacency graph to select pairs. More design needed on pair selection.
 
+## To spec
+
+- When inspecting answers, we should also see a bar of dots below the board and each represents one comparative answer. It should be green or red and clicking it would show the letters z x again and somehow signify your answer.
+- The text on the mobile is too small. Why is it too small?
+- We should improve the algorithm for comparative question selection.
+- Sound doesn't work, sound settings button.
+- Mark as resolved button is invisible.
+- Clicking "?" Acts as Library marking
+
+
 ## Done
 
 Spec: Tooltips for Go players new to the app. Standard tooltip behavior on all non-obvious UI elements (buttons, tile numbers, percentages). Users know Go but not what to do on each screen.
