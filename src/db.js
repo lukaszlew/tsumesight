@@ -91,24 +91,6 @@ export async function loadKv() {
   let keys = await promisify(tx(db, 'readonly', KV_STORE).getAllKeys())
   kvCache = {}
   for (let i = 0; i < keys.length; i++) kvCache[keys[i]] = all[i]
-  // Migrate from localStorage/sessionStorage
-  let migrations = ['quizMode', 'quizMaxQ', 'quizShowDuration', 'sound', 'quizHistory', 'activeSgf', 'lastPath']
-  let needsMigrate = false
-  for (let key of migrations) {
-    let val = localStorage.getItem(key) ?? sessionStorage.getItem(key)
-    if (val != null && !(key in kvCache)) {
-      kvCache[key] = val
-      needsMigrate = true
-    }
-  }
-  if (needsMigrate) {
-    let store = tx(await openDb(), 'readwrite', KV_STORE)
-    for (let key of migrations) {
-      if (key in kvCache) store.put(kvCache[key], key)
-      localStorage.removeItem(key)
-      sessionStorage.removeItem(key)
-    }
-  }
 }
 
 export function kv(key, fallback) {
