@@ -354,9 +354,10 @@ export function Library({ onSelect, initialPath = '' }) {
             {canInstall && <button class="menu-item" onClick={() => { setMenuOpen(false); handleInstall() }}>Install app</button>}
             <button class="menu-item menu-danger" onClick={() => { setMenuOpen(false); handleReset() }}>Reset all data</button>
             <div class="menu-sep" />
-            {isDev
-              ? <a class="menu-item" href="../">Go to Prod</a>
-              : <a class="menu-item" href="dev/">Go to Dev</a>}
+            <div class="env-toggle">
+              <a class={`env-btn${isDev ? '' : ' env-active'}`} href={isDev ? '../' : undefined}>Prod</a>
+              <a class={`env-btn${isDev ? ' env-active' : ''}`} href={isDev ? undefined : 'dev/'}>Dev</a>
+            </div>
           </div>
         </>}
       </div>

@@ -150,6 +150,33 @@ body {
   background: #444;
   margin: 0.3rem 0;
 }
+.env-toggle {
+  display: flex;
+  gap: 0;
+  margin: 0.3rem 0.6rem;
+}
+.env-btn {
+  flex: 1;
+  padding: 0.4rem 0;
+  text-align: center;
+  font-size: 0.85rem;
+  text-decoration: none;
+  border: 1px solid #555;
+  color: #888;
+  cursor: pointer;
+}
+.env-btn:first-child { border-radius: 4px 0 0 4px; }
+.env-btn:last-child { border-radius: 0 4px 4px 0; border-left: none; }
+.env-active {
+  background: #2a6;
+  color: #fff;
+  border-color: #2a6;
+  cursor: default;
+}
+.env-btn:not(.env-active):hover {
+  background: #383530;
+  color: #ccc;
+}
 
 .empty-msg, .loading {
   text-align: center;
