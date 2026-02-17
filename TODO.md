@@ -10,11 +10,10 @@ Spec: Blind mode — starts from initial position, user guesses moves similar to
 
 Spec: Difficulty heuristic — primary factor is move count, secondary is number of small-liberty small groups. Needs experimentation. Display on tiles for now.
 
-## Needs more design
-
-Spec: Comparative question mode — new mode selectable from menu. After each move, highlight 2 opposite-color groups, user taps the one with more liberties. If only 1 changed group, skip question. Pair selection heuristic: prefer small liberty difference, tiebreak by last-move group. Build spanning tree on group adjacency graph to select pairs. More design needed on pair selection.
+## Spec-ed, can start working
 
 ## To spec
+If you see this section non-empty, we should clarify until it is unambigous what to implement.
 
 - When inspecting answers, we should also see a bar of dots below the board and each represents one comparative answer. It should be green or red and clicking it would show the letters z x again and somehow signify your answer.
 - The text on the mobile is too small. Why is it too small?
@@ -25,6 +24,12 @@ Spec: Comparative question mode — new mode selectable from menu. After each mo
 
 
 ## Done
+
+Spec: Comparison phase — after liberty questions on each move, ask comparison questions for adjacent opposite-color group pairs where both groups were liberty-questioned and liberty difference is 0 or 1. Label two neighboring stones Z (left/above) and X, user taps the group with more liberties or presses = Equal (Space). Green hero-style Equal button. Same feedback as liberty phase (correct sound + advance, wrong sound + 150ms shake + advance). Replay button stays in place across liberty and comparison phases via visibility:hidden Equal during liberty.
+
+Spec: Action hints below the board — contextual instructions for each quiz state: "Tap board for the next move. Remember the sequence." during advance, "Tap all liberties of ? group, then tap ? or Space" during liberty, "Tap the group with more liberties, or = Equal" during comparison.
+
+Spec: Dev/prod toggle in hamburger menu — two side-by-side buttons (Prod | Dev), active environment green, inactive gray and clickable to switch.
 
 Spec: Tooltips for Go players new to the app. Standard tooltip behavior on all non-obvious UI elements (buttons, tile numbers, percentages). Users know Go but not what to do on each screen.
 
