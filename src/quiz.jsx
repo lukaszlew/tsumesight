@@ -613,19 +613,16 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
                     <button class="next-hero" title="Next unsolved problem (Enter)" onClick={onNextUnsolved}>Next</button>
                   </div>
                 </>
-              : engine.questionVertex
+              : engine.questionVertex || engine.comparisonPair
                 ? <>
-                    <div class="action-hint">Tap all liberties of &#x2753; group, then tap &#x2753; or Space</div>
-                    <button class="bar-btn" title="Replay the move sequence" onClick={startShowSequence}>&#x25B6; Replay</button>
+                    <div class="action-hint">{engine.comparisonPair
+                      ? 'Tap the group with more liberties, or = Equal'
+                      : 'Tap all liberties of \u2753 group, then tap \u2753 or Space'}</div>
+                    <div class="bottom-bar-row">
+                      <button class="bar-btn" title="Replay the move sequence" onClick={startShowSequence}>&#x25B6; Replay</button>
+                      <button class={`next-hero equal-btn${engine.comparisonPair ? '' : ' invisible'}`} title="Both groups have equal liberties (Space)" onClick={() => { recordEvent({ cmp: 'equal' }); submitComparison('equal') }}>= Equal</button>
+                    </div>
                   </>
-                : engine.comparisonPair
-                  ? <>
-                      <div class="action-hint">Tap the group with more liberties, or = Equal</div>
-                      <div class="bottom-bar-row">
-                        <button class="bar-btn" title="Replay the move sequence" onClick={startShowSequence}>&#x25B6; Replay</button>
-                        <button class="next-hero equal-btn" title="Both groups have equal liberties (Space)" onClick={() => { recordEvent({ cmp: 'equal' }); submitComparison('equal') }}>= Equal</button>
-                      </div>
-                    </>
                 : engine.showingMove
                   ? <div class="action-hint">Tap board for the next move. Remember the sequence.</div>
                   : preSolve

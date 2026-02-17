@@ -535,6 +535,9 @@ body {
   font-size: calc(1.6 * var(--s));
   text-align: center;
 }
+.invisible {
+  visibility: hidden;
+}
 .action-hint {
   color: #888;
   font-size: calc(1.6 * var(--s));
