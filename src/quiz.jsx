@@ -249,10 +249,9 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       advance()
       return
     }
-    // Tapping the question mark with marks → submit
-    if (key === `${engine.questionVertex[0]},${engine.questionVertex[1]}` && markedLiberties.size > 0) {
-      recordEvent({ s: 1 })
-      submitMarks()
+    // Tapping the question mark → submit if marks exist, otherwise ignore
+    if (key === `${engine.questionVertex[0]},${engine.questionVertex[1]}`) {
+      if (markedLiberties.size > 0) { recordEvent({ s: 1 }); submitMarks() }
       return
     }
     // Toggle liberty mark
@@ -624,13 +623,14 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
                     </div>
                   </>
                 : engine.showingMove
-                  ? <div class="action-hint">Tap board for the next move. Remember the sequence.</div>
-                  : preSolve
-                    ? <div class="bottom-bar-row">
+                  ? <>
+                      <div class="action-hint">Tap board for the next move. Remember the sequence.</div>
+                      {preSolve && <div class="bottom-bar-row">
                         <button class="bar-btn" title="Return to library (Esc)" onClick={onBack}>&#x25C2; Back</button>
                         <button class="bar-btn mark-solved-btn" title={wasSolved ? 'Remove solved mark' : 'Skip and mark as solved (Enter)'} onClick={toggleSolved}>{wasSolved ? 'Mark as unsolved' : 'Mark as solved'}</button>
-                      </div>
-                    : null
+                      </div>}
+                    </>
+                  : null
         }
       </div>
     </div>

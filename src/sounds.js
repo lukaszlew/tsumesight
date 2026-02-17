@@ -24,7 +24,7 @@ function getCtx() {
 }
 
 function playTone(freq, duration, type = 'sine', vol = 0.24) {
-  if (!enabled) return
+  if (!getEnabled()) return
   let c = getCtx()
   let osc = c.createOscillator()
   let gain = c.createGain()
@@ -52,7 +52,7 @@ export function playWrong() {
 }
 
 export function playComplete() {
-  if (!enabled) return
+  if (!getEnabled()) return
   let c = getCtx()
   // Ascending major chord with sustain: C5 → E5 → G5 → C6
   let freqs = [523, 659, 784, 1047]

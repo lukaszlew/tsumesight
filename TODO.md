@@ -15,15 +15,20 @@ Spec: Difficulty heuristic — primary factor is move count, secondary is number
 ## To spec
 If you see this section non-empty, we should clarify until it is unambigous what to implement.
 
-- When inspecting answers, we should also see a bar of dots below the board and each represents one comparative answer. It should be green or red and clicking it would show the letters z x again and somehow signify your answer.
-- The text on the mobile is too small. Why is it too small?
+- When inspecting answers, we should also see a bar of dots below the board and each represents one comparative answer. It should be green or red and clicking it would show the letters z x again and somehow signify your answer. Clicking just highlights user answer.
 - We should improve the algorithm for comparative question selection.
-- Sound doesn't work, sound settings button.
-- Mark as resolved button is invisible.
-- Clicking "?" Acts as Library marking
+- Sound settings button in menu.
 
 
 ## Done
+
+Spec: Fix sound not playing — playTone/playComplete checked `enabled` (starts null/falsy) instead of `getEnabled()`. Sound now works on first play without needing a toggle first.
+
+Spec: Fix clicking ❓ stone marking a liberty at that position. Now clicking ❓ submits if marks exist, otherwise does nothing.
+
+Spec: Fix Mark as solved button unreachable — showingMove phase was hiding preSolve buttons. Now shows both advance hint and Back/Mark as solved during showingMove.
+
+Spec: Increase action hint font size (~2x) and add whitespace between hint text and buttons below.
 
 Spec: Comparison phase — after liberty questions on each move, ask comparison questions for adjacent opposite-color group pairs where both groups were liberty-questioned and liberty difference is 0 or 1. Label two neighboring stones Z (left/above) and X, user taps the group with more liberties or presses = Equal (Space). Green hero-style Equal button. Same feedback as liberty phase (correct sound + advance, wrong sound + 150ms shake + advance). Replay button stays in place across liberty and comparison phases via visibility:hidden Equal during liberty.
 

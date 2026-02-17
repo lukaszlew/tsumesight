@@ -567,8 +567,9 @@ body {
 }
 .action-hint {
   color: #888;
-  font-size: calc(1.6 * var(--s));
+  font-size: calc(3 * var(--s));
   text-align: center;
+  margin-bottom: calc(1.5 * var(--s));
 }
 
 /* Wrong-answer flash */
