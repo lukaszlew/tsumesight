@@ -530,6 +530,17 @@ body {
   z-index: 10;
   pointer-events: none;
 }
+.question-prompt {
+  position: absolute;
+  top: calc(1.5 * var(--s));
+  left: 50%;
+  transform: translateX(-50%);
+  color: #b0a890;
+  font-size: calc(1.8 * var(--s));
+  white-space: nowrap;
+  z-index: 10;
+  pointer-events: none;
+}
 .replay-exit-hint {
   color: #888;
   font-size: calc(1.6 * var(--s));

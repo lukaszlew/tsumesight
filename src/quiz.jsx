@@ -582,6 +582,8 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       <div class="board-row" ref={boardRowRef}>
         {replayMode && <div class="replay-indicator">REPLAY</div>}
         {seqIdx > 0 && <div class="replay-indicator">SEQUENCE</div>}
+        {!replayMode && seqIdx === 0 && engine.questionVertex && <div class="question-prompt">Mark the liberties</div>}
+        {!replayMode && seqIdx === 0 && engine.comparisonPair && <div class="question-prompt">Which group has more liberties?</div>}
         <div class={`board-container${wrongFlash ? ' wrong-flash' : ''}${engine.finished && !replayMode ? ' finished' : ''}`}>
           {vertexSize > 0 && <Goban
             vertexSize={vertexSize}
@@ -614,11 +616,11 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
                   </div>
                 </>
               : engine.questionVertex
-                ? <button class="bar-btn" title="Show the move sequence again" onClick={startShowSequence}>&#x25B6; Sequence</button>
+                ? <button class="bar-btn" title="Replay the move sequence" onClick={startShowSequence}>&#x25B6; Replay</button>
                 : engine.comparisonPair
                   ? <div class="bottom-bar-row">
-                      <button class="bar-btn" title="Show the move sequence again" onClick={startShowSequence}>&#x25B6; Sequence</button>
-                      <button class="bar-btn" title="Both groups have equal liberties (Space)" onClick={() => { recordEvent({ cmp: 'equal' }); submitComparison('equal') }}>= Equal</button>
+                      <button class="bar-btn" title="Replay the move sequence" onClick={startShowSequence}>&#x25B6; Replay</button>
+                      <button class="next-hero equal-btn" title="Both groups have equal liberties (Space)" onClick={() => { recordEvent({ cmp: 'equal' }); submitComparison('equal') }}>= Equal</button>
                     </div>
                 : preSolve
                   ? <div class="bottom-bar-row">
