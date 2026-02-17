@@ -582,8 +582,6 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       <div class="board-row" ref={boardRowRef}>
         {replayMode && <div class="replay-indicator">REPLAY</div>}
         {seqIdx > 0 && <div class="replay-indicator">SEQUENCE</div>}
-        {!replayMode && seqIdx === 0 && engine.questionVertex && <div class="question-prompt">Mark the liberties</div>}
-        {!replayMode && seqIdx === 0 && engine.comparisonPair && <div class="question-prompt">Which group has more liberties?</div>}
         <div class={`board-container${wrongFlash ? ' wrong-flash' : ''}${engine.finished && !replayMode ? ' finished' : ''}`}>
           {vertexSize > 0 && <Goban
             vertexSize={vertexSize}
@@ -616,18 +614,26 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
                   </div>
                 </>
               : engine.questionVertex
-                ? <button class="bar-btn" title="Replay the move sequence" onClick={startShowSequence}>&#x25B6; Replay</button>
+                ? <>
+                    <div class="action-hint">Tap all liberties of &#x2753; group, then tap &#x2753; or Space</div>
+                    <button class="bar-btn" title="Replay the move sequence" onClick={startShowSequence}>&#x25B6; Replay</button>
+                  </>
                 : engine.comparisonPair
-                  ? <div class="bottom-bar-row">
-                      <button class="bar-btn" title="Replay the move sequence" onClick={startShowSequence}>&#x25B6; Replay</button>
-                      <button class="next-hero equal-btn" title="Both groups have equal liberties (Space)" onClick={() => { recordEvent({ cmp: 'equal' }); submitComparison('equal') }}>= Equal</button>
-                    </div>
-                : preSolve
-                  ? <div class="bottom-bar-row">
-                      <button class="bar-btn" title="Return to library (Esc)" onClick={onBack}>&#x25C2; Back</button>
-                      <button class="bar-btn mark-solved-btn" title={wasSolved ? 'Remove solved mark' : 'Skip and mark as solved (Enter)'} onClick={toggleSolved}>{wasSolved ? 'Mark as unsolved' : 'Mark as solved'}</button>
-                    </div>
-                  : null
+                  ? <>
+                      <div class="action-hint">Tap the group with more liberties, or = Equal</div>
+                      <div class="bottom-bar-row">
+                        <button class="bar-btn" title="Replay the move sequence" onClick={startShowSequence}>&#x25B6; Replay</button>
+                        <button class="next-hero equal-btn" title="Both groups have equal liberties (Space)" onClick={() => { recordEvent({ cmp: 'equal' }); submitComparison('equal') }}>= Equal</button>
+                      </div>
+                    </>
+                : engine.showingMove
+                  ? <div class="action-hint">Tap board for the next move. Remember the sequence.</div>
+                  : preSolve
+                    ? <div class="bottom-bar-row">
+                        <button class="bar-btn" title="Return to library (Esc)" onClick={onBack}>&#x25C2; Back</button>
+                        <button class="bar-btn mark-solved-btn" title={wasSolved ? 'Remove solved mark' : 'Skip and mark as solved (Enter)'} onClick={toggleSolved}>{wasSolved ? 'Mark as unsolved' : 'Mark as solved'}</button>
+                      </div>
+                    : null
         }
       </div>
     </div>

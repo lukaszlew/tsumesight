@@ -891,4 +891,81 @@ describe('QuizEngine', () => {
     })
   })
 
+  describe('hint states', () => {
+    // At every point in a quiz session, exactly one hint condition should be active:
+    // 1. showingMove (not finished, not questioning) → "Tap board for the next move"
+    // 2. questionVertex → "Tap all liberties of ❓ group"
+    // 3. comparisonPair → "Tap the group with more liberties"
+    // 4. finished → stats/buttons (no action hint)
+    function hintState(engine) {
+      if (engine.finished) return 'finished'
+      if (engine.questionVertex) return 'liberty'
+      if (engine.comparisonPair) return 'comparison'
+      return 'advance'
+    }
+
+    it('every state in a full session maps to exactly one hint', () => {
+      let engine = new QuizEngine('(;SZ[9];B[ba];W[aa])')
+      let states = []
+      engine.advance()
+      states.push(hintState(engine)) // showingMove
+      engine.activateQuestions()
+      while (!engine.finished) {
+        let s = hintState(engine)
+        states.push(s)
+        if (s === 'liberty') {
+          let libs = Math.min(engine.trueBoard.getLiberties(engine.questionVertex).length, 5)
+          let result = engine.answer(libs)
+          if (result.done) { engine.advance(); engine.activateQuestions() }
+        } else if (s === 'comparison') {
+          let { libsZ, libsX } = engine.comparisonPair
+          let trueAnswer = libsZ > libsX ? 'Z' : libsX > libsZ ? 'X' : 'equal'
+          let result = engine.answerComparison(trueAnswer)
+          if (result.done) { engine.advance(); engine.activateQuestions() }
+        } else {
+          engine.advance()
+          engine.activateQuestions()
+        }
+      }
+      states.push(hintState(engine))
+
+      expect(states.includes('advance')).toBe(true)
+      expect(states.includes('liberty')).toBe(true)
+      expect(states.includes('finished')).toBe(true)
+      // Every state is one of the known hint states
+      for (let s of states) expect(['advance', 'liberty', 'comparison', 'finished']).toContain(s)
+    })
+
+    it('liberty-end mode hits all hint states including comparison', () => {
+      let engine = new QuizEngine('(;SZ[9];B[ba];W[aa])', 'liberty-end')
+      let seen = new Set()
+      engine.advance()
+      seen.add(hintState(engine))
+      engine.activateQuestions()
+      while (!engine.finished) {
+        let s = hintState(engine)
+        seen.add(s)
+        if (s === 'liberty') {
+          let libs = Math.min(engine.trueBoard.getLiberties(engine.questionVertex).length, 5)
+          let result = engine.answer(libs)
+          if (result.done) { engine.advance(); engine.activateQuestions() }
+        } else if (s === 'comparison') {
+          let { libsZ, libsX } = engine.comparisonPair
+          let trueAnswer = libsZ > libsX ? 'Z' : libsX > libsZ ? 'X' : 'equal'
+          let result = engine.answerComparison(trueAnswer)
+          if (result.done) { engine.advance(); engine.activateQuestions() }
+        } else {
+          engine.advance()
+          engine.activateQuestions()
+        }
+      }
+      seen.add(hintState(engine))
+
+      expect(seen).toContain('advance')
+      expect(seen).toContain('liberty')
+      expect(seen).toContain('comparison')
+      expect(seen).toContain('finished')
+    })
+  })
+
 })
