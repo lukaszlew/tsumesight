@@ -76,6 +76,9 @@ export class QuizEngine {
     this.showWindow = 1 // how many recent stones visible during show phase (grows on wrong answers)
     this.finished = false
     this.questionsAsked = [] // per move: [{vertex}...]
+    this.comparisonQuestions = [] // [{vertexZ, vertexX, libsZ, libsX}]
+    this.comparisonIndex = 0
+    this.comparisonPair = null // current comparison pair or null
 
     // Precompute question counts per move (ideal play, no wrong answers)
     if (_precompute) {
@@ -94,6 +97,9 @@ export class QuizEngine {
       this.questions = []
       this.questionIndex = 0
       this.questionVertex = null
+      this.comparisonQuestions = []
+      this.comparisonIndex = 0
+      this.comparisonPair = null
       return null
     }
 
@@ -125,6 +131,9 @@ export class QuizEngine {
       this.questions = []
       this.questionIndex = 0
       this.questionVertex = null
+      this.comparisonQuestions = []
+      this.comparisonIndex = 0
+      this.comparisonPair = null
       return null
     }
 
@@ -150,7 +159,12 @@ export class QuizEngine {
   activateQuestions() {
     this.showingMove = false
     this.blockedAnswers.clear()
-    this.questionVertex = this.questions[this.questionIndex] || null
+    if (this.questionIndex < this.questions.length) {
+      this.questionVertex = this.questions[this.questionIndex]
+    } else {
+      this.questionVertex = null
+      this._activateComparison()
+    }
   }
 
   answer(value) {
@@ -192,8 +206,7 @@ export class QuizEngine {
 
     // Always advance to next question
     this._advanceQuestion()
-    let done = this.questionIndex >= this.questions.length
-    return { penalties, done }
+    return { penalties, done: this._moveQuestionsDone }
   }
 
   _answerLiberty(liberties) {
@@ -213,8 +226,7 @@ export class QuizEngine {
       this.retrying = false
       this.blockedAnswers.clear()
       this._advanceQuestion()
-      let done = this.questionIndex >= this.questions.length
-      return { correct: true, trueLiberties, done }
+      return { correct: true, trueLiberties, done: this._moveQuestionsDone }
     }
 
     this.results.push(isCorrect)
@@ -233,15 +245,48 @@ export class QuizEngine {
     this.correct++
     mp.results.push('correct')
     this._advanceQuestion()
-    let done = this.questionIndex >= this.questions.length
-    return { correct: true, trueLiberties, done }
+    return { correct: true, trueLiberties, done: this._moveQuestionsDone }
+  }
+
+  get _moveQuestionsDone() {
+    return this.questionVertex === null && this.comparisonPair === null
   }
 
   _advanceQuestion() {
     this.questionIndex++
-    this.questionVertex = this.questionIndex < this.questions.length
-      ? this.questions[this.questionIndex]
+    if (this.questionIndex < this.questions.length) {
+      this.questionVertex = this.questions[this.questionIndex]
+    } else {
+      this.questionVertex = null
+      this._activateComparison()
+    }
+  }
+
+  _activateComparison() {
+    this.comparisonPair = this.comparisonIndex < this.comparisonQuestions.length
+      ? this.comparisonQuestions[this.comparisonIndex]
       : null
+  }
+
+  _advanceComparison() {
+    this.comparisonIndex++
+    this._activateComparison()
+  }
+
+  // choice: 'Z' | 'X' | 'equal'
+  answerComparison(choice) {
+    assert(this.comparisonPair, 'No comparison to answer')
+    let { libsZ, libsX } = this.comparisonPair
+    let trueAnswer = libsZ > libsX ? 'Z' : libsX > libsZ ? 'X' : 'equal'
+    let isCorrect = choice === trueAnswer
+
+    this.results.push(isCorrect)
+    let mp = this.moveProgress[this.moveProgress.length - 1]
+    if (isCorrect) { this.correct++; mp.results.push('correct') }
+    else { this.wrong++; this.errors++; mp.results.push('failed') }
+
+    this._advanceComparison()
+    return { correct: isCorrect, trueAnswer, done: this.comparisonPair === null }
   }
 
   materialize() {
@@ -339,9 +384,10 @@ export class QuizEngine {
     }
     this.questionIndex = 0
     this.questionVertex = this.showingMove ? null : (this.questions[0] || null)
-    this.moveProgress[this.moveProgress.length - 1] = { total: this.questions.length, results: [] }
-    this.questionsPerMove[this.questionsPerMove.length - 1] = this.questions.length
     this.questionsAsked[this.questionsAsked.length - 1] = this.questions.map(v => ({ vertex: v }))
+    this._generateComparisonQuestions()
+    this.moveProgress[this.moveProgress.length - 1] = { total: this.questions.length + this.comparisonQuestions.length, results: [] }
+    this.questionsPerMove[this.questionsPerMove.length - 1] = this.questions.length + this.comparisonQuestions.length
   }
 
   _advanceLiberty(move) {
@@ -350,6 +396,9 @@ export class QuizEngine {
       this.questions = []
       this.questionIndex = 0
       this.questionVertex = null
+      this.comparisonQuestions = []
+      this.comparisonIndex = 0
+      this.comparisonPair = null
       this.moveProgress.push({ total: 0, results: [] })
       this.questionsAsked.push([])
       return
@@ -360,8 +409,9 @@ export class QuizEngine {
       this.questions = this._selectEndQuestions()
       this.questionIndex = 0
       this.questionVertex = null
-      this.moveProgress.push({ total: this.questions.length, results: [] })
       this.questionsAsked.push(this.questions.map(v => ({ vertex: v })))
+      this._generateComparisonQuestions()
+      this.moveProgress.push({ total: this.questions.length + this.comparisonQuestions.length, results: [] })
       return
     }
 
@@ -387,8 +437,9 @@ export class QuizEngine {
     this.questions = this.questions.slice(0, this.maxQuestions)
     this.questionIndex = 0
     this.questionVertex = null
-    this.moveProgress.push({ total: this.questions.length, results: [] })
     this.questionsAsked.push(this.questions.map(v => ({ vertex: v })))
+    this._generateComparisonQuestions()
+    this.moveProgress.push({ total: this.questions.length + this.comparisonQuestions.length, results: [] })
   }
 
   // Select questions for liberty-end mode:
@@ -437,6 +488,85 @@ export class QuizEngine {
   }
 
 
+  _generateComparisonQuestions() {
+    this.comparisonQuestions = []
+    this.comparisonIndex = 0
+    this.comparisonPair = null
+    if (this.questions.length === 0) return
+
+    let questionedKeys = new Set(this.questions.map(v => vertexKey(v)))
+
+    // Enumerate all groups with sign, chainKeys, wasAsked
+    let visited = new Set()
+    let groups = []
+    for (let y = 0; y < this.boardSize; y++) {
+      for (let x = 0; x < this.boardSize; x++) {
+        let v = [x, y]
+        let k = vertexKey(v)
+        if (visited.has(k) || this.trueBoard.get(v) === 0) continue
+        let chain = this.trueBoard.getChain(v)
+        let chainKeys = new Set()
+        for (let cv of chain) { let ck = vertexKey(cv); visited.add(ck); chainKeys.add(ck) }
+        let sign = this.trueBoard.get(v)
+        let libs = this.trueBoard.getLiberties(v).length
+        let wasAsked = chain.some(cv => questionedKeys.has(vertexKey(cv)))
+        groups.push({ sign, chain, libs, chainKeys, wasAsked })
+      }
+    }
+
+    // Find adjacent opposite-color pairs with |diff| <= 1, at least one asked
+    let seenPairs = new Set()
+    for (let i = 0; i < groups.length; i++) {
+      for (let j = i + 1; j < groups.length; j++) {
+        let gi = groups[i], gj = groups[j]
+        if (gi.sign === gj.sign) continue
+        if (Math.abs(gi.libs - gj.libs) > 1) continue
+        if (!gi.wasAsked && !gj.wasAsked) continue
+        let borderPair = this._findBorderPair(gi, gj)
+        if (!borderPair) continue
+        let pairKey = i < j ? `${i},${j}` : `${j},${i}`
+        if (seenPairs.has(pairKey)) continue
+        seenPairs.add(pairKey)
+
+        let [stoneA, stoneB] = borderPair
+        // Z = left or above
+        let aIsZ = stoneA[0] < stoneB[0] || (stoneA[0] === stoneB[0] && stoneA[1] < stoneB[1])
+        this.comparisonQuestions.push({
+          vertexZ: aIsZ ? stoneA : stoneB,
+          vertexX: aIsZ ? stoneB : stoneA,
+          libsZ: aIsZ ? gi.libs : gj.libs,
+          libsX: aIsZ ? gj.libs : gi.libs,
+        })
+      }
+    }
+  }
+
+  _findBorderPair(groupA, groupB) {
+    let candidates = []
+    for (let stone of groupA.chain) {
+      for (let neighbor of this.trueBoard.getNeighbors(stone)) {
+        if (groupB.chainKeys.has(vertexKey(neighbor)))
+          candidates.push([stone, neighbor])
+      }
+    }
+    if (candidates.length === 0) return null
+
+    // Prefer pairs with the current move stone
+    let moveKey = this.currentMove ? vertexKey(this.currentMove.vertex) : null
+    if (moveKey) {
+      let withMove = candidates.filter(([a, b]) =>
+        vertexKey(a) === moveKey || vertexKey(b) === moveKey)
+      if (withMove.length > 0) return withMove[0]
+    }
+
+    // Then prefer invisible (recently placed) stones
+    let withInvisible = candidates.filter(([a, b]) =>
+      this.invisibleStones.has(vertexKey(a)) || this.invisibleStones.has(vertexKey(b)))
+    if (withInvisible.length > 0) return withInvisible[0]
+
+    return candidates[0]
+  }
+
   _pruneCaptured() {
     for (let [key] of this.staleness) {
       let [x, y] = key.split(',').map(Number)
@@ -453,22 +583,34 @@ export class QuizEngine {
     engine.activateQuestions()
     for (let wasCorrectFirst of history) {
       if (engine.finished) break
-      // Skip moves with no liberty questions
-      while (!engine.questionVertex && !engine.finished) {
+      // Skip moves with no questions (liberty or comparison)
+      while (!engine.questionVertex && !engine.comparisonPair && !engine.finished) {
         engine.advance()
         engine.activateQuestions()
       }
-      if (!engine.questionVertex) break
-      let trueLiberties = Math.min(engine.trueBoard.getLiberties(engine.questionVertex).length, 5)
-      if (wasCorrectFirst) {
-        let result = engine.answer(trueLiberties)
-        if (result.done) { engine.advance(); engine.activateQuestions() }
-      } else {
-        let wrongAnswer = trueLiberties === 1 ? 2 : 1
-        engine.answer(wrongAnswer)
-        let result = engine.answer(trueLiberties)
-        if (result.done) { engine.advance(); engine.activateQuestions() }
-      }
+      if (engine.questionVertex) {
+        let trueLiberties = Math.min(engine.trueBoard.getLiberties(engine.questionVertex).length, 5)
+        if (wasCorrectFirst) {
+          let result = engine.answer(trueLiberties)
+          if (result.done) { engine.advance(); engine.activateQuestions() }
+        } else {
+          let wrongAnswer = trueLiberties === 1 ? 2 : 1
+          engine.answer(wrongAnswer)
+          let result = engine.answer(trueLiberties)
+          if (result.done) { engine.advance(); engine.activateQuestions() }
+        }
+      } else if (engine.comparisonPair) {
+        let { libsZ, libsX } = engine.comparisonPair
+        let trueAnswer = libsZ > libsX ? 'Z' : libsX > libsZ ? 'X' : 'equal'
+        if (wasCorrectFirst) {
+          let result = engine.answerComparison(trueAnswer)
+          if (result.done) { engine.advance(); engine.activateQuestions() }
+        } else {
+          let wrongAnswer = trueAnswer === 'Z' ? 'X' : 'Z'
+          let result = engine.answerComparison(wrongAnswer)
+          if (result.done) { engine.advance(); engine.activateQuestions() }
+        }
+      } else break
     }
     // If we landed on a fresh move with no answers yet, show the move first
     if (!engine.finished && !engine.retrying) {
@@ -476,6 +618,7 @@ export class QuizEngine {
       if (mp && mp.results.length === 0) {
         engine.showingMove = true
         engine.questionVertex = null
+        engine.comparisonPair = null
         engine.questionIndex = 0
       }
     }

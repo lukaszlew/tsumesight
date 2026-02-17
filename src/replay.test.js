@@ -10,11 +10,28 @@ function replayEvents(sgfString, events, mode = 'liberty-end', maxQ = 2) {
   for (let evt of events) {
     if (engine.finished) break
 
-    if (evt.v) {
-      if (!engine.questionVertex) {
+    if (evt.cmp) {
+      if (engine.comparisonPair) {
+        let result = engine.answerComparison(evt.cmp)
+        if (result.done && !engine.finished) engine.advance()
+      }
+    } else if (evt.v) {
+      if (engine.comparisonPair) {
+        let pair = engine.comparisonPair
+        let key = `${evt.v[0]},${evt.v[1]}`
+        let zKey = `${pair.vertexZ[0]},${pair.vertexZ[1]}`
+        let xKey = `${pair.vertexX[0]},${pair.vertexX[1]}`
+        if (key === zKey) {
+          let result = engine.answerComparison('Z')
+          if (result.done && !engine.finished) engine.advance()
+        } else if (key === xKey) {
+          let result = engine.answerComparison('X')
+          if (result.done && !engine.finished) engine.advance()
+        }
+      } else if (!engine.questionVertex) {
         if (engine.showingMove) {
           engine.activateQuestions()
-          if (!engine.questionVertex && !engine.finished) engine.advance()
+          if (!engine.questionVertex && !engine.comparisonPair && !engine.finished) engine.advance()
         } else if (!engine.finished) {
           engine.advance()
         }
@@ -24,10 +41,10 @@ function replayEvents(sgfString, events, mode = 'liberty-end', maxQ = 2) {
         else marks.add(key)
       }
     } else if (evt.a) {
-      if (!engine.finished && !engine.questionVertex) {
+      if (!engine.finished && !engine.questionVertex && !engine.comparisonPair) {
         if (engine.showingMove) {
           engine.activateQuestions()
-          if (!engine.questionVertex && !engine.finished) engine.advance()
+          if (!engine.questionVertex && !engine.comparisonPair && !engine.finished) engine.advance()
         } else {
           engine.advance()
         }
@@ -56,7 +73,7 @@ function playAndRecord(sgfString, { mode = 'liberty-end', maxQ = 2, correct = tr
       t += 100
       events.push({ t, a: 1 })
       engine.activateQuestions()
-      if (!engine.questionVertex && !engine.finished) engine.advance()
+      if (!engine.questionVertex && !engine.comparisonPair && !engine.finished) engine.advance()
       continue
     }
 
@@ -74,6 +91,17 @@ function playAndRecord(sgfString, { mode = 'liberty-end', maxQ = 2, correct = tr
         ? new Set(engine.trueBoard.getLiberties(engine.questionVertex).map(([x, y]) => `${x},${y}`))
         : new Set()
       let result = engine.answerMark(markedSet)
+      if (result.done && !engine.finished) engine.advance()
+      continue
+    }
+
+    if (engine.comparisonPair) {
+      let { libsZ, libsX } = engine.comparisonPair
+      let trueAnswer = libsZ > libsX ? 'Z' : libsX > libsZ ? 'X' : 'equal'
+      let answer = correct ? trueAnswer : (trueAnswer === 'Z' ? 'X' : 'Z')
+      t += 100
+      events.push({ t, cmp: answer })
+      let result = engine.answerComparison(answer)
       if (result.done && !engine.finished) engine.advance()
       continue
     }
@@ -96,7 +124,7 @@ function playAndRecordWithClicks(sgfString, { mode = 'liberty-end', maxQ = 2 } =
       t += 100
       events.push({ t, v: [0, 0] })
       engine.activateQuestions()
-      if (!engine.questionVertex && !engine.finished) engine.advance()
+      if (!engine.questionVertex && !engine.comparisonPair && !engine.finished) engine.advance()
       continue
     }
 
@@ -110,6 +138,22 @@ function playAndRecordWithClicks(sgfString, { mode = 'liberty-end', maxQ = 2 } =
       events.push({ t, s: 1 })
       let markedSet = new Set(libs.map(([x, y]) => `${x},${y}`))
       let result = engine.answerMark(markedSet)
+      if (result.done && !engine.finished) engine.advance()
+      continue
+    }
+
+    if (engine.comparisonPair) {
+      let { libsZ, libsX } = engine.comparisonPair
+      let trueAnswer = libsZ > libsX ? 'Z' : libsX > libsZ ? 'X' : 'equal'
+      t += 100
+      // Click the Z or X stone vertex, or use cmp event for equal
+      if (trueAnswer === 'equal') {
+        events.push({ t, cmp: 'equal' })
+      } else {
+        let v = trueAnswer === 'Z' ? engine.comparisonPair.vertexZ : engine.comparisonPair.vertexX
+        events.push({ t, v: [v[0], v[1]] })
+      }
+      let result = engine.answerComparison(trueAnswer)
       if (result.done && !engine.finished) engine.advance()
       continue
     }

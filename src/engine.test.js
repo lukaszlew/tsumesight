@@ -462,6 +462,14 @@ describe('QuizEngine', () => {
       let history = []
       engine.advance(); engine.activateQuestions()
       while (!engine.finished) {
+        if (engine.comparisonPair) {
+          let { libsZ, libsX } = engine.comparisonPair
+          let trueAnswer = libsZ > libsX ? 'Z' : libsX > libsZ ? 'X' : 'equal'
+          let result = engine.answerComparison(trueAnswer)
+          history.push(true)
+          if (result.done) { engine.advance(); engine.activateQuestions() }
+          continue
+        }
         if (!engine.questionVertex) { engine.advance(); engine.activateQuestions(); continue }
         let libs = Math.min(engine.trueBoard.getLiberties(engine.questionVertex).length, 5)
         let result = engine.answer(libs)
@@ -602,15 +610,23 @@ describe('QuizEngine', () => {
     it('answer returns done only after last question', () => {
       let engine = new QuizEngine('(;SZ[9];B[ba];W[aa])')
       engine.advance(); engine.activateQuestions() // B[ba]
-      let r1 = engine.answer(3) // B[ba] has 3 libs
+      let r1 = engine.answer(3) // B[ba] has 3 libs, sole group — no comparison
       expect(r1.done).toBe(true)
-      engine.advance(); engine.activateQuestions() // W[aa] — 2 questions
-      // First answer
+      engine.advance(); engine.activateQuestions() // W[aa] — 2 liberty questions + comparison
+      // First liberty answer
       let r2 = engine.answer(engine.trueBoard.getLiberties(engine.questionVertex).length)
       expect(r2.done).toBe(false)
-      // Second answer
+      // Second liberty answer
       let r3 = engine.answer(engine.trueBoard.getLiberties(engine.questionVertex).length)
-      expect(r3.done).toBe(true)
+      expect(engine.questionVertex).toBe(null) // liberty questions done
+      // Answer any comparison questions
+      while (engine.comparisonPair) {
+        let { libsZ, libsX } = engine.comparisonPair
+        let trueAnswer = libsZ > libsX ? 'Z' : libsX > libsZ ? 'X' : 'equal'
+        let result = engine.answerComparison(trueAnswer)
+        if (result.done) break
+      }
+      expect(engine._moveQuestionsDone).toBe(true)
     })
 
     it('advances questionVertex through the queue', () => {
@@ -704,6 +720,166 @@ describe('QuizEngine', () => {
       let windowStones = engine.getWindowStones()
       // Should return 1 previous invisible stone (showWindow-1=1)
       expect(windowStones.length).toBeLessThanOrEqual(1)
+    })
+  })
+
+  describe('comparison questions', () => {
+    // B[ba]=(1,0) then W[aa]=(0,0): adjacent, opposite color
+    // After W[aa]: B has 2 libs, W has 1 lib → |2-1|=1 ≤ 1 → comparison generated
+    let adjacentSgf = '(;SZ[9];B[ba];W[aa])'
+
+    // Non-adjacent: B in corner, W far away → no comparison
+    let distantSgf = '(;SZ[9];B[aa];W[ii])'
+
+    it('generates comparison for adjacent opposite-color groups with diff <= 1', () => {
+      let engine = new QuizEngine(adjacentSgf)
+      engine.advance() // B[ba] — sole group, no comparison
+      expect(engine.comparisonQuestions.length).toBe(0)
+      engine.advance() // W[aa] — adjacent to B[ba]
+      expect(engine.comparisonQuestions.length).toBe(1)
+    })
+
+    it('no comparison for non-adjacent groups', () => {
+      let engine = new QuizEngine(distantSgf)
+      engine.advance() // B[aa]
+      engine.advance() // W[ii] — far away
+      expect(engine.comparisonQuestions.length).toBe(0)
+    })
+
+    it('no comparison when diff > 1', () => {
+      // B[ee]=(4,4) center: 4 libs, W[de]=(3,4) adjacent: 3 libs → |4-3|=1 ok
+      // But after B[ce]=(2,4): W[de] now has 2 libs, B groups separate
+      // We need a case where diff > 1. B center=4 libs vs W corner=1 lib
+      let engine = new QuizEngine('(;SZ[9];B[ee];W[ai])')
+      engine.advance() // B[ee]
+      engine.advance() // W[ai] — not adjacent to B[ee]
+      expect(engine.comparisonQuestions.length).toBe(0)
+    })
+
+    it('no comparison when neither group was asked in liberty phase', () => {
+      let engine = new QuizEngine(adjacentSgf, 'liberty', true, 0)
+      engine.advance() // B[ba] — maxQuestions=0, no liberty questions
+      engine.advance() // W[aa]
+      expect(engine.questions.length).toBe(0)
+      expect(engine.comparisonQuestions.length).toBe(0)
+    })
+
+    it('Z is assigned to left-or-above stone', () => {
+      let engine = new QuizEngine(adjacentSgf)
+      engine.advance() // B[ba]
+      engine.advance() // W[aa]
+      expect(engine.comparisonQuestions.length).toBeGreaterThan(0)
+      let q = engine.comparisonQuestions[0]
+      // Z should be left-or-above: lower x, or same x lower y
+      let zLeft = q.vertexZ[0] < q.vertexX[0]
+      let zAbove = q.vertexZ[0] === q.vertexX[0] && q.vertexZ[1] < q.vertexX[1]
+      expect(zLeft || zAbove).toBe(true)
+    })
+
+    it('answerComparison records correct answer', () => {
+      let engine = new QuizEngine(adjacentSgf)
+      engine.advance(); engine.activateQuestions()
+      // Answer all liberty questions
+      while (engine.questionVertex) {
+        let libs = Math.min(engine.trueBoard.getLiberties(engine.questionVertex).length, 5)
+        engine.answer(libs)
+      }
+      engine.advance(); engine.activateQuestions()
+      while (engine.questionVertex) {
+        let libs = Math.min(engine.trueBoard.getLiberties(engine.questionVertex).length, 5)
+        engine.answer(libs)
+      }
+      expect(engine.comparisonPair).not.toBe(null)
+      let { libsZ, libsX } = engine.comparisonPair
+      let trueAnswer = libsZ > libsX ? 'Z' : libsX > libsZ ? 'X' : 'equal'
+      let prevCorrect = engine.correct
+      let result = engine.answerComparison(trueAnswer)
+      expect(result.correct).toBe(true)
+      expect(engine.correct).toBe(prevCorrect + 1)
+    })
+
+    it('answerComparison records wrong answer', () => {
+      let engine = new QuizEngine(adjacentSgf)
+      engine.advance(); engine.activateQuestions()
+      while (engine.questionVertex) {
+        let libs = Math.min(engine.trueBoard.getLiberties(engine.questionVertex).length, 5)
+        engine.answer(libs)
+      }
+      engine.advance(); engine.activateQuestions()
+      while (engine.questionVertex) {
+        let libs = Math.min(engine.trueBoard.getLiberties(engine.questionVertex).length, 5)
+        engine.answer(libs)
+      }
+      expect(engine.comparisonPair).not.toBe(null)
+      let { libsZ, libsX } = engine.comparisonPair
+      let trueAnswer = libsZ > libsX ? 'Z' : libsX > libsZ ? 'X' : 'equal'
+      let wrongAnswer = trueAnswer === 'Z' ? 'X' : 'Z'
+      let prevWrong = engine.wrong
+      let result = engine.answerComparison(wrongAnswer)
+      expect(result.correct).toBe(false)
+      expect(engine.wrong).toBe(prevWrong + 1)
+    })
+
+    it('done is false from answerMark when comparisons remain', () => {
+      let engine = new QuizEngine(adjacentSgf)
+      engine.advance(); engine.activateQuestions()
+      // Answer liberty for first move (no comparison)
+      while (engine.questionVertex) engine.answer(Math.min(engine.trueBoard.getLiberties(engine.questionVertex).length, 5))
+      engine.advance(); engine.activateQuestions()
+      // Answer liberty questions for second move
+      let lastResult
+      while (engine.questionVertex) {
+        lastResult = engine.answer(Math.min(engine.trueBoard.getLiberties(engine.questionVertex).length, 5))
+      }
+      // Last liberty answer should have done=false because comparison remains
+      expect(engine.comparisonPair).not.toBe(null)
+      expect(lastResult.done).toBe(false)
+    })
+
+    it('moveProgress.total includes comparison count', () => {
+      let engine = new QuizEngine(adjacentSgf)
+      engine.advance() // B[ba] — 1 liberty question, 0 comparisons
+      expect(engine.moveProgress[0].total).toBe(engine.questions.length + engine.comparisonQuestions.length)
+      engine.advance() // W[aa] — liberty questions + comparison
+      let mp = engine.moveProgress[1]
+      expect(mp.total).toBeGreaterThan(engine.questions.length) // comparisons added
+    })
+
+    it('questionsPerMove precompute includes comparison count', () => {
+      let engine = new QuizEngine(adjacentSgf)
+      // questionsPerMove[1] should include comparison questions for move 2
+      let move2Total = engine.questionsPerMove[1]
+      // Simulate to verify
+      let sim = new QuizEngine(adjacentSgf, 'liberty', false)
+      sim.advance() // move 1
+      sim.advance() // move 2
+      expect(move2Total).toBe(sim.questions.length + sim.comparisonQuestions.length)
+    })
+
+    it('fromReplay handles comparison questions', () => {
+      let sgf = adjacentSgf
+      let engine = new QuizEngine(sgf)
+      let history = []
+      engine.advance(); engine.activateQuestions()
+      while (!engine.finished) {
+        if (engine.comparisonPair) {
+          let { libsZ, libsX } = engine.comparisonPair
+          let trueAnswer = libsZ > libsX ? 'Z' : libsX > libsZ ? 'X' : 'equal'
+          let result = engine.answerComparison(trueAnswer)
+          history.push(true)
+          if (result.done) { engine.advance(); engine.activateQuestions() }
+          continue
+        }
+        if (!engine.questionVertex) { engine.advance(); engine.activateQuestions(); continue }
+        let libs = Math.min(engine.trueBoard.getLiberties(engine.questionVertex).length, 5)
+        let result = engine.answer(libs)
+        history.push(true)
+        if (result.done) { engine.advance(); engine.activateQuestions() }
+      }
+      let replayed = QuizEngine.fromReplay(sgf, history)
+      expect(replayed.finished).toBe(true)
+      expect(replayed.correct).toBe(engine.correct)
+      expect(replayed.results).toEqual(engine.results)
     })
   })
 

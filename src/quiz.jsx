@@ -171,10 +171,10 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   }
 
   let advance = useCallback(() => {
-    if (engine.finished || engine.questionVertex) return
+    if (engine.finished || engine.questionVertex || engine.comparisonPair) return
     if (engine.showingMove) {
       engine.activateQuestions()
-      if (!engine.questionVertex && !engine.finished) engine.advance()
+      if (!engine.questionVertex && !engine.comparisonPair && !engine.finished) engine.advance()
     } else {
       engine.advance()
     }
@@ -204,6 +204,27 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     rerender()
   }, [markedLiberties])
 
+  let submitComparison = useCallback((choice) => {
+    if (!engine.comparisonPair) return
+    let result = engine.answerComparison(choice)
+    if (questionStartRef.current !== null) {
+      let elapsed = performance.now() - questionStartRef.current
+      timesRef.current.push(elapsed)
+      questionStartRef.current = null
+    }
+    if (result.correct) playCorrect()
+    else {
+      playWrong()
+      setWrongFlash(true)
+      setTimeout(() => setWrongFlash(false), 150)
+    }
+    if (result.done) engine.advance()
+    let total = engine.questionsPerMove.reduce((a, b) => a + b, 0)
+    onProgress({ correct: engine.correct, done: engine.results.length, total })
+    checkFinished()
+    rerender()
+  }, [])
+
   let onVertexClick = useCallback((evt, vertex) => {
     if (replayModeRef.current) { exitReplayEarly(); return }
     if (seqIdx > 0) { advanceShowSequence(); return }
@@ -214,6 +235,15 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       return
     }
     recordEvent({ v: [vertex[0], vertex[1]] })
+    // Comparison phase: click Z or X stone
+    if (engine.comparisonPair) {
+      let pair = engine.comparisonPair
+      let zKey = `${pair.vertexZ[0]},${pair.vertexZ[1]}`
+      let xKey = `${pair.vertexX[0]},${pair.vertexX[1]}`
+      if (key === zKey) { recordEvent({ cmp: 'Z' }); submitComparison('Z') }
+      else if (key === xKey) { recordEvent({ cmp: 'X' }); submitComparison('X') }
+      return
+    }
     // No question: tap = advance
     if (!engine.questionVertex) {
       advance()
@@ -232,7 +262,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       else next.add(key)
       return next
     })
-  }, [advance, markedLiberties, submitMarks])
+  }, [advance, markedLiberties, submitMarks, submitComparison])
 
   let toggleSolved = useCallback(() => {
     if (wasSolved) {
@@ -256,6 +286,17 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       if (seqIdx > 0) {
         if (e.key === ' ') { e.preventDefault(); advanceShowSequence() }
         else if (e.key === 'Escape') { e.preventDefault(); exitShowSequence() }
+        return
+      }
+      // Comparison phase: Z/X/Space keys
+      if (engine.comparisonPair) {
+        if (e.key === 'z' || e.key === 'Z') {
+          e.preventDefault(); recordEvent({ cmp: 'Z' }); submitComparison('Z')
+        } else if (e.key === 'x' || e.key === 'X') {
+          e.preventDefault(); recordEvent({ cmp: 'X' }); submitComparison('X')
+        } else if (e.key === ' ') {
+          e.preventDefault(); recordEvent({ cmp: 'equal' }); submitComparison('equal')
+        } else if (e.key === 'Escape') { e.preventDefault(); onBack() }
         return
       }
       if (e.key === 'Escape') { e.preventDefault(); onBack() }
@@ -282,7 +323,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [advance, submitMarks])
+  }, [advance, submitMarks, submitComparison])
 
   // Replay playback
   useEffect(() => {
@@ -300,11 +341,38 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
         let eng = engineRef.current
         let evt = events[i]
 
-        if (evt.v) {
-          if (!eng.questionVertex) {
+        if (evt.cmp) {
+          if (eng.comparisonPair) {
+            let result = eng.answerComparison(evt.cmp)
+            if (result.correct) playCorrect()
+            else {
+              playWrong()
+              setWrongFlash(true)
+              setTimeout(() => { if (!cancelled) setWrongFlash(false) }, 150)
+            }
+            if (result.done && !eng.finished) eng.advance()
+          }
+        } else if (evt.v) {
+          if (eng.comparisonPair) {
+            let pair = eng.comparisonPair
+            let key = `${evt.v[0]},${evt.v[1]}`
+            let zKey = `${pair.vertexZ[0]},${pair.vertexZ[1]}`
+            let xKey = `${pair.vertexX[0]},${pair.vertexX[1]}`
+            let choice = key === zKey ? 'Z' : key === xKey ? 'X' : null
+            if (choice) {
+              let result = eng.answerComparison(choice)
+              if (result.correct) playCorrect()
+              else {
+                playWrong()
+                setWrongFlash(true)
+                setTimeout(() => { if (!cancelled) setWrongFlash(false) }, 150)
+              }
+              if (result.done && !eng.finished) eng.advance()
+            }
+          } else if (!eng.questionVertex) {
             if (eng.showingMove) {
               eng.activateQuestions()
-              if (!eng.questionVertex && !eng.finished) eng.advance()
+              if (!eng.questionVertex && !eng.comparisonPair && !eng.finished) eng.advance()
             } else if (!eng.finished) {
               eng.advance()
             }
@@ -317,10 +385,10 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
             setMarkedLiberties(new Set(marks))
           }
         } else if (evt.a) {
-          if (!eng.finished && !eng.questionVertex) {
+          if (!eng.finished && !eng.questionVertex && !eng.comparisonPair) {
             if (eng.showingMove) {
               eng.activateQuestions()
-              if (!eng.questionVertex && !eng.finished) eng.advance()
+              if (!eng.questionVertex && !eng.comparisonPair && !eng.finished) eng.advance()
             } else {
               eng.advance()
             }
@@ -359,11 +427,12 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   useEffect(() => {
     if (!engine) return
     if (replayModeRef.current) return
-    if (engine.questionVertex && questionStartRef.current === null) {
+    let hasQuestion = engine.questionVertex || engine.comparisonPair
+    if (hasQuestion && questionStartRef.current === null) {
       questionStartRef.current = performance.now()
       setMarkedLiberties(new Set())
     }
-    if (!engine.questionVertex) questionStartRef.current = null
+    if (!hasQuestion) questionStartRef.current = null
   })
 
   // Compute vertex size from container
@@ -482,6 +551,13 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
         markerMap[my][mx] = { type: 'circle' }
       }
     }
+
+    if (engine.comparisonPair) {
+      let [zx, zy] = engine.comparisonPair.vertexZ
+      let [xx, xy] = engine.comparisonPair.vertexX
+      markerMap[zy][zx] = { type: 'label', label: 'Z' }
+      markerMap[xy][xx] = { type: 'label', label: 'X' }
+    }
   }
 
   let preSolve = !engine.finished && engine.results.length === 0
@@ -539,6 +615,11 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
                 </>
               : engine.questionVertex
                 ? <button class="bar-btn" title="Show the move sequence again" onClick={startShowSequence}>&#x25B6; Sequence</button>
+                : engine.comparisonPair
+                  ? <div class="bottom-bar-row">
+                      <button class="bar-btn" title="Show the move sequence again" onClick={startShowSequence}>&#x25B6; Sequence</button>
+                      <button class="bar-btn" title="Both groups have equal liberties (Space)" onClick={() => { recordEvent({ cmp: 'equal' }); submitComparison('equal') }}>= Equal</button>
+                    </div>
                 : preSolve
                   ? <div class="bottom-bar-row">
                       <button class="bar-btn" title="Return to library (Esc)" onClick={onBack}>&#x25C2; Back</button>
