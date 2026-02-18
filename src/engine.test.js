@@ -585,15 +585,6 @@ describe('QuizEngine', () => {
       expect(engine.questionsPerMove).toEqual([0, 0])
     })
 
-    it('maxQuestions=1 limits to 1 question on last move', () => {
-      // B[ba] then W[aa] — both changed from initial → normally 2 questions
-      let engine = new QuizEngine('(;SZ[9];B[ba];W[aa])', true, 1)
-      engine.advance() // B[ba] — not last, no questions
-      expect(engine.questions.length).toBe(0)
-      engine.advance() // W[aa] — last, maxQ=1 limits to 1
-      expect(engine.questions.length).toBe(1)
-    })
-
     it('maxQuestions=0 fromReplay with empty history finishes immediately', () => {
       let sgf = '(;SZ[9];B[ba];W[aa];B[ee])'
       let engine = QuizEngine.fromReplay(sgf, [], 0)
@@ -778,10 +769,10 @@ describe('QuizEngine', () => {
       expect(engine.comparisonQuestions.length).toBe(0)
     })
 
-    it('no comparison when only one group asked (maxQ=1)', () => {
-      let engine = new QuizEngine(adjacentSgf, true, 1)
-      engine.advance() // B[ba] — not last
-      engine.advance() // W[aa] — last, maxQ=1 → only 1 of 2 groups asked → no comparison
+    it('no comparison when only one group changed from initial', () => {
+      // Only 1 move, 1 new group — can't compare with anything
+      let engine = new QuizEngine('(;SZ[9];B[ee])')
+      engine.advance() // B[ee] — last (only), 1 group changed
       expect(engine.questions.length).toBe(1)
       expect(engine.comparisonQuestions.length).toBe(0)
     })

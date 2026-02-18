@@ -364,7 +364,7 @@ export class QuizEngine {
       this.questionsAsked[this.questionsAsked.length - 1] = []
       return
     }
-    this.questions = this._selectEndQuestions()
+    this.questions = this.maxQuestions === 0 ? [] : this._selectEndQuestions()
     this.questionIndex = 0
     this.questionVertex = this.showingMove ? null : (this.questions[0] || null)
     this.questionsAsked[this.questionsAsked.length - 1] = this.questions.map(v => ({ vertex: v }))
@@ -388,7 +388,7 @@ export class QuizEngine {
     }
 
     // Last move: select questions from groups that changed since initial position
-    this.questions = this._selectEndQuestions()
+    this.questions = this.maxQuestions === 0 ? [] : this._selectEndQuestions()
     this.questionIndex = 0
     this.questionVertex = null
     this.questionsAsked.push(this.questions.map(v => ({ vertex: v })))
@@ -398,7 +398,7 @@ export class QuizEngine {
 
   // Select end-of-sequence questions:
   // All groups whose vertex-set or liberty-set differs from initial position.
-  // No filtering. Randomized. Sliced to maxQuestions.
+  // No filtering. Randomized.
   _selectEndQuestions() {
     // Map initial groups: vertexSetKey → libertySetKey
     let initialGroups = new Map()
@@ -438,7 +438,7 @@ export class QuizEngine {
       ;[questions[i], questions[j]] = [questions[j], questions[i]]
     }
 
-    return questions.slice(0, this.maxQuestions)
+    return questions
   }
 
 
