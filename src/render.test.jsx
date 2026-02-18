@@ -141,14 +141,14 @@ describe('markerMap rendering', () => {
     expect(marker.textContent).toBe('✗')
   })
 
-  it('question marker renders ❓ text', () => {
+  it('question marker renders ? text', () => {
     let markerMap = makeEmptyMap(5)
-    markerMap[0][4] = { type: 'label', label: '❓' }
+    markerMap[0][4] = { type: 'label', label: '?' }
     let signMap = makeEmptyMap(5, 0)
     signMap[0][4] = 1
     let c = renderGoban({ signMap, markerMap })
     let marker = getVertex(c, 4, 0).querySelector('.shudan-marker')
-    expect(marker.textContent).toBe('❓')
+    expect(marker.textContent).toBe('?')
   })
 
   it('circle marker renders SVG', () => {
@@ -426,19 +426,19 @@ describe('combined maps — review display scenarios', () => {
     let signMap = makeEmptyMap(5, 0)
     signMap[2][2] = 1
     let markerMap = makeEmptyMap(5)
-    markerMap[2][2] = { type: 'label', label: '❓' }
+    markerMap[2][2] = { type: 'label', label: '?' }
     let c = renderGoban({ signMap, markerMap })
     let v = getVertex(c, 2, 2)
-    expect(v.getAttribute('title')).toBe('❓')
+    expect(v.getAttribute('title')).toBe('?')
     let marker = v.querySelector('.shudan-stone .shudan-marker')
-    expect(marker.textContent).toBe('❓')
+    expect(marker.textContent).toBe('?')
   })
 
   it('marked liberties during play: interesting ghost stones', () => {
     let signMap = makeEmptyMap(5, 0)
     signMap[2][2] = 1
     let markerMap = makeEmptyMap(5)
-    markerMap[2][2] = { type: 'label', label: '❓' }
+    markerMap[2][2] = { type: 'label', label: '?' }
     let ghostStoneMap = makeEmptyMap(5)
     // User marked liberties shown as "interesting" (blue)
     ghostStoneMap[2][1] = { sign: 1, type: 'interesting' }
@@ -673,7 +673,7 @@ function buildPlayMaps(engine, peeking = false, markedLiberties = new Set()) {
     }
   } else if (engine.questionVertex) {
     let [x, y] = engine.questionVertex
-    markerMap[y][x] = { type: 'label', label: '❓' }
+    markerMap[y][x] = { type: 'label', label: '?' }
     for (let key of markedLiberties) {
       let [mx, my] = key.split(',').map(Number)
       markerMap[my][mx] = { type: 'circle' }
@@ -706,7 +706,7 @@ describe('QuizEngine → Goban integration: show phase', () => {
     let c = renderGoban(maps)
     // no questions until last move
     let vertices = c.querySelectorAll('.shudan-vertex')
-    let hasQuestion = Array.from(vertices).some(v => v.getAttribute('title') === '❓')
+    let hasQuestion = Array.from(vertices).some(v => v.getAttribute('title') === '?')
     expect(hasQuestion).toBe(false)
   })
 
@@ -723,8 +723,8 @@ describe('QuizEngine → Goban integration: show phase', () => {
       let c = renderGoban(maps)
       let [qx, qy] = engine.questionVertex
       let v = getVertex(c, qx, qy)
-      expect(v.getAttribute('title')).toBe('❓')
-      expect(v.querySelector('.shudan-marker').textContent).toBe('❓')
+      expect(v.getAttribute('title')).toBe('?')
+      expect(v.querySelector('.shudan-marker').textContent).toBe('?')
     }
   })
 })

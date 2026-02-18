@@ -949,7 +949,7 @@ describe('QuizEngine', () => {
   describe('hint states', () => {
     // At every point in a quiz session, exactly one hint condition should be active:
     // 1. showingMove (not finished, not questioning) → "Tap board for the next move"
-    // 2. questionVertex → "Tap all liberties of ❓ group"
+    // 2. questionVertex → "Tap all liberties of ? group"
     // 3. comparisonPair → "Tap the group with less liberties"
     // 4. finished → stats/buttons (no action hint)
     function hintState(engine) {

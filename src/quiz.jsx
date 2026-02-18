@@ -550,7 +550,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
 
     if (engine.questionVertex) {
       let [x, y] = engine.questionVertex
-      markerMap[y][x] = { type: 'label', label: '❓' }
+      markerMap[y][x] = { type: 'label', label: '?' }
       for (let key of markedLiberties) {
         let [mx, my] = key.split(',').map(Number)
         markerMap[my][mx] = { type: 'circle' }
@@ -619,7 +619,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
                 {engine.comparisonPair
                   ? <div class="action-hint"><span>Tap the group with <span class="hint-blue">less</span> liberties, or <span class="hint-blue">=</span> on board</span></div>
                   : engine.questionVertex
-                    ? <div class="action-hint">Tap all liberties of {'\u2753'} group, then tap {'\u2753'} or Space</div>
+                    ? <div class="action-hint">Tap all liberties of <span class="hint-blue">?</span> group, then tap <span class="hint-blue">?</span> or Space</div>
                     : engine.showingMove
                       ? <div class="action-hint">Tap board for the next move. Remember the sequence.</div>
                       : null}
@@ -680,7 +680,7 @@ function ProgressPips({ engine, reviewVertex, setReviewVertex, rerender }) {
           reviewVertex === `${pip.vertex[0]},${pip.vertex[1]}`
         if (isActive) cls += ' pip-active'
         if (engine.finished && pip.type === 'liberty') cls += ' pip-clickable'
-        let label = pip.type === 'comparison' ? '~' : '\u2753'
+        let label = pip.type === 'comparison' ? '~' : '?'
         return <div key={i} class={cls} title={pip.type === 'liberty' ? `Liberty Q${i + 1}` : `Comparison Q${i + 1}`} onClick={() => handleClick(pip)}>{label}</div>
       })}
     </div>

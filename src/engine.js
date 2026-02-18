@@ -516,15 +516,15 @@ export class QuizEngine {
       return d
     }
 
-    // Prefer empty edge intersections at distance >= 2
-    let n = this.boardSize
+    // Search within visible board range (boardRange=[minX,minY,maxX,maxY])
+    let [x0, y0, x1, y1] = this.boardRange || [0, 0, this.boardSize - 1, this.boardSize - 1]
     let best = null, bestDist = -1
-    for (let x = 0; x < n; x++)
-      for (let y = 0; y < n; y++) {
+    for (let x = x0; x <= x1; x++)
+      for (let y = y0; y <= y1; y++) {
         if (this.trueBoard.get([x, y]) !== 0) continue
-        let isEdge = x === 0 || x === n - 1 || y === 0 || y === n - 1
+        // Prefer edge of visible range
+        let isEdge = x === x0 || x === x1 || y === y0 || y === y1
         let d = minDist([x, y])
-        // Edge vertices preferred; within each category, maximize distance
         let score = (isEdge ? 1000 : 0) + d
         if (score > bestDist) { bestDist = score; best = [x, y] }
       }
