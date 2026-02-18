@@ -10,14 +10,32 @@ Spec: Blind mode — starts from initial position, user guesses moves similar to
 
 Spec: Difficulty heuristic — primary factor is move count, secondary is number of small-liberty small groups. Needs experimentation. Display on tiles for now.
 
+Spec: In order to emulate approach move in semeai, user should be able  to volunteer a sequence of one color of moves and then calculate the liberties of our resulting group. With opponent sometimes answering, according to fixed heuristics.
+
+- Improve the algorithm for comparative question selection.
+
 ## Spec-ed, can start working
 
 ## To spec
-If you see this section non-empty, we should clarify until it is unambigous what to implement.
 
-- When inspecting answers, we should also see a bar of dots below the board and each represents one comparative answer. It should be green or red and clicking it would show the letters z x again and somehow signify your answer. Clicking just highlights user answer.
-- We should improve the algorithm for comparative question selection.
-- Sound settings button in menu.
+- Below the board, there should be a sequnece of pips. blue question marks and blue "Z/X" symbols (both). When answering, they should be turning green or red (from left to right), depending on whether the answer was good or not. after the game, taping them, would show the user solution just like taping libs on board.
+
+- Add an always visible button, sound on/sound off.
+
+- Both the question mark for Liberty counting and the x and z letters and "=" should be blue and somewhat similar.
+
+- Change the question to which group has LESS liberties. change sentence, and make "less" blues.
+
+- All buttons that relate to core game-loop (and not branches) should be blue.
+
+- We should find a group that has  too many liberties to  be classified in lib phase. use one of its stones (the same through the whole problem, close to where are the lib-groups) to display equal sign, also blue.
+
+- "Reply sequence" - should be visible all the time (does not erase answers answered so far). "Retry" should be visible only after we finish. "back to menu" should be visible all the time.
+
+- There should be a sound or various random similar stone sounds when revealing a new Stone.
+
+- When done, inspecting answers, we should also see a bar of dots below the board and each represents one comparative answer. It should be green or red and clicking it would show the letters z x again and somehow signify your answer.
+
 
 
 ## Done
