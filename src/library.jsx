@@ -1,11 +1,23 @@
 import { useState, useEffect } from 'preact/hooks'
-import { getAllSgfs, addSgfBatch, deleteSgf, deleteSgfsByPrefix, clearAll, getBestScore, getLatestScoreDate, updateSgf } from './db.js'
+import { getAllSgfs, addSgfBatch, deleteSgf, deleteSgfsByPrefix, renameSgfsByPrefix, clearAll, getBestScore, getLatestScoreDate, updateSgf } from './db.js'
 import { parseSgf } from './sgf-utils.js'
 import { isArchive, extractSgfs } from './archive.js'
 import { decodeSgf } from './sgf-utils.js'
 
 const DEFAULT_URL = 'https://files.catbox.moe/v3phv1.zip'
 const isDev = location.pathname.includes('/dev/')
+
+function splitDirName(name) {
+  // Split long names into two lines at comma or dash
+  let i = name.indexOf(',')
+  if (i === -1) i = name.indexOf(' - ')
+  if (i === -1) i = name.indexOf('-')
+  if (i === -1) return name
+  let sep = name[i] === ',' ? ', ' : name.slice(i).startsWith(' - ') ? ' - ' : '-'
+  let line1 = name.slice(0, i).trim()
+  let line2 = name.slice(i + sep.length).trim()
+  return <>{line1}<br />{line2}</>
+}
 
 function scoreColor(accuracy) {
   if (accuracy >= 0.8) return '#c8a060'
@@ -240,6 +252,15 @@ export function Library({ onSelect, initialPath = '' }) {
     refresh()
   }
 
+  let handleRenameDir = async (dirPath, dirName) => {
+    let newName = prompt(`Rename "${dirName}" to:`, dirName)
+    if (!newName || newName === dirName) return
+    let parentPath = dirPath.slice(0, dirPath.length - dirName.length)
+    let newPath = parentPath + newName
+    await renameSgfsByPrefix(dirPath, newPath)
+    refresh()
+  }
+
   let handleReset = async () => {
     if (!confirm('Delete all data and re-download default problems?')) return
     await clearAll()
@@ -348,7 +369,7 @@ export function Library({ onSelect, initialPath = '' }) {
             <button class="menu-item" onClick={() => { setMenuOpen(false); handleFolder() }}>Upload folder</button>
             <button class="menu-item" onClick={() => {
               setMenuOpen(false)
-              let url = prompt('Enter URL to SGF or archive:', DEFAULT_URL)
+              let url = prompt('Enter URL to SGF or archive:', 'https://files.catbox.moe/r92xsw.zip')
               if (url) fetchUrl(url)
             }}>Upload from URL</button>
             {canInstall && <button class="menu-item" onClick={() => { setMenuOpen(false); handleInstall() }}>Install app</button>}
@@ -389,14 +410,17 @@ export function Library({ onSelect, initialPath = '' }) {
         <div class="tile-grid">
           {sortedDirs.map(d => {
             let { solved, total } = dirStats[d]
-            let lp = useLongPress(() => handleDeleteDir(prefix + d, d))
             return (
-              <div key={'d:' + d} class={`tile dir-tile${solved === total ? ' dir-complete' : ''}`} onClick={() => setCwd(prefix + d)} {...lp}>
-                <div class="tile-name">{d}</div>
+              <div key={'d:' + d} class={`tile dir-tile${solved === total ? ' dir-complete' : ''}`} onClick={() => setCwd(prefix + d)}>
                 <div class="dir-count" title={`${solved} of ${total} solved`}>
                   <span class="dir-count-num">{solved}</span>
                   <span class="dir-count-sep">/</span>
                   <span class="dir-count-den">{total}</span>
+                </div>
+                <div class="tile-name">{splitDirName(d)}</div>
+                <div class="dir-actions">
+                  <button class="dir-action-btn" title="Rename folder" onClick={e => { e.stopPropagation(); handleRenameDir(prefix + d, d) }}>&#x270E;</button>
+                  <button class="dir-action-btn dir-action-delete" title="Delete folder" onClick={e => { e.stopPropagation(); handleDeleteDir(prefix + d, d) }}>&times;</button>
                 </div>
               </div>
             )

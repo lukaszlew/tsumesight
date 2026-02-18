@@ -82,6 +82,26 @@ export async function deleteSgfsByPrefix(prefix) {
   })
 }
 
+export async function renameSgfsByPrefix(oldPrefix, newPrefix) {
+  let db = await openDb()
+  let all = await promisify(tx(db, 'readonly').getAll())
+  let store = tx(db, 'readwrite')
+  for (let s of all) {
+    let p = s.path || ''
+    if (p === oldPrefix) {
+      s.path = newPrefix
+      store.put(s)
+    } else if (p.startsWith(oldPrefix + '/')) {
+      s.path = newPrefix + p.slice(oldPrefix.length)
+      store.put(s)
+    }
+  }
+  return new Promise((resolve, reject) => {
+    store.transaction.oncomplete = () => resolve()
+    store.transaction.onerror = () => reject(store.transaction.error)
+  })
+}
+
 // Key-value store with sync in-memory cache, async IDB persistence
 let kvCache = {}
 

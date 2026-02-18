@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'preact/hooks'
 import { Goban } from '@sabaki/shudan'
 import { QuizEngine } from './engine.js'
-import { playCorrect, playWrong, playComplete, playStoneClick, resetStreak, isSoundEnabled, toggleSound } from './sounds.js'
+import { playCorrect, playWrong, playComplete, playStoneClick, playMark, resetStreak, isSoundEnabled, toggleSound } from './sounds.js'
 import { kv, kvRemove, getScores, addReplay, getReplay } from './db.js'
 
 function makeEmptyMap(size, fill = null) {
@@ -29,6 +29,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   let [wrongFlash, setWrongFlash] = useState(false)
   let [markedLiberties, setMarkedLiberties] = useState(new Set())
   let [reviewVertex, setReviewVertex] = useState(null)
+  let [reviewComp, setReviewComp] = useState(null) // { compIdx, correct } or null
   let [soundOn, setSoundOn] = useState(() => isSoundEnabled())
 
   // Replay recording
@@ -235,6 +236,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     let key = `${vertex[0]},${vertex[1]}`
     // Review mode: toggle liberty display on tap
     if (engine.finished) {
+      setReviewComp(null)
       setReviewVertex(prev => prev === key ? null : key)
       return
     }
@@ -261,7 +263,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       return
     }
     // Toggle liberty mark
-    playStoneClick()
+    playMark()
     setMarkedLiberties(prev => {
       let next = new Set(prev)
       if (next.has(key)) next.delete(key)
@@ -527,6 +529,17 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
         markerMap[y][x] = { type: 'cross' }
       }
     }
+
+    // Comparison review: show Z/X markers with green/red coloring
+    if (reviewComp !== null) {
+      let compQ = engine.comparisonQuestions[reviewComp.compIdx]
+      if (compQ) {
+        let [zx, zy] = compQ.vertexZ
+        let [xx, xy] = compQ.vertexX
+        markerMap[zy][zx] = { type: 'label', label: 'Z' }
+        markerMap[xy][xx] = { type: 'label', label: 'X' }
+      }
+    }
   } else {
     signMap = engine.getDisplaySignMap()
     markerMap = makeEmptyMap(size)
@@ -592,7 +605,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       <div class="board-row" ref={boardRowRef}>
         {replayMode && <div class="replay-indicator">REPLAY</div>}
         {seqIdx > 0 && <div class="replay-indicator">SEQUENCE</div>}
-        <div class={`board-container${wrongFlash ? ' wrong-flash' : ''}${engine.finished && !replayMode ? ' finished' : ''}`}>
+        <div class={`board-container${wrongFlash ? ' wrong-flash' : ''}${engine.finished && !replayMode ? ' finished' : ''}${reviewComp ? ` comp-review${reviewComp.userChoice === 'Z' || reviewComp.userChoice === 'X' ? ` comp-${reviewComp.correct ? 'correct' : 'failed'}-${reviewComp.userChoice.toLowerCase()}` : ''}` : ''}`}>
           {vertexSize > 0 && <Goban
             vertexSize={vertexSize}
             signMap={signMap}
@@ -609,7 +622,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
         </div>
       </div>
 
-      <ProgressPips engine={engine} reviewVertex={reviewVertex} setReviewVertex={setReviewVertex} rerender={rerender} />
+      <ProgressPips engine={engine} reviewVertex={reviewVertex} setReviewVertex={setReviewVertex} reviewComp={reviewComp} setReviewComp={setReviewComp} rerender={rerender} />
 
       <div class="bottom-bar">
         {replayMode
@@ -640,36 +653,39 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   )
 }
 
-function ProgressPips({ engine, reviewVertex, setReviewVertex, rerender }) {
-  // Flatten all questions across all moves into a single pip list
+function ProgressPips({ engine, reviewVertex, setReviewVertex, reviewComp, setReviewComp, rerender }) {
   let pips = []
   let resultIdx = 0
+  let compIdxCounter = 0
   for (let moveIdx = 0; moveIdx < engine.moveProgress.length; moveIdx++) {
     let mp = engine.moveProgress[moveIdx]
     let asked = engine.questionsAsked[moveIdx] || []
-    // Liberty questions
     for (let qi = 0; qi < asked.length; qi++) {
       let status = resultIdx < mp.results.length ? mp.results[resultIdx] : 'pending'
       pips.push({ type: 'liberty', vertex: asked[qi].vertex, status, resultIdx })
       resultIdx++
     }
-    // Comparison questions (remaining results in this move after liberty questions)
     let compCount = mp.total - asked.length
     for (let ci = 0; ci < compCount; ci++) {
       let status = resultIdx < mp.results.length ? mp.results[resultIdx] : 'pending'
-      pips.push({ type: 'comparison', status, resultIdx })
+      pips.push({ type: 'comparison', status, resultIdx, compIdx: compIdxCounter++ })
       resultIdx++
     }
   }
 
-  // Show pips only when questions are active or finished, not during showingMove
   let showPips = pips.length > 0 && !engine.showingMove
 
   let handleClick = (pip) => {
     if (!engine.finished) return
     if (pip.type === 'liberty' && pip.vertex) {
       let key = `${pip.vertex[0]},${pip.vertex[1]}`
+      setReviewComp(null)
       setReviewVertex(prev => prev === key ? null : key)
+      rerender()
+    } else if (pip.type === 'comparison') {
+      setReviewVertex(null)
+      let compQ = engine.comparisonQuestions[pip.compIdx]
+      setReviewComp(prev => prev?.compIdx === pip.compIdx ? null : { compIdx: pip.compIdx, correct: pip.status === 'correct', userChoice: compQ?.userChoice })
       rerender()
     }
   }
@@ -678,12 +694,16 @@ function ProgressPips({ engine, reviewVertex, setReviewVertex, rerender }) {
     <div class="progress-pips">
       {showPips && pips.map((pip, i) => {
         let cls = `pip pip-${pip.status}`
-        let isActive = pip.type === 'liberty' && pip.vertex &&
-          reviewVertex === `${pip.vertex[0]},${pip.vertex[1]}`
+        let isActive = false
+        if (pip.type === 'liberty' && pip.vertex)
+          isActive = reviewVertex === `${pip.vertex[0]},${pip.vertex[1]}`
+        else if (pip.type === 'comparison')
+          isActive = reviewComp?.compIdx === pip.compIdx
         if (isActive) cls += ' pip-active'
-        if (engine.finished && pip.type === 'liberty') cls += ' pip-clickable'
-        let label = pip.type === 'comparison' ? '~' : '?'
-        return <div key={i} class={cls} title={pip.type === 'liberty' ? `Liberty Q${i + 1}` : `Comparison Q${i + 1}`} onClick={() => handleClick(pip)}>{label}</div>
+        if (engine.finished) cls += ' pip-clickable'
+        return <div key={i} class={cls} onClick={() => handleClick(pip)}>
+          {pip.type === 'liberty' ? '?' : '\u2264'}
+        </div>
       })}
     </div>
   )

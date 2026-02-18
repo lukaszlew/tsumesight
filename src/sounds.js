@@ -66,6 +66,21 @@ export function playStoneClick() {
   osc.stop(c.currentTime + 0.05)
 }
 
+export function playMark() {
+  if (!getEnabled()) return
+  let c = getCtx()
+  let osc = c.createOscillator()
+  let gain = c.createGain()
+  osc.type = 'sine'
+  osc.frequency.value = 1200
+  gain.gain.setValueAtTime(0.1, c.currentTime)
+  gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.03)
+  osc.connect(gain)
+  gain.connect(c.destination)
+  osc.start()
+  osc.stop(c.currentTime + 0.03)
+}
+
 export function playComplete() {
   if (!getEnabled()) return
   let c = getCtx()

@@ -592,7 +592,7 @@ describe('onVertexClick interaction', () => {
 // ============================================================
 
 // Build display maps from engine state, same as quiz.jsx
-function buildFinishedMaps(engine, reviewVertex = null) {
+function buildFinishedMaps(engine, reviewVertex = null, reviewComp = null) {
   let size = engine.boardSize
   let signMap = engine.trueBoard.signMap.map(row => [...row])
   let markerMap = makeEmptyMap(size)
@@ -635,6 +635,17 @@ function buildFinishedMaps(engine, reviewVertex = null) {
       if (marksSet.has(k)) continue
       let [x, y] = k.split(',').map(Number)
       markerMap[y][x] = { type: 'cross' }
+    }
+  }
+
+  // Comparison review: show Z/X markers with green/red coloring
+  if (reviewComp !== null) {
+    let compQ = engine.comparisonQuestions[reviewComp.compIdx]
+    if (compQ) {
+      let [zx, zy] = compQ.vertexZ
+      let [xx, xy] = compQ.vertexX
+      markerMap[zy][zx] = { type: 'label', label: 'Z' }
+      markerMap[xy][xx] = { type: 'label', label: 'X' }
     }
   }
 
@@ -1117,5 +1128,100 @@ describe('display map integrity', () => {
     for (let row of maps.paintMap)
       for (let cell of row)
         expect(typeof cell !== 'string').toBe(true)
+  })
+})
+
+describe('comparison pip tap → Z/X markers on board', () => {
+  // B[ba]=(1,0) then W[aa]=(0,0): adjacent, opposite color, diff=1 → comparison
+  let compSgf = '(;SZ[9];B[ba];W[aa])'
+
+  function playWithComparison(sgf, compAnswer) {
+    let engine = new QuizEngine(sgf, true, 3)
+    while (!engine.finished) {
+      engine.advance()
+      engine.activateQuestions()
+      while (engine.questionVertex) {
+        let libs = engine.trueBoard.getLiberties(engine.questionVertex)
+        engine.answerMark(new Set(libs.map(([x, y]) => `${x},${y}`)))
+      }
+      while (engine.comparisonPair) {
+        engine.answerComparison(compAnswer)
+      }
+    }
+    return engine
+  }
+
+  function advanceToQuestions(engine) {
+    while (!engine.finished) {
+      engine.advance()
+      engine.activateQuestions()
+      if (engine.questionVertex || engine.comparisonPair) break
+    }
+  }
+
+  function answerAllLiberty(engine) {
+    while (engine.questionVertex) {
+      let libs = engine.trueBoard.getLiberties(engine.questionVertex)
+      engine.answerMark(new Set(libs.map(([x, y]) => `${x},${y}`)))
+    }
+  }
+
+  it('correct comparison pip tap shows Z/X markers on board', () => {
+    let engine = new QuizEngine(compSgf, true, 3)
+    advanceToQuestions(engine)
+    answerAllLiberty(engine)
+    expect(engine.comparisonPair).not.toBeNull()
+    let { libsZ, libsX } = engine.comparisonPair
+    let trueAnswer = libsZ < libsX ? 'Z' : libsX < libsZ ? 'X' : 'equal'
+    let compQ = engine.comparisonQuestions[0]
+    engine.answerComparison(trueAnswer)
+    while (!engine.finished) { engine.advance(); engine.activateQuestions() }
+
+    let reviewComp = { compIdx: 0, correct: true }
+    let maps = buildFinishedMaps(engine, null, reviewComp)
+    let c = renderGoban(maps)
+
+    let [zx, zy] = compQ.vertexZ
+    let [xx, xy] = compQ.vertexX
+    let vZ = getVertex(c, zx, zy)
+    let vX = getVertex(c, xx, xy)
+    expect(vZ.getAttribute('title')).toBe('Z')
+    expect(vZ.querySelector('.shudan-marker').textContent).toBe('Z')
+    expect(vX.getAttribute('title')).toBe('X')
+    expect(vX.querySelector('.shudan-marker').textContent).toBe('X')
+  })
+
+  it('wrong comparison pip tap shows Z/X markers on board', () => {
+    let engine = new QuizEngine(compSgf, true, 3)
+    advanceToQuestions(engine)
+    answerAllLiberty(engine)
+    expect(engine.comparisonPair).not.toBeNull()
+    let { libsZ, libsX } = engine.comparisonPair
+    let trueAnswer = libsZ < libsX ? 'Z' : libsX < libsZ ? 'X' : 'equal'
+    let wrongAnswer = trueAnswer === 'Z' ? 'X' : 'Z'
+    let compQ = engine.comparisonQuestions[0]
+    engine.answerComparison(wrongAnswer)
+    while (!engine.finished) { engine.advance(); engine.activateQuestions() }
+
+    let reviewComp = { compIdx: 0, correct: false }
+    let maps = buildFinishedMaps(engine, null, reviewComp)
+    let c = renderGoban(maps)
+
+    let [zx, zy] = compQ.vertexZ
+    let [xx, xy] = compQ.vertexX
+    let vZ = getVertex(c, zx, zy)
+    let vX = getVertex(c, xx, xy)
+    expect(vZ.getAttribute('title')).toBe('Z')
+    expect(vX.getAttribute('title')).toBe('X')
+  })
+
+  it('no reviewComp means no Z/X markers in finished state', () => {
+    let engine = playWithComparison(compSgf, 'Z')
+    let maps = buildFinishedMaps(engine)
+    let c = renderGoban(maps)
+    let zMarkers = c.querySelectorAll('[title="Z"]')
+    let xMarkers = c.querySelectorAll('[title="X"]')
+    expect(zMarkers.length).toBe(0)
+    expect(xMarkers.length).toBe(0)
   })
 })

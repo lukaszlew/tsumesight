@@ -97,7 +97,7 @@ export class QuizEngine {
       this.questions = []
       this.questionIndex = 0
       this.questionVertex = null
-      this.comparisonQuestions = []
+      // Keep comparisonQuestions for review, clear active state only
       this.comparisonIndex = 0
       this.comparisonPair = null
       return null
@@ -131,7 +131,7 @@ export class QuizEngine {
       this.questions = []
       this.questionIndex = 0
       this.questionVertex = null
-      this.comparisonQuestions = []
+      // Keep comparisonQuestions for review, clear active state only
       this.comparisonIndex = 0
       this.comparisonPair = null
       return null
@@ -276,6 +276,7 @@ export class QuizEngine {
   // choice: 'Z' | 'X' | 'equal'
   answerComparison(choice) {
     assert(this.comparisonPair, 'No comparison to answer')
+    this.comparisonQuestions[this.comparisonIndex].userChoice = choice
     let { libsZ, libsX } = this.comparisonPair
     let trueAnswer = libsZ < libsX ? 'Z' : libsX < libsZ ? 'X' : 'equal'
     let isCorrect = choice === trueAnswer
@@ -512,16 +513,17 @@ export class QuizEngine {
     function dist(v1, v2) { return Math.abs(v1[0] - v2[0]) + Math.abs(v1[1] - v2[1]) }
 
     // Search all intersections: empty, not occupied, not in avoid set
-    // Pick the one closest to all Z/X markers (minimize sum of distances)
+    // Score = sum of distances to Z/X markers + distance to board center (all weighted equally)
     let [x0, y0, x1, y1] = this.boardRange || [0, 0, this.boardSize - 1, this.boardSize - 1]
-    let best = null, bestSum = Infinity
+    let center = [(x0 + x1) / 2, (y0 + y1) / 2]
+    let best = null, bestScore = Infinity
     for (let x = x0; x <= x1; x++)
       for (let y = y0; y <= y1; y++) {
         if (this.trueBoard.get([x, y]) !== 0) continue
         if (avoid.has(vertexKey([x, y]))) continue
-        let sum = 0
-        for (let zx of zxVertices) sum += dist([x, y], zx)
-        if (sum < bestSum) { bestSum = sum; best = [x, y] }
+        let score = dist([x, y], center)
+        for (let zx of zxVertices) score += dist([x, y], zx)
+        if (score < bestScore) { bestScore = score; best = [x, y] }
       }
 
     this.equalVertex = best

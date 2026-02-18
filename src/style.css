@@ -280,11 +280,24 @@ body {
   background: #1a2a3a;
   border-color: #2a3a4a;
   border-top: 2px solid #4a7ab0;
-  grid-column: span 2;
+  grid-column: span 3;
+  padding: 0;
+  height: 4.5rem;
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
 }
 .dir-tile .tile-name {
   color: #8ac;
   font-weight: 600;
+  white-space: normal;
+  line-height: 1.3;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0.5rem 0.6rem;
 }
 .dir-tile:hover {
   background: #253d54;
@@ -293,24 +306,58 @@ body {
 }
 .dir-count {
   font-variant-numeric: tabular-nums;
-  margin-top: 0.15rem;
+  background: rgba(0,0,0,0.25);
+  border-right: 1px solid rgba(255,255,255,0.08);
+  padding: 0.4rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 3rem;
+  line-height: 1.2;
 }
 .dir-count-num {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 700;
   color: #4c4;
 }
 .dir-count-sep {
-  font-size: 0.85rem;
+  font-size: 0.65rem;
   color: #445;
-  margin: 0 0.05rem;
 }
 .dir-count-den {
   font-size: 0.85rem;
-  color: #668;
+  font-weight: 600;
+  color: #aab;
 }
 .dir-complete .dir-count-num {
   color: #c8a060;
+}
+.dir-actions {
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid rgba(255,255,255,0.08);
+}
+.dir-action-btn {
+  flex: 1;
+  background: none;
+  border: none;
+  color: #556;
+  cursor: pointer;
+  padding: 0 0.5rem;
+  font-size: 0.9rem;
+  transition: all 0.15s;
+}
+.dir-action-btn:hover {
+  color: #aac;
+  background: rgba(255,255,255,0.05);
+}
+.dir-action-btn + .dir-action-btn {
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+.dir-action-delete:hover {
+  color: #f88;
+  background: rgba(255,80,80,0.08);
 }
 
 .breadcrumbs {
@@ -467,22 +514,22 @@ body {
   justify-content: center;
   align-items: center;
   gap: calc(0.6 * var(--s));
-  min-height: calc(2.6 * var(--s));
+  min-height: calc(3.2 * var(--s));
   flex-wrap: wrap;
   align-self: center;
 }
 .pip {
-  width: calc(1.8 * var(--s));
-  height: calc(1.8 * var(--s));
+  width: calc(2.4 * var(--s));
+  height: calc(2.4 * var(--s));
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: calc(1.1 * var(--s));
-  font-weight: bold;
-  line-height: 1;
+  font-size: calc(1.4 * var(--s));
+  font-weight: 700;
+  color: #fff;
 }
-.pip-pending { background: #4af; }
+.pip-pending { background: rgba(68,170,255,0.3); color: rgba(255,255,255,0.5); }
 .pip-correct { background: #2a6; }
 .pip-failed { background: #c33; }
 .pip-active { box-shadow: 0 0 0 calc(0.3 * var(--s)) rgba(68,170,255,.5); }
@@ -666,6 +713,24 @@ body {
   -webkit-text-stroke: .03em #060;
 }
 .board-container.finished .shudan-vertex.shudan-marker_label:not([title="✓"]) .shudan-marker {
+  color: #f44 !important;
+  -webkit-text-stroke: .03em #800;
+}
+/* Comparison review: base — both Z/X labels stay blue */
+.board-container.finished.comp-review .shudan-vertex.shudan-marker_label[title="Z"] .shudan-marker,
+.board-container.finished.comp-review .shudan-vertex.shudan-marker_label[title="X"] .shudan-marker {
+  color: #4af !important;
+  -webkit-text-stroke: .03em #000;
+}
+/* Comparison review: only the tapped vertex turns green (correct) */
+.board-container.finished.comp-review.comp-correct-z .shudan-vertex.shudan-marker_label[title="Z"] .shudan-marker,
+.board-container.finished.comp-review.comp-correct-x .shudan-vertex.shudan-marker_label[title="X"] .shudan-marker {
+  color: #0c0 !important;
+  -webkit-text-stroke: .03em #060;
+}
+/* Comparison review: only the tapped vertex turns red (failed) */
+.board-container.finished.comp-review.comp-failed-z .shudan-vertex.shudan-marker_label[title="Z"] .shudan-marker,
+.board-container.finished.comp-review.comp-failed-x .shudan-vertex.shudan-marker_label[title="X"] .shudan-marker {
   color: #f44 !important;
   -webkit-text-stroke: .03em #800;
 }
