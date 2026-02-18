@@ -276,9 +276,10 @@ export class QuizEngine {
   // choice: 'Z' | 'X' | 'equal'
   answerComparison(choice) {
     assert(this.comparisonPair, 'No comparison to answer')
-    this.comparisonQuestions[this.comparisonIndex].userChoice = choice
     let { libsZ, libsX } = this.comparisonPair
     let trueAnswer = libsZ < libsX ? 'Z' : libsX < libsZ ? 'X' : 'equal'
+    this.comparisonQuestions[this.comparisonIndex].userChoice = choice
+    this.comparisonQuestions[this.comparisonIndex].trueAnswer = trueAnswer
     let isCorrect = choice === trueAnswer
 
     this.results.push(isCorrect)

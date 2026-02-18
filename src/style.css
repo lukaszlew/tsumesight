@@ -534,6 +534,7 @@ body {
 .pip-failed { background: #c33; }
 .pip-active { box-shadow: 0 0 0 calc(0.3 * var(--s)) rgba(68,170,255,.5); }
 .pip.pip-clickable { cursor: pointer; }
+.pip-gap { width: calc(0.8 * var(--s)); }
 
 .bottom-bar {
   display: flex;
@@ -716,23 +717,29 @@ body {
   color: #f44 !important;
   -webkit-text-stroke: .03em #800;
 }
-/* Comparison review: base — both Z/X labels stay blue */
+/* Comparison review: base — both Z/X gray */
 .board-container.finished.comp-review .shudan-vertex.shudan-marker_label[title="Z"] .shudan-marker,
 .board-container.finished.comp-review .shudan-vertex.shudan-marker_label[title="X"] .shudan-marker {
-  color: #4af !important;
+  color: #999 !important;
   -webkit-text-stroke: .03em #000;
 }
-/* Comparison review: only the tapped vertex turns green (correct) */
+/* Comparison review: tapped vertex green (correct) */
 .board-container.finished.comp-review.comp-correct-z .shudan-vertex.shudan-marker_label[title="Z"] .shudan-marker,
 .board-container.finished.comp-review.comp-correct-x .shudan-vertex.shudan-marker_label[title="X"] .shudan-marker {
   color: #0c0 !important;
   -webkit-text-stroke: .03em #060;
 }
-/* Comparison review: only the tapped vertex turns red (failed) */
+/* Comparison review: tapped vertex red (failed) */
 .board-container.finished.comp-review.comp-failed-z .shudan-vertex.shudan-marker_label[title="Z"] .shudan-marker,
 .board-container.finished.comp-review.comp-failed-x .shudan-vertex.shudan-marker_label[title="X"] .shudan-marker {
   color: #f44 !important;
   -webkit-text-stroke: .03em #800;
+}
+/* Comparison review: equal correct — both green */
+.board-container.finished.comp-review.comp-equal-correct .shudan-vertex.shudan-marker_label[title="Z"] .shudan-marker,
+.board-container.finished.comp-review.comp-equal-correct .shudan-vertex.shudan-marker_label[title="X"] .shudan-marker {
+  color: #0c0 !important;
+  -webkit-text-stroke: .03em #060;
 }
 /* Liberty mark circles: gray during play */
 .shudan-vertex.shudan-marker_circle .shudan-marker circle {

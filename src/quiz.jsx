@@ -600,12 +600,26 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     ? (evt, [x, y]) => onVertexClick(evt, [y, x])
     : onVertexClick
 
+  let compClass = ''
+  if (reviewComp) {
+    let { userChoice, correct, trueAnswer } = reviewComp
+    compClass = ' comp-review'
+    if (userChoice === 'Z' || userChoice === 'X') {
+      compClass += ` comp-${correct ? 'correct' : 'failed'}-${userChoice.toLowerCase()}`
+    } else if (userChoice === 'equal' && !correct && (trueAnswer === 'Z' || trueAnswer === 'X')) {
+      // User said equal but was wrong — show trueAnswer as correct
+      compClass += ` comp-correct-${trueAnswer.toLowerCase()}`
+    } else if (userChoice === 'equal' && correct) {
+      compClass += ' comp-equal-correct'
+    }
+  }
+
   return (
     <div class="quiz">
       <div class="board-row" ref={boardRowRef}>
         {replayMode && <div class="replay-indicator">REPLAY</div>}
         {seqIdx > 0 && <div class="replay-indicator">SEQUENCE</div>}
-        <div class={`board-container${wrongFlash ? ' wrong-flash' : ''}${engine.finished && !replayMode ? ' finished' : ''}${reviewComp ? ` comp-review${reviewComp.userChoice === 'Z' || reviewComp.userChoice === 'X' ? ` comp-${reviewComp.correct ? 'correct' : 'failed'}-${reviewComp.userChoice.toLowerCase()}` : ''}` : ''}`}>
+        <div class={`board-container${wrongFlash ? ' wrong-flash' : ''}${engine.finished && !replayMode ? ' finished' : ''}${compClass}`}>
           {vertexSize > 0 && <Goban
             vertexSize={vertexSize}
             signMap={signMap}
@@ -685,7 +699,7 @@ function ProgressPips({ engine, reviewVertex, setReviewVertex, reviewComp, setRe
     } else if (pip.type === 'comparison') {
       setReviewVertex(null)
       let compQ = engine.comparisonQuestions[pip.compIdx]
-      setReviewComp(prev => prev?.compIdx === pip.compIdx ? null : { compIdx: pip.compIdx, correct: pip.status === 'correct', userChoice: compQ?.userChoice })
+      setReviewComp(prev => prev?.compIdx === pip.compIdx ? null : { compIdx: pip.compIdx, correct: pip.status === 'correct', userChoice: compQ?.userChoice, trueAnswer: compQ?.trueAnswer })
       rerender()
     }
   }
@@ -701,9 +715,13 @@ function ProgressPips({ engine, reviewVertex, setReviewVertex, reviewComp, setRe
           isActive = reviewComp?.compIdx === pip.compIdx
         if (isActive) cls += ' pip-active'
         if (engine.finished) cls += ' pip-clickable'
-        return <div key={i} class={cls} onClick={() => handleClick(pip)}>
-          {pip.type === 'liberty' ? '?' : '\u2264'}
-        </div>
+        let gap = i > 0 && pip.type === 'comparison' && pips[i - 1].type === 'liberty'
+        return <>
+          {gap && <div class="pip-gap" />}
+          <div key={i} class={cls} onClick={() => handleClick(pip)}>
+            {pip.type === 'liberty' ? '?' : '\u2264'}
+          </div>
+        </>
       })}
     </div>
   )

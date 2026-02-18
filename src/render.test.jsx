@@ -1215,6 +1215,23 @@ describe('comparison pip tap → Z/X markers on board', () => {
     expect(vX.getAttribute('title')).toBe('X')
   })
 
+  it('answerComparison stores userChoice and trueAnswer on question', () => {
+    let engine = new QuizEngine(compSgf, true, 3)
+    advanceToQuestions(engine)
+    answerAllLiberty(engine)
+    expect(engine.comparisonPair).not.toBeNull()
+    let { libsZ, libsX } = engine.comparisonPair
+    let trueAnswer = libsZ < libsX ? 'Z' : libsX < libsZ ? 'X' : 'equal'
+    let wrongAnswer = trueAnswer === 'Z' ? 'X' : 'Z'
+    engine.answerComparison(wrongAnswer)
+    while (!engine.finished) { engine.advance(); engine.activateQuestions() }
+
+    let compQ = engine.comparisonQuestions[0]
+    expect(compQ.userChoice).toBe(wrongAnswer)
+    expect(compQ.trueAnswer).toBe(trueAnswer)
+    expect(compQ.userChoice).not.toBe(compQ.trueAnswer)
+  })
+
   it('no reviewComp means no Z/X markers in finished state', () => {
     let engine = playWithComparison(compSgf, 'Z')
     let maps = buildFinishedMaps(engine)
