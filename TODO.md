@@ -18,23 +18,21 @@ Spec: In order to emulate approach move in semeai, user should be able  to volun
 
 ## To spec
 
-- Below the board, there should be a sequnece of pips. blue question marks and blue "Z/X" symbols (both). When answering, they should be turning green or red (from left to right), depending on whether the answer was good or not. after the game, taping them, would show the user solution just like taping libs on board.
+Spec: Remove per-move liberty mode — only liberty-end mode remains (questions after all moves placed). Remove the `mode` constructor parameter, `kv('quizMode')` setting, and all per-move code paths from engine/quiz/tests.
 
-- Add an always visible button, sound on/sound off.
+Spec: Progress pips — row directly below board, one per question (❓ for liberty, Z/X for comparison). Blue while pending, green/red after answering (left-to-right). Tappable only when finished: liberty pip toggles liberty review on that group (same as tapping stone); comparison pip shows Z/X labels with green letter (correct) or red letter (wrong) on gray stones.
 
-- Both the question mark for Liberty counting and the x and z letters and "=" should be blue and somewhat similar.
+Spec: Sound toggle — always-visible on/off button next to Back button in bottom bar.
 
-- Change the question to which group has LESS liberties. change sentence, and make "less" blues.
+Spec: Blue board markers — ❓, Z, X labels and = marker on board all blue. Next button blue (both in library and finished screen). Replay button stays gray. Other buttons unchanged.
 
-- All buttons that relate to core game-loop (and not branches) should be blue.
+Spec: Change comparison to "which group has LESS liberties". User taps the weaker group. Style "less" in blue in hint text.
 
-- We should find a group that has  too many liberties to  be classified in lib phase. use one of its stones (the same through the whole problem, close to where are the lib-groups) to display equal sign, also blue.
+Spec: Equal on board — find an empty edge intersection (or any intersection at distance ≥2 from all questioned vertices) to display blue =. Same intersection for the whole problem. User taps it for equal answer. Remove bottom-bar Equal button. Space key still works.
 
-- "Reply sequence" - should be visible all the time (does not erase answers answered so far). "Retry" should be visible only after we finish. "back to menu" should be visible all the time.
+Spec: Button visibility — Back and Sound always visible in all states. Replay Sequence visible during questions (already preserves marks/timer). Retry only after finishing.
 
-- There should be a sound or various random similar stone sounds when revealing a new Stone.
-
-- When done, inspecting answers, we should also see a bar of dots below the board and each represents one comparative answer. It should be green or red and clicking it would show the letters z x again and somehow signify your answer.
+Spec: Stone placement sound — play a stone-click sound (random variation) when revealing each new move.
 
 
 
