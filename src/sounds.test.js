@@ -121,6 +121,21 @@ describe('sounds', () => {
     expect(resetFreq).toBeLessThan(highFreq)
   })
 
+  it('playStoneClick creates oscillator when enabled', async () => {
+    let { playStoneClick } = await import('./sounds.js')
+    playStoneClick()
+    expect(oscillatorsCreated.length).toBe(1)
+    expect(oscillatorsCreated[0].type).toBe('triangle')
+    expect(oscillatorsCreated[0].frequency.value).toBe(800)
+  })
+
+  it('playStoneClick does not create oscillator when disabled', async () => {
+    kvStore.sound = 'off'
+    let { playStoneClick } = await import('./sounds.js')
+    playStoneClick()
+    expect(oscillatorsCreated.length).toBe(0)
+  })
+
   it('playWrong resets streak', async () => {
     let { playCorrect, playWrong } = await import('./sounds.js')
     playCorrect()

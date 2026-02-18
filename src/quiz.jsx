@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'preact/hooks'
 import { Goban } from '@sabaki/shudan'
 import { QuizEngine } from './engine.js'
-import { playCorrect, playWrong, playComplete, resetStreak } from './sounds.js'
+import { playCorrect, playWrong, playComplete, playStoneClick, resetStreak, isSoundEnabled, toggleSound } from './sounds.js'
 import { kv, kvRemove, getScores, addReplay, getReplay } from './db.js'
 
 function makeEmptyMap(size, fill = null) {
@@ -22,7 +22,6 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   let [vertexSize, setVertexSize] = useState(0)
   let [rotated, setRotated] = useState(false)
   let boardRowRef = useRef(null)
-  let [mode] = useState(() => kv('quizMode', 'liberty-end'))
   let [maxQ] = useState(() => parseInt(kv('quizMaxQ', '2')))
   let [error, setError] = useState(null)
   let questionStartRef = useRef(null)
@@ -30,6 +29,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   let [wrongFlash, setWrongFlash] = useState(false)
   let [markedLiberties, setMarkedLiberties] = useState(new Set())
   let [reviewVertex, setReviewVertex] = useState(null)
+  let [soundOn, setSoundOn] = useState(() => isSoundEnabled())
 
   // Replay recording
   let replayEventsRef = useRef([])
@@ -63,7 +63,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   if (!engineRef.current && !error) {
     resetStreak()
     try {
-      engineRef.current = new QuizEngine(sgf, mode, true, maxQ)
+      engineRef.current = new QuizEngine(sgf, true, maxQ)
       engineRef.current.advance()
     } catch (e) {
       kvRemove('quizHistory')
@@ -92,7 +92,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       let accuracy = total > 0 ? engine.correct / total : 1
       let totalMs = timesRef.current.reduce((a, b) => a + b, 0)
       let date = Date.now()
-      let scoreEntry = { correct: engine.correct, total, accuracy, totalMs: Math.round(totalMs), errors: engine.errors, date, mode }
+      let scoreEntry = { correct: engine.correct, total, accuracy, totalMs: Math.round(totalMs), errors: engine.errors, date }
       addReplay(sgfId, date, replayEventsRef.current)
       onSolved(engine.correct, total, scoreEntry)
       playComplete()
@@ -110,7 +110,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
 
     // Create fresh engine for replay
     try {
-      engineRef.current = new QuizEngine(sgf, scoreEntry.mode || mode, true, maxQ)
+      engineRef.current = new QuizEngine(sgf, true, maxQ)
       engineRef.current.advance()
     } catch { return }
 
@@ -174,9 +174,13 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     if (engine.finished || engine.questionVertex || engine.comparisonPair) return
     if (engine.showingMove) {
       engine.activateQuestions()
-      if (!engine.questionVertex && !engine.comparisonPair && !engine.finished) engine.advance()
+      if (!engine.questionVertex && !engine.comparisonPair && !engine.finished) {
+        engine.advance()
+        if (engine.showingMove) playStoneClick()
+      }
     } else {
       engine.advance()
+      if (engine.showingMove) playStoneClick()
     }
     checkFinished()
     rerender()
@@ -240,8 +244,10 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       let pair = engine.comparisonPair
       let zKey = `${pair.vertexZ[0]},${pair.vertexZ[1]}`
       let xKey = `${pair.vertexX[0]},${pair.vertexX[1]}`
+      let eqKey = engine.equalVertex ? `${engine.equalVertex[0]},${engine.equalVertex[1]}` : null
       if (key === zKey) { recordEvent({ cmp: 'Z' }); submitComparison('Z') }
       else if (key === xKey) { recordEvent({ cmp: 'X' }); submitComparison('X') }
+      else if (eqKey && key === eqKey) { recordEvent({ cmp: 'equal' }); submitComparison('equal') }
       return
     }
     // No question: tap = advance
@@ -556,6 +562,10 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       let [xx, xy] = engine.comparisonPair.vertexX
       markerMap[zy][zx] = { type: 'label', label: 'Z' }
       markerMap[xy][xx] = { type: 'label', label: 'X' }
+      if (engine.equalVertex) {
+        let [ex, ey] = engine.equalVertex
+        markerMap[ey][ex] = { type: 'label', label: '=' }
+      }
     }
   }
 
@@ -598,41 +608,81 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
         </div>
       </div>
 
+      <ProgressPips engine={engine} reviewVertex={reviewVertex} setReviewVertex={setReviewVertex} rerender={rerender} />
+
       <div class="bottom-bar">
         {replayMode
           ? <div class="replay-exit-hint">Tap board or press Esc to exit</div>
           : seqIdx > 0
             ? <div class="replay-exit-hint">Move {seqIdx}/{engine.moveIndex} — tap to advance</div>
-            : engine.finished
-              ? <>
-                  <StatsBar sgfId={sgfId} onReplay={startReplay} />
-                  <div class="bottom-bar-row">
-                    <button class="bar-btn" title="Return to library (Esc)" onClick={onBack}>&#x25C2; Back</button>
-                    <button class="bar-btn" title="Restart this problem (R)" onClick={onRetry}>Retry</button>
-                    <button class="next-hero" title="Next unsolved problem (Enter)" onClick={onNextUnsolved}>Next</button>
-                  </div>
-                </>
-              : engine.questionVertex || engine.comparisonPair
-                ? <>
-                    <div class="action-hint">{engine.comparisonPair
-                      ? 'Tap the group with more liberties, or = Equal'
-                      : 'Tap all liberties of \u2753 group, then tap \u2753 or Space'}</div>
-                    <div class="bottom-bar-row">
-                      <button class="bar-btn" title="Replay the move sequence" onClick={startShowSequence}>&#x25B6; Replay</button>
-                      <button class={`next-hero equal-btn${engine.comparisonPair ? '' : ' invisible'}`} title="Both groups have equal liberties (Space)" onClick={() => { recordEvent({ cmp: 'equal' }); submitComparison('equal') }}>= Equal</button>
-                    </div>
-                  </>
-                : engine.showingMove
-                  ? <>
-                      <div class="action-hint">Tap board for the next move. Remember the sequence.</div>
-                      {preSolve && <div class="bottom-bar-row">
-                        <button class="bar-btn" title="Return to library (Esc)" onClick={onBack}>&#x25C2; Back</button>
-                        <button class="bar-btn mark-solved-btn" title={wasSolved ? 'Remove solved mark' : 'Skip and mark as solved (Enter)'} onClick={toggleSolved}>{wasSolved ? 'Mark as unsolved' : 'Mark as solved'}</button>
-                      </div>}
-                    </>
-                  : null
+            : <>
+                {engine.comparisonPair
+                  ? <div class="action-hint"><span>Tap the group with <span class="hint-blue">less</span> liberties, or <span class="hint-blue">=</span> on board</span></div>
+                  : engine.questionVertex
+                    ? <div class="action-hint">Tap all liberties of {'\u2753'} group, then tap {'\u2753'} or Space</div>
+                    : engine.showingMove
+                      ? <div class="action-hint">Tap board for the next move. Remember the sequence.</div>
+                      : null}
+                {engine.finished && !replayMode && <StatsBar sgfId={sgfId} onReplay={startReplay} />}
+                <div class="bottom-bar-row">
+                  <button class="bar-btn" title="Return to library (Esc)" onClick={onBack}>&#x25C2; Back</button>
+                  <button class="bar-btn" title={`Sound ${soundOn ? 'on' : 'off'}`} onClick={() => { setSoundOn(toggleSound()) }}>{soundOn ? '\uD83D\uDD0A' : '\uD83D\uDD07'}</button>
+                  {(engine.questionVertex || engine.comparisonPair) && <button class="bar-btn" title="Replay the move sequence" onClick={startShowSequence}>&#x25B6; Replay</button>}
+                  {preSolve && engine.showingMove && <button class="bar-btn mark-solved-btn" title={wasSolved ? 'Remove solved mark' : 'Skip and mark as solved (Enter)'} onClick={toggleSolved}>{wasSolved ? 'Mark as unsolved' : 'Mark as solved'}</button>}
+                  {engine.finished && <button class="bar-btn" title="Restart this problem (R)" onClick={onRetry}>Retry</button>}
+                  {engine.finished && <button class="next-hero" title="Next unsolved problem (Enter)" onClick={onNextUnsolved}>Next</button>}
+                </div>
+              </>
         }
       </div>
+    </div>
+  )
+}
+
+function ProgressPips({ engine, reviewVertex, setReviewVertex, rerender }) {
+  // Flatten all questions across all moves into a single pip list
+  let pips = []
+  let resultIdx = 0
+  for (let moveIdx = 0; moveIdx < engine.moveProgress.length; moveIdx++) {
+    let mp = engine.moveProgress[moveIdx]
+    let asked = engine.questionsAsked[moveIdx] || []
+    // Liberty questions
+    for (let qi = 0; qi < asked.length; qi++) {
+      let status = resultIdx < mp.results.length ? mp.results[resultIdx] : 'pending'
+      pips.push({ type: 'liberty', vertex: asked[qi].vertex, status, resultIdx })
+      resultIdx++
+    }
+    // Comparison questions (remaining results in this move after liberty questions)
+    let compCount = mp.total - asked.length
+    for (let ci = 0; ci < compCount; ci++) {
+      let status = resultIdx < mp.results.length ? mp.results[resultIdx] : 'pending'
+      pips.push({ type: 'comparison', status, resultIdx })
+      resultIdx++
+    }
+  }
+
+  if (pips.length === 0) return null
+
+  let handleClick = (pip) => {
+    if (!engine.finished) return
+    if (pip.type === 'liberty' && pip.vertex) {
+      let key = `${pip.vertex[0]},${pip.vertex[1]}`
+      setReviewVertex(prev => prev === key ? null : key)
+      rerender()
+    }
+  }
+
+  return (
+    <div class="progress-pips">
+      {pips.map((pip, i) => {
+        let cls = `pip pip-${pip.status}`
+        let isActive = pip.type === 'liberty' && pip.vertex &&
+          reviewVertex === `${pip.vertex[0]},${pip.vertex[1]}`
+        if (isActive) cls += ' pip-active'
+        if (engine.finished && pip.type === 'liberty') cls += ' pip-clickable'
+        let label = pip.type === 'comparison' ? '~' : '\u2753'
+        return <div key={i} class={cls} title={pip.type === 'liberty' ? `Liberty Q${i + 1}` : `Comparison Q${i + 1}`} onClick={() => handleClick(pip)}>{label}</div>
+      })}
     </div>
   )
 }

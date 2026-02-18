@@ -51,6 +51,21 @@ export function playWrong() {
   playTone(130, 0.45, 'triangle')
 }
 
+export function playStoneClick() {
+  if (!getEnabled()) return
+  let c = getCtx()
+  let osc = c.createOscillator()
+  let gain = c.createGain()
+  osc.type = 'triangle'
+  osc.frequency.value = 800
+  gain.gain.setValueAtTime(0.15, c.currentTime)
+  gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.05)
+  osc.connect(gain)
+  gain.connect(c.destination)
+  osc.start()
+  osc.stop(c.currentTime + 0.05)
+}
+
 export function playComplete() {
   if (!getEnabled()) return
   let c = getCtx()

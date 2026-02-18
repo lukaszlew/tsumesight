@@ -18,6 +18,9 @@ Spec: In order to emulate approach move in semeai, user should be able  to volun
 
 ## To spec
 
+
+## Done
+
 Spec: Remove per-move liberty mode — only liberty-end mode remains (questions after all moves placed). Remove the `mode` constructor parameter, `kv('quizMode')` setting, and all per-move code paths from engine/quiz/tests.
 
 Spec: Progress pips — row directly below board, one per question (❓ for liberty, Z/X for comparison). Blue while pending, green/red after answering (left-to-right). Tappable only when finished: liberty pip toggles liberty review on that group (same as tapping stone); comparison pip shows Z/X labels with green letter (correct) or red letter (wrong) on gray stones.
@@ -34,9 +37,6 @@ Spec: Button visibility — Back and Sound always visible in all states. Replay 
 
 Spec: Stone placement sound — play a stone-click sound (random variation) when revealing each new move.
 
-
-
-## Done
 
 Spec: Fix sound not playing — playTone/playComplete checked `enabled` (starts null/falsy) instead of `getEnabled()`. Sound now works on first play without needing a toggle first.
 

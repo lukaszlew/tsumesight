@@ -67,7 +67,7 @@ body {
   max-width: 400px;
   margin: 0 auto 1rem;
   padding: 0.9rem 2rem;
-  background: #2a6;
+  background: #4af;
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -78,8 +78,8 @@ body {
   transition: all 0.15s ease;
 }
 .next-hero:hover {
-  background: #3b7;
-  box-shadow: 0 0 12px rgba(40,180,100,.3);
+  background: #5bf;
+  box-shadow: 0 0 12px rgba(70,140,255,.3);
 }
 .next-hero:active {
   transform: scale(0.97);
@@ -168,9 +168,9 @@ body {
 .env-btn:first-child { border-radius: 4px 0 0 4px; }
 .env-btn:last-child { border-radius: 0 4px 4px 0; border-left: none; }
 .env-active {
-  background: #2a6;
+  background: #4af;
   color: #fff;
-  border-color: #2a6;
+  border-color: #4af;
   cursor: default;
 }
 .env-btn:not(.env-active):hover {
@@ -375,7 +375,7 @@ body {
   width: min(100dvw, 100dvh);
   margin: 0 auto;
   display: grid;
-  grid-template-rows: 75% 25%;
+  grid-template-rows: 73% auto 1fr;
   justify-items: center;
   background:
     linear-gradient(180deg,
@@ -462,6 +462,31 @@ body {
 }
 
 /* Bottom bar (row 3) */
+.progress-pips {
+  display: flex;
+  justify-content: center;
+  gap: calc(0.6 * var(--s));
+  padding: calc(0.4 * var(--s)) 0;
+  flex-wrap: wrap;
+  align-self: center;
+}
+.pip {
+  width: calc(1.8 * var(--s));
+  height: calc(1.8 * var(--s));
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(1.1 * var(--s));
+  font-weight: bold;
+  line-height: 1;
+}
+.pip-pending { background: #4af; }
+.pip-correct { background: #2a6; }
+.pip-failed { background: #c33; }
+.pip-active { box-shadow: 0 0 0 calc(0.3 * var(--s)) rgba(68,170,255,.5); }
+.pip.pip-clickable { cursor: pointer; }
+
 .bottom-bar {
   display: flex;
   flex-direction: column;
@@ -571,6 +596,10 @@ body {
   text-align: center;
   margin-bottom: calc(1.5 * var(--s));
 }
+.hint-blue {
+  color: #4af;
+  font-weight: bold;
+}
 
 /* Wrong-answer flash */
 .wrong-flash {
@@ -618,7 +647,7 @@ body {
   background: var(--shudan-board-background-color, #dcb35c);
 }
 .shudan-vertex.shudan-marker_label .shudan-marker {
-  color: #999 !important;
+  color: #4af !important;
   background: transparent !important;
   font-family: system-ui, -apple-system, sans-serif;
   font-weight: 600;

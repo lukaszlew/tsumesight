@@ -27,8 +27,7 @@ function libertySetKey(libs) {
 
 
 export class QuizEngine {
-  constructor(sgfString, mode = 'liberty', _precompute = true, maxQuestions = 3) {
-    this.mode = mode
+  constructor(sgfString, _precompute = true, maxQuestions = 3) {
     this.maxQuestions = maxQuestions
     this.random = mulberry32(hashString(sgfString))
     let parsed = parseSgf(sgfString)
@@ -42,7 +41,7 @@ export class QuizEngine {
     for (let [x, y] of parsed.setupBlack) this.trueBoard.set([x, y], 1)
     for (let [x, y] of parsed.setupWhite) this.trueBoard.set([x, y], -1)
 
-    // Snapshot initial position for liberty-end comparison
+    // Snapshot initial position for end-of-sequence comparison
     this.initialBoard = Board.fromDimensions(this.boardSize)
     for (let [x, y] of parsed.setupBlack) this.initialBoard.set([x, y], 1)
     for (let [x, y] of parsed.setupWhite) this.initialBoard.set([x, y], -1)
@@ -79,10 +78,11 @@ export class QuizEngine {
     this.comparisonQuestions = [] // [{vertexZ, vertexX, libsZ, libsX}]
     this.comparisonIndex = 0
     this.comparisonPair = null // current comparison pair or null
+    this.equalVertex = null // empty vertex for "= Equal" tap during comparison
 
     // Precompute question counts per move (ideal play, no wrong answers)
     if (_precompute) {
-      let sim = new QuizEngine(sgfString, mode, false, maxQuestions)
+      let sim = new QuizEngine(sgfString, false, maxQuestions)
       while (!sim.finished) sim.advance()
       this.questionsPerMove = sim.moveProgress.map(m => m.total)
     } else {
@@ -277,7 +277,7 @@ export class QuizEngine {
   answerComparison(choice) {
     assert(this.comparisonPair, 'No comparison to answer')
     let { libsZ, libsX } = this.comparisonPair
-    let trueAnswer = libsZ > libsX ? 'Z' : libsX > libsZ ? 'X' : 'equal'
+    let trueAnswer = libsZ < libsX ? 'Z' : libsX < libsZ ? 'X' : 'equal'
     let isCorrect = choice === trueAnswer
 
     this.results.push(isCorrect)
@@ -354,8 +354,8 @@ export class QuizEngine {
   recomputeQuestions() {
     let move = this.currentMove
     if (!move) return
-    // liberty-end: no questions until last move
-    if (this.mode === 'liberty-end' && this.moveIndex < this.totalMoves) {
+    // No questions until last move
+    if (this.moveIndex < this.totalMoves) {
       this.questions = []
       this.questionIndex = 0
       this.questionVertex = null
@@ -364,24 +364,7 @@ export class QuizEngine {
       this.questionsAsked[this.questionsAsked.length - 1] = []
       return
     }
-    if (this.mode === 'liberty-end') {
-      this.questions = this._selectEndQuestions()
-    } else {
-      this.peekGroupScores = this.getGroupScores()
-      let pool = this.peekGroupScores.filter(g => g.libsChanged)
-      let currentMoveKey = vertexKey(move.vertex)
-      for (let g of pool) {
-        g._justPlayed = g.vertices.some(v => vertexKey(v) === currentMoveKey) ? 0 : 1
-        g._rand = this.random()
-      }
-      pool.sort((a, b) => a.liberties - b.liberties || a._justPlayed - b._justPlayed || a._rand - b._rand)
-      this.questions = pool.map(g =>
-        g.vertices[Math.floor(this.random() * g.vertices.length)]
-      )
-      let filtered = this.questions.filter(q => this.trueBoard.getLiberties(q).length < 6)
-      if (filtered.length > 0) this.questions = filtered
-      this.questions = this.questions.slice(0, this.maxQuestions)
-    }
+    this.questions = this._selectEndQuestions()
     this.questionIndex = 0
     this.questionVertex = this.showingMove ? null : (this.questions[0] || null)
     this.questionsAsked[this.questionsAsked.length - 1] = this.questions.map(v => ({ vertex: v }))
@@ -391,8 +374,8 @@ export class QuizEngine {
   }
 
   _advanceLiberty(move) {
-    // liberty-end: skip questions until the last move
-    if (this.mode === 'liberty-end' && this.moveIndex < this.totalMoves) {
+    // Skip questions until the last move
+    if (this.moveIndex < this.totalMoves) {
       this.questions = []
       this.questionIndex = 0
       this.questionVertex = null
@@ -404,37 +387,8 @@ export class QuizEngine {
       return
     }
 
-    // liberty-end on last move: use dedicated end-game selection
-    if (this.mode === 'liberty-end') {
-      this.questions = this._selectEndQuestions()
-      this.questionIndex = 0
-      this.questionVertex = null
-      this.questionsAsked.push(this.questions.map(v => ({ vertex: v })))
-      this._generateComparisonQuestions()
-      this.moveProgress.push({ total: this.questions.length + this.comparisonQuestions.length, results: [] })
-      return
-    }
-
-    // Build question queue: all groups with changed liberties
-    // Sort: liberties asc, just-played first, random tiebreak
-    this.peekGroupScores = this.getGroupScores()
-    let pool = this.peekGroupScores.filter(g => g.libsChanged)
-    let currentMoveKey = vertexKey(move.vertex)
-    for (let g of pool) {
-      g._justPlayed = g.vertices.some(v => vertexKey(v) === currentMoveKey) ? 0 : 1
-      g._rand = this.random()
-    }
-    pool.sort((a, b) => a.liberties - b.liberties || a._justPlayed - b._justPlayed || a._rand - b._rand)
-
-    this.questions = pool.map(g =>
-      g.vertices[Math.floor(this.random() * g.vertices.length)]
-    )
-
-    // Skip groups with 6+ liberties (answer is always "5+"), keep at least one
-    let filtered = this.questions.filter(q => this.trueBoard.getLiberties(q).length < 6)
-    if (filtered.length > 0) this.questions = filtered
-
-    this.questions = this.questions.slice(0, this.maxQuestions)
+    // Last move: select questions from groups that changed since initial position
+    this.questions = this._selectEndQuestions()
     this.questionIndex = 0
     this.questionVertex = null
     this.questionsAsked.push(this.questions.map(v => ({ vertex: v })))
@@ -442,7 +396,7 @@ export class QuizEngine {
     this.moveProgress.push({ total: this.questions.length + this.comparisonQuestions.length, results: [] })
   }
 
-  // Select questions for liberty-end mode:
+  // Select end-of-sequence questions:
   // All groups whose vertex-set or liberty-set differs from initial position.
   // No filtering. Randomized. Sliced to maxQuestions.
   _selectEndQuestions() {
@@ -484,7 +438,7 @@ export class QuizEngine {
       ;[questions[i], questions[j]] = [questions[j], questions[i]]
     }
 
-    return questions
+    return questions.slice(0, this.maxQuestions)
   }
 
 
@@ -539,6 +493,43 @@ export class QuizEngine {
         })
       }
     }
+    this._findEqualVertex()
+  }
+
+  _findEqualVertex() {
+    this.equalVertex = null
+    if (this.comparisonQuestions.length === 0) return
+
+    // Collect vertices to avoid (questioned + comparison stones)
+    let avoid = new Set(this.questions.map(vertexKey))
+    for (let q of this.comparisonQuestions) {
+      avoid.add(vertexKey(q.vertexZ))
+      avoid.add(vertexKey(q.vertexX))
+    }
+
+    function dist(v1, v2) { return Math.abs(v1[0] - v2[0]) + Math.abs(v1[1] - v2[1]) }
+    let avoidVertices = [...avoid].map(k => k.split(',').map(Number))
+
+    let minDist = (v) => {
+      let d = Infinity
+      for (let av of avoidVertices) d = Math.min(d, dist(v, av))
+      return d
+    }
+
+    // Prefer empty edge intersections at distance >= 2
+    let n = this.boardSize
+    let best = null, bestDist = -1
+    for (let x = 0; x < n; x++)
+      for (let y = 0; y < n; y++) {
+        if (this.trueBoard.get([x, y]) !== 0) continue
+        let isEdge = x === 0 || x === n - 1 || y === 0 || y === n - 1
+        let d = minDist([x, y])
+        // Edge vertices preferred; within each category, maximize distance
+        let score = (isEdge ? 1000 : 0) + d
+        if (score > bestDist) { bestDist = score; best = [x, y] }
+      }
+
+    this.equalVertex = best
   }
 
   _findBorderPair(groupA, groupB) {
@@ -577,8 +568,8 @@ export class QuizEngine {
     }
   }
 
-  static fromReplay(sgfString, history, mode = 'liberty', maxQuestions = 3) {
-    let engine = new QuizEngine(sgfString, mode, true, maxQuestions)
+  static fromReplay(sgfString, history, maxQuestions = 3) {
+    let engine = new QuizEngine(sgfString, true, maxQuestions)
     engine.advance()
     engine.activateQuestions()
     for (let wasCorrectFirst of history) {
@@ -601,7 +592,7 @@ export class QuizEngine {
         }
       } else if (engine.comparisonPair) {
         let { libsZ, libsX } = engine.comparisonPair
-        let trueAnswer = libsZ > libsX ? 'Z' : libsX > libsZ ? 'X' : 'equal'
+        let trueAnswer = libsZ < libsX ? 'Z' : libsX < libsZ ? 'X' : 'equal'
         if (wasCorrectFirst) {
           let result = engine.answerComparison(trueAnswer)
           if (result.done) { engine.advance(); engine.activateQuestions() }

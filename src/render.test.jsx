@@ -688,7 +688,7 @@ let SGF_5x5 = '(;SZ[5];B[bb];W[cc];B[dd];W[ee];B[bc])'
 
 describe('QuizEngine → Goban integration: show phase', () => {
   it('after advance, current move stone is visible with move number', () => {
-    let engine = new QuizEngine(SGF_5x5, 'liberty-end', true, 2)
+    let engine = new QuizEngine(SGF_5x5, true, 2)
     engine.advance()
     let maps = buildPlayMaps(engine)
     let c = renderGoban(maps)
@@ -698,20 +698,20 @@ describe('QuizEngine → Goban integration: show phase', () => {
     expect(v.querySelector('.shudan-stone .shudan-marker').textContent).toBe('1')
   })
 
-  it('after activateQuestions on non-last move, no question marker (liberty-end mode)', () => {
-    let engine = new QuizEngine(SGF_5x5, 'liberty-end', true, 2)
+  it('after activateQuestions on non-last move, no question marker', () => {
+    let engine = new QuizEngine(SGF_5x5, true, 2)
     engine.advance()
     engine.activateQuestions()
     let maps = buildPlayMaps(engine)
     let c = renderGoban(maps)
-    // liberty-end: no questions until last move
+    // no questions until last move
     let vertices = c.querySelectorAll('.shudan-vertex')
     let hasQuestion = Array.from(vertices).some(v => v.getAttribute('title') === '❓')
     expect(hasQuestion).toBe(false)
   })
 
   it('after all advances, last move triggers questions', () => {
-    let engine = new QuizEngine(SGF_5x5, 'liberty-end', true, 2)
+    let engine = new QuizEngine(SGF_5x5, true, 2)
     while (!engine.finished) {
       engine.advance()
       engine.activateQuestions()
@@ -731,7 +731,7 @@ describe('QuizEngine → Goban integration: show phase', () => {
 
 describe('QuizEngine → Goban integration: peek mode', () => {
   it('peeking reveals invisible stones as faint ghosts', () => {
-    let engine = new QuizEngine(SGF_5x5, 'liberty-end', true, 2)
+    let engine = new QuizEngine(SGF_5x5, true, 2)
     // Play a few moves without showing
     engine.advance(); engine.activateQuestions()
     engine.advance(); engine.activateQuestions()
@@ -748,7 +748,7 @@ describe('QuizEngine → Goban integration: peek mode', () => {
 
 describe('QuizEngine → Goban integration: question phase with marks', () => {
   it('marked liberties show as circle markers', () => {
-    let engine = new QuizEngine(SGF_5x5, 'liberty-end', true, 2)
+    let engine = new QuizEngine(SGF_5x5, true, 2)
     // Advance to last move to get questions
     while (!engine.finished) {
       engine.advance()
@@ -775,8 +775,8 @@ describe('QuizEngine → Goban integration: question phase with marks', () => {
 })
 
 describe('QuizEngine → Goban integration: finished review', () => {
-  function playToFinish(sgf, mode = 'liberty-end', maxQ = 2) {
-    let engine = new QuizEngine(sgf, mode, true, maxQ)
+  function playToFinish(sgf, maxQ = 2) {
+    let engine = new QuizEngine(sgf, true, maxQ)
     while (!engine.finished) {
       engine.advance()
       engine.activateQuestions()
@@ -826,7 +826,7 @@ describe('QuizEngine → Goban integration: finished review', () => {
 
   it('wrong answers show mistake count markers', () => {
     // Play with wrong answers
-    let engine = new QuizEngine(SGF_5x5, 'liberty-end', true, 2)
+    let engine = new QuizEngine(SGF_5x5, true, 2)
     while (!engine.finished) {
       engine.advance()
       engine.activateQuestions()
@@ -890,7 +890,7 @@ describe('QuizEngine → Goban integration: finished review', () => {
   })
 
   it('wrong marks show as red crosses', () => {
-    let engine = new QuizEngine(SGF_5x5, 'liberty-end', true, 2)
+    let engine = new QuizEngine(SGF_5x5, true, 2)
     while (!engine.finished) {
       engine.advance()
       engine.activateQuestions()
@@ -916,7 +916,7 @@ describe('QuizEngine → Goban integration: finished review', () => {
   })
 
   it('missed liberties show as cross markers', () => {
-    let engine = new QuizEngine(SGF_5x5, 'liberty-end', true, 2)
+    let engine = new QuizEngine(SGF_5x5, true, 2)
     while (!engine.finished) {
       engine.advance()
       engine.activateQuestions()
@@ -967,7 +967,7 @@ let SGF_TSUMEGO = '(;SZ[9]AB[aa][ba][ca][ab][bb]AW[cb][ac][bc][cc];B[da];W[db])'
 
 describe('QuizEngine → Goban integration: tsumego with setup stones', () => {
   function playToFinish(sgf) {
-    let engine = new QuizEngine(sgf, 'liberty-end', true, 3)
+    let engine = new QuizEngine(sgf, true, 3)
     while (!engine.finished) {
       engine.advance()
       engine.activateQuestions()
@@ -1022,7 +1022,7 @@ describe('QuizEngine → Goban integration: tsumego with setup stones', () => {
 
 describe('display map integrity', () => {
   it('signMap dimensions match boardSize', () => {
-    let engine = new QuizEngine(SGF_5x5, 'liberty-end', true, 2)
+    let engine = new QuizEngine(SGF_5x5, true, 2)
     while (!engine.finished) { engine.advance(); engine.activateQuestions() }
     let maps = buildFinishedMaps(engine)
     expect(maps.signMap.length).toBe(5)
@@ -1030,7 +1030,7 @@ describe('display map integrity', () => {
   })
 
   it('all map dimensions match', () => {
-    let engine = new QuizEngine(SGF_5x5, 'liberty-end', true, 2)
+    let engine = new QuizEngine(SGF_5x5, true, 2)
     while (!engine.finished) { engine.advance(); engine.activateQuestions() }
     let maps = buildFinishedMaps(engine)
     for (let mapName of ['signMap', 'markerMap', 'ghostStoneMap', 'paintMap']) {
@@ -1040,7 +1040,7 @@ describe('display map integrity', () => {
   })
 
   it('play mode maps have correct dimensions', () => {
-    let engine = new QuizEngine(SGF_5x5, 'liberty-end', true, 2)
+    let engine = new QuizEngine(SGF_5x5, true, 2)
     engine.advance()
     let maps = buildPlayMaps(engine)
     for (let mapName of ['signMap', 'markerMap', 'ghostStoneMap', 'paintMap']) {
@@ -1050,7 +1050,7 @@ describe('display map integrity', () => {
   })
 
   it('no ghost stones in finished review (circles/crosses used instead)', () => {
-    let engine = new QuizEngine(SGF_5x5, 'liberty-end', true, 2)
+    let engine = new QuizEngine(SGF_5x5, true, 2)
     while (!engine.finished) {
       engine.advance(); engine.activateQuestions()
       while (engine.questionVertex) {
@@ -1072,7 +1072,7 @@ describe('display map integrity', () => {
 
   it('review: correct marks → circle, wrong marks → cross, missed → cross', () => {
     // Engine where user marks only SOME liberties and one wrong vertex
-    let engine = new QuizEngine(SGF_5x5, 'liberty-end', true, 2)
+    let engine = new QuizEngine(SGF_5x5, true, 2)
     while (!engine.finished) {
       engine.advance(); engine.activateQuestions()
       while (engine.questionVertex) {
@@ -1111,7 +1111,7 @@ describe('display map integrity', () => {
   })
 
   it('no paint string values anywhere in play mode maps', () => {
-    let engine = new QuizEngine(SGF_5x5, 'liberty-end', true, 2)
+    let engine = new QuizEngine(SGF_5x5, true, 2)
     engine.advance()
     let maps = buildPlayMaps(engine)
     for (let row of maps.paintMap)

@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { QuizEngine } from './engine.js'
 
 // Mirror the replay playback logic from quiz.jsx useEffect
-function replayEvents(sgfString, events, mode = 'liberty-end', maxQ = 2) {
-  let engine = new QuizEngine(sgfString, mode, true, maxQ)
+function replayEvents(sgfString, events, maxQ = 2) {
+  let engine = new QuizEngine(sgfString, true, maxQ)
   engine.advance()
   let marks = new Set()
 
@@ -62,8 +62,8 @@ function replayEvents(sgfString, events, mode = 'liberty-end', maxQ = 2) {
 }
 
 // Play through normally with keyboard-style events, return engine + events
-function playAndRecord(sgfString, { mode = 'liberty-end', maxQ = 2, correct = true } = {}) {
-  let engine = new QuizEngine(sgfString, mode, true, maxQ)
+function playAndRecord(sgfString, { maxQ = 2, correct = true } = {}) {
+  let engine = new QuizEngine(sgfString, true, maxQ)
   engine.advance()
   let events = []
   let t = 0
@@ -97,7 +97,7 @@ function playAndRecord(sgfString, { mode = 'liberty-end', maxQ = 2, correct = tr
 
     if (engine.comparisonPair) {
       let { libsZ, libsX } = engine.comparisonPair
-      let trueAnswer = libsZ > libsX ? 'Z' : libsX > libsZ ? 'X' : 'equal'
+      let trueAnswer = libsZ < libsX ? 'Z' : libsX < libsZ ? 'X' : 'equal'
       let answer = correct ? trueAnswer : (trueAnswer === 'Z' ? 'X' : 'Z')
       t += 100
       events.push({ t, cmp: answer })
@@ -113,8 +113,8 @@ function playAndRecord(sgfString, { mode = 'liberty-end', maxQ = 2, correct = tr
 }
 
 // Same but uses vertex clicks for advances instead of {a} events
-function playAndRecordWithClicks(sgfString, { mode = 'liberty-end', maxQ = 2 } = {}) {
-  let engine = new QuizEngine(sgfString, mode, true, maxQ)
+function playAndRecordWithClicks(sgfString, { maxQ = 2 } = {}) {
+  let engine = new QuizEngine(sgfString, true, maxQ)
   engine.advance()
   let events = []
   let t = 0
@@ -144,7 +144,7 @@ function playAndRecordWithClicks(sgfString, { mode = 'liberty-end', maxQ = 2 } =
 
     if (engine.comparisonPair) {
       let { libsZ, libsX } = engine.comparisonPair
-      let trueAnswer = libsZ > libsX ? 'Z' : libsX > libsZ ? 'X' : 'equal'
+      let trueAnswer = libsZ < libsX ? 'Z' : libsX < libsZ ? 'X' : 'equal'
       t += 100
       // Click the Z or X stone vertex, or use cmp event for equal
       if (trueAnswer === 'equal') {
@@ -192,7 +192,7 @@ describe('Replay playback logic', () => {
   describe('advance events', () => {
     it('{a} event past showing phase activates questions', () => {
       let engine = replayEvents(SGF_1MOVE, [{ t: 100, a: 1 }])
-      // liberty-end mode, single move = last move, so questions should activate
+      // single move = last move, so questions should activate
       expect(engine.showingMove).toBe(false)
       expect(engine.questionVertex).not.toBe(null)
     })
@@ -203,8 +203,8 @@ describe('Replay playback logic', () => {
       expect(engine.questionVertex).not.toBe(null)
     })
 
-    it('multiple {a} events advance through non-last moves in liberty-end mode', () => {
-      // liberty-end: no questions until last move, so advances should zip through
+    it('multiple {a} events advance through non-last moves', () => {
+      // no questions until last move, so advances should zip through
       let engine = replayEvents(SGF_3MOVE, [
         { t: 100, a: 1 },  // activate move 1 (no questions) → advance move 2
         { t: 200, a: 1 },  // activate move 2 (no questions) → advance move 3
@@ -218,7 +218,7 @@ describe('Replay playback logic', () => {
   describe('mark and submit events', () => {
     it('marking liberties and submitting records correct answer', () => {
       // Advance to question, mark correct liberties, submit
-      let fresh = new QuizEngine(SGF_1MOVE, 'liberty-end', true, 2)
+      let fresh = new QuizEngine(SGF_1MOVE, true, 2)
       fresh.advance()
       fresh.activateQuestions()
       let libs = fresh.trueBoard.getLiberties(fresh.questionVertex)
@@ -246,7 +246,7 @@ describe('Replay playback logic', () => {
     })
 
     it('toggling a mark on then off excludes it from submission', () => {
-      let fresh = new QuizEngine(SGF_1MOVE, 'liberty-end', true, 2)
+      let fresh = new QuizEngine(SGF_1MOVE, true, 2)
       fresh.advance()
       fresh.activateQuestions()
       let libs = fresh.trueBoard.getLiberties(fresh.questionVertex)
@@ -264,7 +264,7 @@ describe('Replay playback logic', () => {
     })
 
     it('toggling mark on-off-on includes it in submission', () => {
-      let fresh = new QuizEngine(SGF_1MOVE, 'liberty-end', true, 2)
+      let fresh = new QuizEngine(SGF_1MOVE, true, 2)
       fresh.advance()
       fresh.activateQuestions()
       let libs = fresh.trueBoard.getLiberties(fresh.questionVertex)
@@ -284,7 +284,7 @@ describe('Replay playback logic', () => {
   })
 
   describe('round-trip: record then replay', () => {
-    it('1-move SGF perfect play in liberty-end mode', () => {
+    it('1-move SGF perfect play with end questions', () => {
       let { engine: original, events } = playAndRecord(SGF_1MOVE)
       expect(original.finished).toBe(true)
 
@@ -296,7 +296,7 @@ describe('Replay playback logic', () => {
       expect(replayed.results).toEqual(original.results)
     })
 
-    it('3-move SGF perfect play in liberty-end mode', () => {
+    it('3-move SGF perfect play with end questions', () => {
       let { engine: original, events } = playAndRecord(SGF_3MOVE)
       expect(original.finished).toBe(true)
 
@@ -307,7 +307,7 @@ describe('Replay playback logic', () => {
       expect(replayed.results).toEqual(original.results)
     })
 
-    it('5-move SGF perfect play in liberty-end mode', () => {
+    it('5-move SGF perfect play with end questions', () => {
       let { engine: original, events } = playAndRecord(SGF_5MOVE)
       expect(original.finished).toBe(true)
 
@@ -317,11 +317,11 @@ describe('Replay playback logic', () => {
       expect(replayed.results).toEqual(original.results)
     })
 
-    it('adjacent moves in liberty mode', () => {
-      let { engine: original, events } = playAndRecord(SGF_ADJACENT, { mode: 'liberty' })
+    it('adjacent moves', () => {
+      let { engine: original, events } = playAndRecord(SGF_ADJACENT)
       expect(original.finished).toBe(true)
 
-      let replayed = replayEvents(SGF_ADJACENT, events, 'liberty')
+      let replayed = replayEvents(SGF_ADJACENT, events)
       expect(replayed.finished).toBe(true)
       expect(replayed.correct).toBe(original.correct)
       expect(replayed.wrong).toBe(original.wrong)
@@ -362,11 +362,11 @@ describe('Replay playback logic', () => {
       expect(replayed.results).toEqual(original.results)
     })
 
-    it('wrong answers in liberty mode', () => {
-      let { engine: original, events } = playAndRecord(SGF_ADJACENT, { mode: 'liberty', correct: false })
+    it('wrong answers with adjacent moves', () => {
+      let { engine: original, events } = playAndRecord(SGF_ADJACENT, { correct: false })
       expect(original.finished).toBe(true)
 
-      let replayed = replayEvents(SGF_ADJACENT, events, 'liberty')
+      let replayed = replayEvents(SGF_ADJACENT, events)
       expect(replayed.finished).toBe(true)
       expect(replayed.correct).toBe(original.correct)
       expect(replayed.wrong).toBe(original.wrong)
@@ -407,7 +407,7 @@ describe('Replay playback logic', () => {
   describe('mixed event types', () => {
     it('mixing {a} and {v} advances produces valid replay', () => {
       // Manually build events: some advances with {a}, some with {v}
-      let fresh = new QuizEngine(SGF_3MOVE, 'liberty-end', true, 2)
+      let fresh = new QuizEngine(SGF_3MOVE, true, 2)
       fresh.advance()
 
       let events = [
@@ -417,7 +417,7 @@ describe('Replay playback logic', () => {
       ]
 
       // Continue: advance through moves
-      fresh.activateQuestions() // move 1, no questions in liberty-end
+      fresh.activateQuestions() // move 1, no questions (not last move)
       if (!fresh.questionVertex && !fresh.finished) fresh.advance()
       fresh.activateQuestions()
       if (!fresh.questionVertex && !fresh.finished) fresh.advance()
@@ -472,15 +472,15 @@ describe('Replay playback logic', () => {
 
     it('maxQ=1 replay matches original', () => {
       let { engine: original, events } = playAndRecord(SGF_5MOVE, { maxQ: 1 })
-      let replayed = replayEvents(SGF_5MOVE, events, 'liberty-end', 1)
+      let replayed = replayEvents(SGF_5MOVE, events, 1)
       expect(replayed.finished).toBe(true)
       expect(replayed.correct).toBe(original.correct)
       expect(replayed.results).toEqual(original.results)
     })
 
     it('maxQ=3 replay matches original', () => {
-      let { engine: original, events } = playAndRecord(SGF_ADJACENT, { mode: 'liberty', maxQ: 3 })
-      let replayed = replayEvents(SGF_ADJACENT, events, 'liberty', 3)
+      let { engine: original, events } = playAndRecord(SGF_ADJACENT, { maxQ: 3 })
+      let replayed = replayEvents(SGF_ADJACENT, events, 3)
       expect(replayed.finished).toBe(true)
       expect(replayed.correct).toBe(original.correct)
       expect(replayed.results).toEqual(original.results)
