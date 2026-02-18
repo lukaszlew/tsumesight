@@ -261,6 +261,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       return
     }
     // Toggle liberty mark
+    playStoneClick()
     setMarkedLiberties(prev => {
       let next = new Set(prev)
       if (next.has(key)) next.delete(key)
@@ -661,7 +662,8 @@ function ProgressPips({ engine, reviewVertex, setReviewVertex, rerender }) {
     }
   }
 
-  if (pips.length === 0) return null
+  // Show pips only when questions are active or finished, not during showingMove
+  let showPips = pips.length > 0 && !engine.showingMove
 
   let handleClick = (pip) => {
     if (!engine.finished) return
@@ -674,7 +676,7 @@ function ProgressPips({ engine, reviewVertex, setReviewVertex, rerender }) {
 
   return (
     <div class="progress-pips">
-      {pips.map((pip, i) => {
+      {showPips && pips.map((pip, i) => {
         let cls = `pip pip-${pip.status}`
         let isActive = pip.type === 'liberty' && pip.vertex &&
           reviewVertex === `${pip.vertex[0]},${pip.vertex[1]}`
