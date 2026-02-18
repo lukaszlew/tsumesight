@@ -500,33 +500,28 @@ export class QuizEngine {
     this.equalVertex = null
     if (this.comparisonQuestions.length === 0) return
 
-    // Collect vertices to avoid (questioned + comparison stones)
+    // Avoid: all liberty question vertices + all comparison Z/X vertices
     let avoid = new Set(this.questions.map(vertexKey))
+    let zxVertices = []
     for (let q of this.comparisonQuestions) {
       avoid.add(vertexKey(q.vertexZ))
       avoid.add(vertexKey(q.vertexX))
+      zxVertices.push(q.vertexZ, q.vertexX)
     }
 
     function dist(v1, v2) { return Math.abs(v1[0] - v2[0]) + Math.abs(v1[1] - v2[1]) }
-    let avoidVertices = [...avoid].map(k => k.split(',').map(Number))
 
-    let minDist = (v) => {
-      let d = Infinity
-      for (let av of avoidVertices) d = Math.min(d, dist(v, av))
-      return d
-    }
-
-    // Search within visible board range (boardRange=[minX,minY,maxX,maxY])
+    // Search all intersections: empty, not occupied, not in avoid set
+    // Pick the one closest to all Z/X markers (minimize sum of distances)
     let [x0, y0, x1, y1] = this.boardRange || [0, 0, this.boardSize - 1, this.boardSize - 1]
-    let best = null, bestDist = -1
+    let best = null, bestSum = Infinity
     for (let x = x0; x <= x1; x++)
       for (let y = y0; y <= y1; y++) {
         if (this.trueBoard.get([x, y]) !== 0) continue
-        // Prefer edge of visible range
-        let isEdge = x === x0 || x === x1 || y === y0 || y === y1
-        let d = minDist([x, y])
-        let score = (isEdge ? 1000 : 0) + d
-        if (score > bestDist) { bestDist = score; best = [x, y] }
+        if (avoid.has(vertexKey([x, y]))) continue
+        let sum = 0
+        for (let zx of zxVertices) sum += dist([x, y], zx)
+        if (sum < bestSum) { bestSum = sum; best = [x, y] }
       }
 
     this.equalVertex = best

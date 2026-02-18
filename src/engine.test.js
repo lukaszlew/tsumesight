@@ -888,26 +888,30 @@ describe('QuizEngine', () => {
       expect(engine.equalVertex).toBe(null)
     })
 
-    it('equalVertex is at distance >= 2 from questioned vertices', () => {
+    it('equalVertex is near Z/X markers', () => {
       let engine = new QuizEngine(adjacentSgf)
       engine.advance()
       engine.advance()
       expect(engine.equalVertex).not.toBe(null)
       let [ex, ey] = engine.equalVertex
-      for (let q of engine.questions) {
-        let d = Math.abs(ex - q[0]) + Math.abs(ey - q[1])
-        expect(d).toBeGreaterThanOrEqual(2)
-      }
+      let q = engine.comparisonQuestions[0]
+      let dZ = Math.abs(ex - q.vertexZ[0]) + Math.abs(ey - q.vertexZ[1])
+      let dX = Math.abs(ex - q.vertexX[0]) + Math.abs(ey - q.vertexX[1])
+      // Should be close to both Z and X (within a few intersections)
+      expect(dZ + dX).toBeLessThanOrEqual(6)
     })
 
-    it('equalVertex prefers edge intersections', () => {
+    it('equalVertex avoids questioned and comparison vertices', () => {
       let engine = new QuizEngine(adjacentSgf)
       engine.advance()
       engine.advance()
-      let [ex, ey] = engine.equalVertex
-      let n = engine.boardSize
-      let isEdge = ex === 0 || ex === n - 1 || ey === 0 || ey === n - 1
-      expect(isEdge).toBe(true)
+      let eqKey = `${engine.equalVertex[0]},${engine.equalVertex[1]}`
+      for (let q of engine.questions)
+        expect(eqKey).not.toBe(`${q[0]},${q[1]}`)
+      for (let q of engine.comparisonQuestions) {
+        expect(eqKey).not.toBe(`${q.vertexZ[0]},${q.vertexZ[1]}`)
+        expect(eqKey).not.toBe(`${q.vertexX[0]},${q.vertexX[1]}`)
+      }
     })
 
     it('fromReplay handles comparison questions', () => {
