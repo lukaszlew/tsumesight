@@ -13,10 +13,48 @@ Spec: Difficulty heuristic — primary factor is move count, secondary is number
 Spec: In order to emulate approach move in semeai, user should be able  to volunteer a sequence of one color of moves and then calculate the liberties of our resulting group. With opponent sometimes answering, according to fixed heuristics.
 
 - Improve the algorithm for comparative question selection.
+- Add some heuristics for connected groups and count their liberties together
+- Let's try to add option where we present numbers (on intersections)
+- We should not be asking about the same group too many times. matching instead of spanning tree.
+- We should probably start on simplifying the code and formalizing the framework.
+- We should mix up all the problems and start by difficulty.
 
 ## Spec-ed, can start working
 
 ## To spec
+
+
+- When all problems are solved then we click next, we should choose the problem we didn't solve for the longest time in the dir.
+
+- Draw equal just next to X and Z so they form a "triangle". Ideally below the left sign (Z) or to the right of the left of the top sign (Z).
+
+- When the problem is solved there should be show/hide toggle that modifies whether additional stones are visible.
+
+- Don't show the first move. user have to click to see it just like all other moves. but the time should started and included in the final score
+
+- Back gesture should go back to menu like Escape instead of going to previous screen. Also dir up.
+
+- My installed app should remember whether whether I was in pr production or development mode.
+
+- When we open the app, we should no be in the problem, but in the dir where we had last problem or the dir we left.
+
+- The final chord on finishing the puzzle should start with the note of the final question so they produce nice harmony together. There should be crescendo when we Mark continuous liberties (but undo when we unmark). But we should drop back when we get to next question of liberties.
+
+- Fonts on mobile have strange outline problem, I'll show you screenshot when you ask.
+
+- Recording is messed up in the way the answers are classified incorrectly when there is a playback. even though in the game they were classified correctly.
+
+- Pips and hint text should be 2x bigger.
+
+- When tapping a question pip or marker, all the other markers of other questions should disappear.
+
+- When watching replay  we should have a timer and the progress bar.
+
+- Is the last answer visible on replay? It should pause at the end with visibility.
+
+- Incorrect answer on comparison is showing green and gray still.
+
+- When entering the directory we should see the same tile at the top. We used to enter it except maybe in a different color.
 
 
 ## Done
