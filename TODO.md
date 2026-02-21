@@ -24,44 +24,43 @@ Spec: In order to emulate approach move in semeai, user should be able  to volun
 
 ## To spec
 
+- When all problems are solved (and all perfect), Next should pick the problem with the oldest latestScoreDate (least recently practiced) instead of going back to library.
 
-- When all problems are solved then we click next, we should choose the problem we didn't solve for the longest time in the dir.
+- Draw = adjacent to Z and X forming a tight triangle. If Z-X are horizontal, place = below Z. If Z-X are vertical, place = right of Z. Fall back to nearest empty if preferred spot is occupied. Reposition = per comparison question (not fixed for the whole problem).
 
-- Draw equal just next to X and Z so they form a "triangle". Ideally below the left sign (Z) or to the right of the left of the top sign (Z).
+- When the problem is finished, show/hide toggle for sequence stones (stones played during the move sequence). Toggle hides them, reverting board to initial/setup position. Toggle shows them again. When stones are hidden, review still works: show liberty markers on the empty board (no stones revealed). Button placement: find reasonable spot in bottom bar.
 
-- When the problem is solved there should be show/hide toggle that modifies whether additional stones are visible.
+- Don't auto-show the first move. User must tap to see it (same as all other moves). Global solve timer starts at problem load and is used for the highscore time.
 
-- Don't show the first move. user have to click to see it just like all other moves. but the time should started and included in the final score
+- Android/browser back gesture should act like Escape: in quiz go to library, in library go to parent directory.
 
-- Back gesture should go back to menu like Escape instead of going to previous screen. Also dir up.
+- Installed PWA should remember last used environment (prod/dev) in localStorage and redirect on load if mismatched.
 
-- My installed app should remember whether whether I was in pr production or development mode.
+- On app open, don't restore into a problem. Instead navigate to the directory of the last problem (or directory the user left from).
 
-- When we open the app, we should no be in the problem, but in the dir where we had last problem or the dir we left.
+- Sound: completion chord should wait a mini pause after the last question's correct sound, then start from the streak pitch. Liberty marking should play stone-like sounds that crescendo with each mark (and audibly undo when unmarking). On next liberty question, reset crescendo base to match current correct-answer streak level. Details TBD.
 
-- The final chord on finishing the puzzle should start with the note of the final question so they produce nice harmony together. There should be crescendo when we Mark continuous liberties (but undo when we unmark). But we should drop back when we get to next question of liberties.
+- Fonts on mobile have strange outline problem. Blocked on screenshot.
 
-- Fonts on mobile have strange outline problem, I'll show you screenshot when you ask.
-
-- Recording is messed up in the way the answers are classified incorrectly when there is a playback. even though in the game they were classified correctly.
+- Bug: Replay playback classifies answers incorrectly (wrong pip colors and sounds) even though the original run was correct.
 
 - Pips and hint text should be 2x bigger.
 
-- When tapping a question pip or marker, all the other markers of other questions should disappear.
+- When tapping a question pip or stone in review, hide ALL other questions' markers (checkmarks, mistake counts). Only show the tapped question's review.
 
-- When watching replay  we should have a timer and the progress bar.
+- Replay should show a timer (original solve time counting up) and a progress bar (fraction of replay events played).
 
-- Is the last answer visible on replay? It should pause at the end with visibility.
+- Replay should pause indefinitely on the final state (with last answer visible) until user taps/presses Esc to exit.
 
-- Incorrect answer on comparison is showing green and gray still.
+- Bug: Incorrect comparison answer in review is showing green and gray instead of correct colors.
 
-- When entering the directory we should see the same tile at the top. We used to enter it except maybe in a different color.
+- When entering a directory, show the same directory tile at the top as a header (with its solved/total count and name).
 
-- Playing under the stone (where there was a stone on original board) renders incorrectly
+- Bug: Playing a move on a vertex that had a setup stone renders incorrectly.
 
-- Replay should also have sounds of stones being played and in general should share the same structure in code.
+- Replay should play stone click sounds when advancing moves. Refactor replay to share advance/answer logic with live play.
 
-- During replay you should be able to restart the replay as well, so that button should be visible.
+- Show a restart button during replay mode.
 
 
 ## Done
