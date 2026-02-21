@@ -18,6 +18,7 @@ Spec: In order to emulate approach move in semeai, user should be able  to volun
 - We should not be asking about the same group too many times. matching instead of spanning tree.
 - We should probably start on simplifying the code and formalizing the framework.
 - We should mix up all the problems and start by difficulty.
+- Number of questions should be proportional to number of moves.
 
 ## Spec-ed, can start working
 
@@ -55,6 +56,12 @@ Spec: In order to emulate approach move in semeai, user should be able  to volun
 - Incorrect answer on comparison is showing green and gray still.
 
 - When entering the directory we should see the same tile at the top. We used to enter it except maybe in a different color.
+
+- Playing under the stone (where there was a stone on original board) renders incorrectly
+
+- Replay should also have sounds of stones being played and in general should share the same structure in code.
+
+- During replay you should be able to restart the replay as well, so that button should be visible.
 
 
 ## Done
