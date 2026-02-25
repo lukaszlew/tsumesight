@@ -25,12 +25,13 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   let [maxQ] = useState(() => parseInt(kv('quizMaxQ', '2')))
   let [error, setError] = useState(null)
   let questionStartRef = useRef(null)
-  let timesRef = useRef([])
+  let loadTimeRef = useRef(performance.now())
   let [wrongFlash, setWrongFlash] = useState(false)
   let [markedLiberties, setMarkedLiberties] = useState(new Set())
   let [reviewVertex, setReviewVertex] = useState(null)
   let [reviewComp, setReviewComp] = useState(null) // { compIdx, correct } or null
   let [soundOn, setSoundOn] = useState(() => isSoundEnabled())
+  let [showSeqStones, setShowSeqStones] = useState(true)
 
   // Replay recording
   let replayEventsRef = useRef([])
@@ -44,6 +45,10 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   let savedEngineRef = useRef(null)
   let savedSolvedRef = useRef(false)
   let savedReviewVertexRef = useRef(null)
+  let savedReviewCompRef = useRef(null)
+  let [replayProgress, setReplayProgress] = useState({ index: 0, total: 0, elapsed: 0, totalMs: 0 })
+  let [replayFinished, setReplayFinished] = useState(false)
+  let [replayAttempt, setReplayAttempt] = useState(0)
 
   // Show sequence (step through moves during question phase)
   let [seqIdx, setSeqIdx] = useState(0) // 0 = inactive, 1+ = showing move N
@@ -65,7 +70,6 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     resetStreak()
     try {
       engineRef.current = new QuizEngine(sgf, true, maxQ)
-      engineRef.current.advance()
     } catch (e) {
       kvRemove('quizHistory')
       setError(e.message)
@@ -91,7 +95,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       solvedRef.current = true
       let total = engine.results.length
       let accuracy = total > 0 ? engine.correct / total : 1
-      let totalMs = timesRef.current.reduce((a, b) => a + b, 0)
+      let totalMs = performance.now() - loadTimeRef.current
       let date = Date.now()
       let scoreEntry = { correct: engine.correct, total, accuracy, totalMs: Math.round(totalMs), errors: engine.errors, date }
       addReplay(sgfId, date, replayEventsRef.current)
@@ -108,6 +112,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     savedEngineRef.current = engineRef.current
     savedSolvedRef.current = solvedRef.current
     savedReviewVertexRef.current = reviewVertex
+    savedReviewCompRef.current = reviewComp
 
     // Create fresh engine for replay
     try {
@@ -116,6 +121,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     } catch { return }
 
     // Reset transient state
+    resetStreak()
     solvedRef.current = false
     setMarkedLiberties(new Set())
     setReviewVertex(null)
@@ -123,23 +129,48 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     questionStartRef.current = null
     replayMarksRef.current = new Set()
     replayDataRef.current = events
+    setReplayProgress({ index: 0, total: events.length, elapsed: 0, totalMs: events[events.length - 1]?.t || 0 })
+    setReplayFinished(false)
 
     setReplayModeSync(true)
     rerender()
   }
 
   function restoreSavedState() {
+    if (!savedEngineRef.current) return // guard against double-call
     setReplayModeSync(false)
     replayDataRef.current = null
     replayMarksRef.current = new Set()
     setMarkedLiberties(new Set())
+    setReplayFinished(false)
+    setReplayProgress({ index: 0, total: 0, elapsed: 0, totalMs: 0 })
     // Restore saved engine and state
     engineRef.current = savedEngineRef.current
     solvedRef.current = savedSolvedRef.current
     setReviewVertex(savedReviewVertexRef.current)
+    setReviewComp(savedReviewCompRef.current)
     savedEngineRef.current = null
     savedSolvedRef.current = false
     savedReviewVertexRef.current = null
+    savedReviewCompRef.current = null
+    rerender()
+  }
+
+  function restartReplay() {
+    let events = replayDataRef.current
+    if (!events) return
+    try {
+      engineRef.current = new QuizEngine(sgf, true, maxQ)
+      engineRef.current.advance()
+    } catch { return }
+    resetStreak()
+    solvedRef.current = false
+    setMarkedLiberties(new Set())
+    setWrongFlash(false)
+    replayMarksRef.current = new Set()
+    setReplayProgress({ index: 0, total: events.length, elapsed: 0, totalMs: events[events.length - 1]?.t || 0 })
+    setReplayFinished(false)
+    setReplayAttempt(a => a + 1)
     rerender()
   }
 
@@ -190,11 +221,6 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   let submitMarks = useCallback(() => {
     if (!engine.questionVertex) return
     let result = engine.answerMark(markedLiberties)
-    if (questionStartRef.current !== null) {
-      let elapsed = performance.now() - questionStartRef.current
-      timesRef.current.push(elapsed)
-      questionStartRef.current = null
-    }
     if (result.penalties === 0) playCorrect()
     else {
       playWrong()
@@ -212,11 +238,6 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   let submitComparison = useCallback((choice) => {
     if (!engine.comparisonPair) return
     let result = engine.answerComparison(choice)
-    if (questionStartRef.current !== null) {
-      let elapsed = performance.now() - questionStartRef.current
-      timesRef.current.push(elapsed)
-      questionStartRef.current = null
-    }
     if (result.correct) playCorrect()
     else {
       playWrong()
@@ -240,13 +261,13 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       setReviewVertex(prev => prev === key ? null : key)
       return
     }
-    recordEvent({ v: [vertex[0], vertex[1]] })
     // Comparison phase: click Z or X stone
     if (engine.comparisonPair) {
       let pair = engine.comparisonPair
       let zKey = `${pair.vertexZ[0]},${pair.vertexZ[1]}`
       let xKey = `${pair.vertexX[0]},${pair.vertexX[1]}`
-      let eqKey = engine.equalVertex ? `${engine.equalVertex[0]},${engine.equalVertex[1]}` : null
+      let eqVertex = engine.comparisonPair?.equalVertex
+      let eqKey = eqVertex ? `${eqVertex[0]},${eqVertex[1]}` : null
       if (key === zKey) { recordEvent({ cmp: 'Z' }); submitComparison('Z') }
       else if (key === xKey) { recordEvent({ cmp: 'X' }); submitComparison('X') }
       else if (eqKey && key === eqKey) { recordEvent({ cmp: 'equal' }); submitComparison('equal') }
@@ -254,6 +275,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     }
     // No question: tap = advance
     if (!engine.questionVertex) {
+      recordEvent({ a: 1 })
       advance()
       return
     }
@@ -263,6 +285,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       return
     }
     // Toggle liberty mark
+    recordEvent({ v: vertex })
     playMark()
     setMarkedLiberties(prev => {
       let next = new Set(prev)
@@ -358,31 +381,22 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
               setWrongFlash(true)
               setTimeout(() => { if (!cancelled) setWrongFlash(false) }, 150)
             }
-            if (result.done && !eng.finished) eng.advance()
+            if (result.done && !eng.finished) {
+              eng.advance()
+              if (eng.showingMove) playStoneClick()
+            }
           }
         } else if (evt.v) {
-          if (eng.comparisonPair) {
-            let pair = eng.comparisonPair
-            let key = `${evt.v[0]},${evt.v[1]}`
-            let zKey = `${pair.vertexZ[0]},${pair.vertexZ[1]}`
-            let xKey = `${pair.vertexX[0]},${pair.vertexX[1]}`
-            let choice = key === zKey ? 'Z' : key === xKey ? 'X' : null
-            if (choice) {
-              let result = eng.answerComparison(choice)
-              if (result.correct) playCorrect()
-              else {
-                playWrong()
-                setWrongFlash(true)
-                setTimeout(() => { if (!cancelled) setWrongFlash(false) }, 150)
-              }
-              if (result.done && !eng.finished) eng.advance()
-            }
-          } else if (!eng.questionVertex) {
+          if (!eng.questionVertex) {
             if (eng.showingMove) {
               eng.activateQuestions()
-              if (!eng.questionVertex && !eng.comparisonPair && !eng.finished) eng.advance()
+              if (!eng.questionVertex && !eng.comparisonPair && !eng.finished) {
+                eng.advance()
+                if (eng.showingMove) playStoneClick()
+              }
             } else if (!eng.finished) {
               eng.advance()
+              if (eng.showingMove) playStoneClick()
             }
           } else {
             let key = `${evt.v[0]},${evt.v[1]}`
@@ -396,9 +410,13 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
           if (!eng.finished && !eng.questionVertex && !eng.comparisonPair) {
             if (eng.showingMove) {
               eng.activateQuestions()
-              if (!eng.questionVertex && !eng.comparisonPair && !eng.finished) eng.advance()
+              if (!eng.questionVertex && !eng.comparisonPair && !eng.finished) {
+                eng.advance()
+                if (eng.showingMove) playStoneClick()
+              }
             } else {
               eng.advance()
+              if (eng.showingMove) playStoneClick()
             }
           }
         } else if (evt.s) {
@@ -413,23 +431,28 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
             }
             replayMarksRef.current = new Set()
             setMarkedLiberties(new Set())
-            if (result.done && !eng.finished) eng.advance()
+            if (result.done && !eng.finished) {
+              eng.advance()
+              if (eng.showingMove) playStoneClick()
+            }
           }
         }
 
-        if (!cancelled) rerender()
+        if (!cancelled) {
+          setReplayProgress({ index: i + 1, total: events.length, elapsed: events[i].t, totalMs: events[events.length - 1]?.t || 0 })
+          rerender()
+        }
       }
 
-      // Replay finished — pause briefly on final state, then restore original
+      // Replay finished — pause on final state until user dismisses
       if (!cancelled) {
-        await new Promise(r => setTimeout(r, 1500))
-        if (!cancelled) restoreSavedState()
+        setReplayFinished(true)
       }
     }
 
     play()
     return () => { cancelled = true }
-  }, [replayMode])
+  }, [replayMode, replayAttempt])
 
   // Start question timer / clear marks when a question appears
   useEffect(() => {
@@ -484,7 +507,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       markerMap[y][x] = { type: 'label', label: String(seqIdx) }
     }
   } else if (engine.finished && !replayMode) {
-    signMap = engine.trueBoard.signMap.map(row => [...row])
+    signMap = (showSeqStones ? engine.trueBoard.signMap : engine.initialBoard.signMap).map(row => [...row])
     markerMap = makeEmptyMap(size)
     ghostStoneMap = makeEmptyMap(size)
     paintMap = makeEmptyMap(size)
@@ -497,8 +520,9 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
         ri++
       }
 
-    // Place ✓ or mistake-count markers on questioned groups
+    // Place ✓ or mistake-count markers on questioned groups (hide others when reviewing one)
     for (let [key, q] of qByVertex) {
+      if (reviewVertex && key !== reviewVertex) continue
       let [x, y] = key.split(',').map(Number)
       if (q.correct) {
         markerMap[y][x] = { type: 'label', label: '✓' }
@@ -576,8 +600,8 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       let [xx, xy] = engine.comparisonPair.vertexX
       markerMap[zy][zx] = { type: 'label', label: 'Z' }
       markerMap[xy][xx] = { type: 'label', label: 'X' }
-      if (engine.equalVertex) {
-        let [ex, ey] = engine.equalVertex
+      if (engine.comparisonPair?.equalVertex) {
+        let [ex, ey] = engine.comparisonPair.equalVertex
         markerMap[ey][ex] = { type: 'label', label: '=' }
       }
     }
@@ -604,13 +628,14 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   if (reviewComp) {
     let { userChoice, correct, trueAnswer } = reviewComp
     compClass = ' comp-review'
-    if (userChoice === 'Z' || userChoice === 'X') {
-      compClass += ` comp-${correct ? 'correct' : 'failed'}-${userChoice.toLowerCase()}`
-    } else if (userChoice === 'equal' && !correct && (trueAnswer === 'Z' || trueAnswer === 'X')) {
-      // User said equal but was wrong — show trueAnswer as correct
-      compClass += ` comp-correct-${trueAnswer.toLowerCase()}`
-    } else if (userChoice === 'equal' && correct) {
-      compClass += ' comp-equal-correct'
+    if (correct) {
+      if (userChoice === 'equal') compClass += ' comp-equal-correct'
+      else compClass += ` comp-correct-${userChoice.toLowerCase()}`
+    } else {
+      // Show user's wrong choice in red AND the correct answer in green
+      if (userChoice === 'Z' || userChoice === 'X') compClass += ` comp-failed-${userChoice.toLowerCase()}`
+      if (trueAnswer === 'Z' || trueAnswer === 'X') compClass += ` comp-correct-${trueAnswer.toLowerCase()}`
+      else if (trueAnswer === 'equal') compClass += ' comp-equal-correct'
     }
   }
 
@@ -640,7 +665,19 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
 
       <div class="bottom-bar">
         {replayMode
-          ? <div class="replay-exit-hint">Tap board or press Esc to exit</div>
+          ? <>
+              <div class="replay-progress-wrap">
+                <span class="replay-timer">{(replayProgress.elapsed / 1000).toFixed(1)}s</span>
+                <div class="replay-progress-bar">
+                  <div class="replay-progress-fill" style={{ width: `${replayProgress.totalMs > 0 ? (replayProgress.elapsed / replayProgress.totalMs * 100) : 0}%` }} />
+                </div>
+              </div>
+              <div class="replay-exit-hint">{replayFinished ? 'Replay complete. Tap board or press Esc to exit.' : 'Tap board or press Esc to exit'}</div>
+              <div class="bottom-bar-row">
+                <button class="bar-btn" title="Restart replay" onClick={restartReplay}>Restart</button>
+                <button class="bar-btn" title="Exit replay (Esc)" onClick={exitReplayEarly}>Exit</button>
+              </div>
+            </>
           : seqIdx > 0
             ? <div class="replay-exit-hint">Move {seqIdx}/{engine.moveIndex} — tap to advance</div>
             : <>
@@ -648,15 +685,16 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
                   ? <div class="action-hint"><span>Tap the group with <span class="hint-blue">less</span> liberties, or <span class="hint-blue">=</span> on board</span></div>
                   : engine.questionVertex
                     ? <div class="action-hint">Tap all liberties of <span class="hint-blue">?</span> group, then tap <span class="hint-blue">?</span> or Space</div>
-                    : engine.showingMove
-                      ? <div class="action-hint">Tap board for the next move. Remember the sequence.</div>
+                    : !engine.finished
+                      ? <div class="action-hint">Tap board for the next move{engine.showingMove ? '. Remember the sequence.' : ''}</div>
                       : null}
                 {engine.finished && !replayMode && <StatsBar sgfId={sgfId} onReplay={startReplay} />}
                 <div class="bottom-bar-row">
                   <button class="bar-btn" title="Return to library (Esc)" onClick={onBack}>&#x25C2; Back</button>
                   <button class="bar-btn" title={`Sound ${soundOn ? 'on' : 'off'}`} onClick={() => { setSoundOn(toggleSound()) }}>{soundOn ? '\uD83D\uDD0A' : '\uD83D\uDD07'}</button>
                   {(engine.questionVertex || engine.comparisonPair) && <button class="bar-btn" title="Replay the move sequence" onClick={startShowSequence}>&#x25B6; Replay</button>}
-                  {preSolve && engine.showingMove && <button class="bar-btn mark-solved-btn" title={wasSolved ? 'Remove solved mark' : 'Skip and mark as solved (Enter)'} onClick={toggleSolved}>{wasSolved ? 'Mark as unsolved' : 'Mark as solved'}</button>}
+                  {preSolve && <button class="bar-btn mark-solved-btn" title={wasSolved ? 'Remove solved mark' : 'Skip and mark as solved (Enter)'} onClick={toggleSolved}>{wasSolved ? 'Mark as unsolved' : 'Mark as solved'}</button>}
+                  {engine.finished && <button class="bar-btn" title={showSeqStones ? 'Hide sequence stones' : 'Show sequence stones'} onClick={() => setShowSeqStones(v => !v)}>{showSeqStones ? '\u25CB' : '\u25CF'}</button>}
                   {engine.finished && <button class="bar-btn" title="Restart this problem (R)" onClick={onRetry}>Retry</button>}
                   {engine.finished && <button class="next-hero" title="Next unsolved problem (Enter)" onClick={onNextUnsolved}>Next</button>}
                 </div>
@@ -727,13 +765,6 @@ function ProgressPips({ engine, reviewVertex, setReviewVertex, reviewComp, setRe
   )
 }
 
-export function computeStats(times, cap = 5000) {
-  let capped = times.map(t => Math.min(t, cap))
-  let avg = capped.length > 0 ? capped.reduce((a, b) => a + b, 0) / capped.length : 0
-  let sd = capped.length > 1 ? Math.sqrt(capped.reduce((a, b) => a + (b - avg) ** 2, 0) / capped.length) : 0
-  return { avg, sd }
-}
-
 function formatDate(ts) {
   let d = new Date(ts)
   let months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -755,7 +786,7 @@ function StatsBar({ sgfId, onReplay }) {
       <table class="score-table">
         {sorted.map((s, i) => {
           let isLatest = s === scores[scores.length - 1]
-          let hasReplay = sgfId && s.date && kv(`replay:${sgfId}:${s.date}`) != null
+          let hasReplay = sgfId && s.date && getReplay(sgfId, s.date) != null
           return (
             <tr key={i} class={isLatest ? 'score-latest' : ''}>
               <td class="score-rank">{i + 1}.</td>

@@ -78,7 +78,6 @@ export class QuizEngine {
     this.comparisonQuestions = [] // [{vertexZ, vertexX, libsZ, libsX}]
     this.comparisonIndex = 0
     this.comparisonPair = null // current comparison pair or null
-    this.equalVertex = null // empty vertex for "= Equal" tap during comparison
 
     // Precompute question counts per move (ideal play, no wrong answers)
     if (_precompute) {
@@ -487,47 +486,65 @@ export class QuizEngine {
         let [stoneA, stoneB] = borderPair
         // Z = left or above
         let aIsZ = stoneA[0] < stoneB[0] || (stoneA[0] === stoneB[0] && stoneA[1] < stoneB[1])
-        this.comparisonQuestions.push({
+        let compQ = {
           vertexZ: aIsZ ? stoneA : stoneB,
           vertexX: aIsZ ? stoneB : stoneA,
           libsZ: aIsZ ? gi.libs : gj.libs,
           libsX: aIsZ ? gj.libs : gi.libs,
-        })
+        }
+        compQ.equalVertex = this._computeEqualVertex(compQ)
+        this.comparisonQuestions.push(compQ)
       }
     }
-    this._findEqualVertex()
   }
 
-  _findEqualVertex() {
-    this.equalVertex = null
-    if (this.comparisonQuestions.length === 0) return
+  // Place = forming a tight triangle with Z and X.
+  // Horizontal Z-X (same row): try below Z, then above Z.
+  // Vertical Z-X (same col): try right of Z, then left of Z.
+  // Fallback: nearest empty by manhattan distance to Z+X.
+  _computeEqualVertex(compQ) {
+    let { vertexZ, vertexX } = compQ
+    let horizontal = vertexZ[1] === vertexX[1]
+    let vertical = vertexZ[0] === vertexX[0]
 
-    // Avoid: all liberty question vertices + all comparison Z/X vertices
+    let candidates = []
+    if (horizontal) {
+      candidates.push([vertexZ[0], vertexZ[1] + 1], [vertexZ[0], vertexZ[1] - 1])
+    } else if (vertical) {
+      candidates.push([vertexZ[0] + 1, vertexZ[1]], [vertexZ[0] - 1, vertexZ[1]])
+    } else {
+      candidates.push([vertexZ[0], vertexZ[1] + 1], [vertexZ[0], vertexZ[1] - 1])
+      candidates.push([vertexZ[0] + 1, vertexZ[1]], [vertexZ[0] - 1, vertexZ[1]])
+    }
+
     let avoid = new Set(this.questions.map(vertexKey))
-    let zxVertices = []
     for (let q of this.comparisonQuestions) {
       avoid.add(vertexKey(q.vertexZ))
       avoid.add(vertexKey(q.vertexX))
-      zxVertices.push(q.vertexZ, q.vertexX)
+      if (q.equalVertex) avoid.add(vertexKey(q.equalVertex))
+    }
+    avoid.add(vertexKey(vertexZ))
+    avoid.add(vertexKey(vertexX))
+
+    for (let [cx, cy] of candidates) {
+      if (cx < 0 || cy < 0 || cx >= this.boardSize || cy >= this.boardSize) continue
+      if (this.trueBoard.get([cx, cy]) !== 0) continue
+      if (avoid.has(vertexKey([cx, cy]))) continue
+      return [cx, cy]
     }
 
-    function dist(v1, v2) { return Math.abs(v1[0] - v2[0]) + Math.abs(v1[1] - v2[1]) }
-
-    // Search all intersections: empty, not occupied, not in avoid set
-    // Score = sum of distances to Z/X markers + distance to board center (all weighted equally)
+    // Fallback: nearest empty vertex by distance to Z+X
     let [x0, y0, x1, y1] = this.boardRange || [0, 0, this.boardSize - 1, this.boardSize - 1]
-    let center = [(x0 + x1) / 2, (y0 + y1) / 2]
-    let best = null, bestScore = Infinity
+    let best = null, bestDist = Infinity
     for (let x = x0; x <= x1; x++)
       for (let y = y0; y <= y1; y++) {
         if (this.trueBoard.get([x, y]) !== 0) continue
         if (avoid.has(vertexKey([x, y]))) continue
-        let score = dist([x, y], center)
-        for (let zx of zxVertices) score += dist([x, y], zx)
-        if (score < bestScore) { bestScore = score; best = [x, y] }
+        let d = Math.abs(x - vertexZ[0]) + Math.abs(y - vertexZ[1])
+          + Math.abs(x - vertexX[0]) + Math.abs(y - vertexX[1])
+        if (d < bestDist) { bestDist = d; best = [x, y] }
       }
-
-    this.equalVertex = best
+    return best
   }
 
   _findBorderPair(groupA, groupB) {
@@ -562,6 +579,7 @@ export class QuizEngine {
       if (this.trueBoard.get([x, y]) === 0) {
         this.staleness.delete(key)
         this.invisibleStones.delete(key)
+        this.baseSignMap[y][x] = 0
       }
     }
   }

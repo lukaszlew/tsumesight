@@ -91,11 +91,10 @@ function useLongPress(callback, ms = 500) {
 let deferredPrompt = null
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e })
 
-export function Library({ onSelect, initialPath = '' }) {
+export function Library({ onSelect, cwd, onCwdChange }) {
   let [sgfs, setSgfs] = useState([])
   let [loading, setLoading] = useState(true)
   let [importing, setImporting] = useState(null) // { done, total } or null
-  let [cwd, setCwd] = useState(initialPath)
   let [canInstall, setCanInstall] = useState(!!deferredPrompt)
   let [menuOpen, setMenuOpen] = useState(false)
 
@@ -118,7 +117,7 @@ export function Library({ onSelect, initialPath = '' }) {
       if (e.key === 'Escape' && cwd) {
         e.preventDefault()
         let parts = cwd.split('/')
-        setCwd(parts.slice(0, -1).join('/'))
+        onCwdChange(parts.slice(0, -1).join('/'))
       }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -265,7 +264,7 @@ export function Library({ onSelect, initialPath = '' }) {
     if (!confirm('Delete all data and re-download default problems?')) return
     await clearAll()
     setSgfs([])
-    setCwd('')
+    onCwdChange('')
     fetchUrl(DEFAULT_URL)
   }
 
@@ -376,8 +375,8 @@ export function Library({ onSelect, initialPath = '' }) {
             <button class="menu-item menu-danger" onClick={() => { setMenuOpen(false); handleReset() }}>Reset all data</button>
             <div class="menu-sep" />
             <div class="env-toggle">
-              <a class={`env-btn${isDev ? '' : ' env-active'}`} href={isDev ? '../' : undefined}>Prod</a>
-              <a class={`env-btn${isDev ? ' env-active' : ''}`} href={isDev ? undefined : 'dev/'}>Dev</a>
+              <a class={`env-btn${isDev ? '' : ' env-active'}`} href={isDev ? '../' : undefined} onClick={() => localStorage.setItem('preferredEnv', 'prod')}>Prod</a>
+              <a class={`env-btn${isDev ? ' env-active' : ''}`} href={isDev ? undefined : 'dev/'} onClick={() => localStorage.setItem('preferredEnv', 'dev')}>Dev</a>
             </div>
           </div>
         </>}
@@ -389,12 +388,12 @@ export function Library({ onSelect, initialPath = '' }) {
 
       {cwd && (
         <div class="breadcrumbs">
-          <span class="crumb" title="Go to root folder" onClick={() => setCwd('')}>⌂</span>
+          <span class="crumb" title="Go to root folder" onClick={() => onCwdChange('')}>⌂</span>
           {crumbs.map((c, i) => (
             <span key={i}>
               <span class="crumb-sep">›</span>
               <span class={i === crumbs.length - 1 ? 'crumb-current' : 'crumb'}
-                onClick={() => setCwd(crumbs.slice(0, i + 1).join('/'))}>
+                onClick={() => onCwdChange(crumbs.slice(0, i + 1).join('/'))}>
                 {c}
               </span>
             </span>
@@ -406,12 +405,32 @@ export function Library({ onSelect, initialPath = '' }) {
 
       {!loading && sgfs.length === 0 && <WelcomeMessage />}
 
+      {cwd && (() => {
+        let dirName = cwd.split('/').pop()
+        let total = 0, solved = 0
+        for (let s of sgfs) {
+          let p = s.path || ''
+          if (p === cwd || p.startsWith(cwd + '/')) { total++; if (s.solved) solved++ }
+        }
+        if (total === 0) return null
+        return (
+          <div class={`dir-header-tile${solved === total ? ' dir-complete' : ''}`}>
+            <div class="dir-count" title={`${solved} of ${total} solved`}>
+              <span class="dir-count-num">{solved}</span>
+              <span class="dir-count-sep">/</span>
+              <span class="dir-count-den">{total}</span>
+            </div>
+            <div class="tile-name">{splitDirName(dirName)}</div>
+          </div>
+        )
+      })()}
+
       {sortedDirs.length > 0 && (
         <div class="tile-grid">
           {sortedDirs.map(d => {
             let { solved, total } = dirStats[d]
             return (
-              <div key={'d:' + d} class={`tile dir-tile${solved === total ? ' dir-complete' : ''}`} onClick={() => setCwd(prefix + d)}>
+              <div key={'d:' + d} class={`tile dir-tile${solved === total ? ' dir-complete' : ''}`} onClick={() => onCwdChange(prefix + d)}>
                 <div class="dir-count" title={`${solved} of ${total} solved`}>
                   <span class="dir-count-num">{solved}</span>
                   <span class="dir-count-sep">/</span>

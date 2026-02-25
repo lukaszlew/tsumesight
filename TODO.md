@@ -24,43 +24,62 @@ Spec: In order to emulate approach move in semeai, user should be able  to volun
 
 ## To spec
 
-- When all problems are solved (and all perfect), Next should pick the problem with the oldest latestScoreDate (least recently practiced) instead of going back to library.
-
-- Draw = adjacent to Z and X forming a tight triangle. If Z-X are horizontal, place = below Z. If Z-X are vertical, place = right of Z. Fall back to nearest empty if preferred spot is occupied. Reposition = per comparison question (not fixed for the whole problem).
-
-- When the problem is finished, show/hide toggle for sequence stones (stones played during the move sequence). Toggle hides them, reverting board to initial/setup position. Toggle shows them again. When stones are hidden, review still works: show liberty markers on the empty board (no stones revealed). Button placement: find reasonable spot in bottom bar.
-
-- Don't auto-show the first move. User must tap to see it (same as all other moves). Global solve timer starts at problem load and is used for the highscore time.
-
-- Android/browser back gesture should act like Escape: in quiz go to library, in library go to parent directory.
-
-- Installed PWA should remember last used environment (prod/dev) in localStorage and redirect on load if mismatched.
-
-- On app open, don't restore into a problem. Instead navigate to the directory of the last problem (or directory the user left from).
-
 - Sound: completion chord should wait a mini pause after the last question's correct sound, then start from the streak pitch. Liberty marking should play stone-like sounds that crescendo with each mark (and audibly undo when unmarking). On next liberty question, reset crescendo base to match current correct-answer streak level. Details TBD.
 
 - Fonts on mobile have strange outline problem. Blocked on screenshot.
 
+## To verify
+
+- When all problems are solved (and all perfect), Next should pick the problem with the oldest latestScoreDate (least recently practiced) instead of going back to library.
+  - Done: goNextUnsolved sorts siblings by getLatestScoreDate ascending when both loops find nothing.
+
+- Draw = adjacent to Z and X forming a tight triangle. If Z-X are horizontal, place = below Z. If Z-X are vertical, place = right of Z. Fall back to nearest empty if preferred spot is occupied. Reposition = per comparison question (not fixed for the whole problem).
+  - Done: _computeEqualVertex per comparison question, triangle logic with manhattan fallback.
+
+- When the problem is finished, show/hide toggle for sequence stones (stones played during the move sequence). Toggle hides them, reverting board to initial/setup position. Toggle shows them again. When stones are hidden, review still works: show liberty markers on the empty board (no stones revealed). Button placement: find reasonable spot in bottom bar.
+  - Done: showSeqStones state, toggle button in bottom bar, uses engine.initialBoard.signMap when hidden.
+
+- Don't auto-show the first move. User must tap to see it (same as all other moves). Global solve timer starts at problem load and is used for the highscore time.
+  - Done: removed auto-advance, loadTimeRef for global timer, catch-all "Tap board for the next move" hint.
+
+- Android/browser back gesture should act like Escape: in quiz go to library, in library go to parent directory.
+  - Done: cwd lifted to app.jsx, history.pushState on dir/sgf changes, onPopState restores cwd.
+
+- Installed PWA should remember last used environment (prod/dev) in localStorage and redirect on load if mismatched.
+  - Done: env toggle saves preferredEnv to localStorage, main.jsx redirects on load.
+
+- On app open, don't restore into a problem. Instead navigate to the directory of the last problem (or directory the user left from).
+  - Done: activeSgf starts null, library opens at kv('lastPath').
+
 - Bug: Replay playback classifies answers incorrectly (wrong pip colors and sounds) even though the original run was correct.
+  - Done: moved recordEvent({v}) after comparison check so comparisons only record {cmp}. Old replays ignored via v2 format wrapper.
 
 - Pips and hint text should be 2x bigger.
+  - Done: doubled pip dimensions, gap, shadow, action-hint font.
 
 - When tapping a question pip or stone in review, hide ALL other questions' markers (checkmarks, mistake counts). Only show the tapped question's review.
+  - Done: `if (reviewVertex && key !== reviewVertex) continue` in marker loop.
 
 - Replay should show a timer (original solve time counting up) and a progress bar (fraction of replay events played).
+  - Done: replayProgress state with elapsed/totalMs, progress bar width proportional to time.
 
 - Replay should pause indefinitely on the final state (with last answer visible) until user taps/presses Esc to exit.
+  - Done: replayFinished state, "Replay complete — tap or Esc to exit" hint, no auto-restore.
 
 - Bug: Incorrect comparison answer in review is showing green and gray instead of correct colors.
+  - Done: on incorrect answer, both comp-failed and comp-correct classes added.
 
 - When entering a directory, show the same directory tile at the top as a header (with its solved/total count and name).
+  - Done: header tile with dir name and recursive solved/total in library.jsx.
 
 - Bug: Playing a move on a vertex that had a setup stone renders incorrectly.
+  - Done: _pruneCaptured now zeroes baseSignMap for captured stones.
 
 - Replay should play stone click sounds when advancing moves. Refactor replay to share advance/answer logic with live play.
+  - Done: playStoneClick() on replay advance, resetStreak() at replay start. Fixed missing recordEvent calls for liberty toggles and tap-to-advance.
 
 - Show a restart button during replay mode.
+  - Done: Restart and Exit buttons in bottom bar during replay. Restart re-creates engine via replayAttempt counter.
 
 
 ## Done

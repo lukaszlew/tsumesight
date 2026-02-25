@@ -869,15 +869,15 @@ describe('QuizEngine', () => {
       expect(move2Total).toBe(sim.questions.length + sim.comparisonQuestions.length)
     })
 
-    it('equalVertex is set when comparison questions exist', () => {
+    it('equalVertex is set per comparison question', () => {
       let engine = new QuizEngine(adjacentSgf)
       engine.advance() // B[ba]
       engine.advance() // W[aa] — comparison generated
       expect(engine.comparisonQuestions.length).toBeGreaterThan(0)
-      expect(engine.equalVertex).not.toBe(null)
+      let eq = engine.comparisonQuestions[0].equalVertex
+      expect(eq).not.toBe(null)
       // equalVertex should be an empty intersection
-      let [ex, ey] = engine.equalVertex
-      expect(engine.trueBoard.get([ex, ey])).toBe(0)
+      expect(engine.trueBoard.get(eq)).toBe(0)
     })
 
     it('equalVertex is null when no comparisons', () => {
@@ -885,19 +885,18 @@ describe('QuizEngine', () => {
       engine.advance() // B[aa]
       engine.advance() // W[ii] — no comparison (too far)
       expect(engine.comparisonQuestions.length).toBe(0)
-      expect(engine.equalVertex).toBe(null)
     })
 
-    it('equalVertex is near Z/X markers', () => {
+    it('equalVertex forms triangle with Z/X', () => {
       let engine = new QuizEngine(adjacentSgf)
       engine.advance()
       engine.advance()
-      expect(engine.equalVertex).not.toBe(null)
-      let [ex, ey] = engine.equalVertex
       let q = engine.comparisonQuestions[0]
+      expect(q.equalVertex).not.toBe(null)
+      let [ex, ey] = q.equalVertex
       let dZ = Math.abs(ex - q.vertexZ[0]) + Math.abs(ey - q.vertexZ[1])
       let dX = Math.abs(ex - q.vertexX[0]) + Math.abs(ey - q.vertexX[1])
-      // Should be close to both Z and X (within a few intersections)
+      // Should be close to both Z and X (triangle placement)
       expect(dZ + dX).toBeLessThanOrEqual(6)
     })
 
@@ -905,12 +904,13 @@ describe('QuizEngine', () => {
       let engine = new QuizEngine(adjacentSgf)
       engine.advance()
       engine.advance()
-      let eqKey = `${engine.equalVertex[0]},${engine.equalVertex[1]}`
-      for (let q of engine.questions)
-        expect(eqKey).not.toBe(`${q[0]},${q[1]}`)
-      for (let q of engine.comparisonQuestions) {
-        expect(eqKey).not.toBe(`${q.vertexZ[0]},${q.vertexZ[1]}`)
-        expect(eqKey).not.toBe(`${q.vertexX[0]},${q.vertexX[1]}`)
+      for (let cq of engine.comparisonQuestions) {
+        if (!cq.equalVertex) continue
+        let eqKey = `${cq.equalVertex[0]},${cq.equalVertex[1]}`
+        for (let q of engine.questions)
+          expect(eqKey).not.toBe(`${q[0]},${q[1]}`)
+        expect(eqKey).not.toBe(`${cq.vertexZ[0]},${cq.vertexZ[1]}`)
+        expect(eqKey).not.toBe(`${cq.vertexX[0]},${cq.vertexX[1]}`)
       }
     })
 
