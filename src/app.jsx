@@ -2,7 +2,7 @@ import { useState, useEffect } from 'preact/hooks'
 import { Component } from 'preact'
 import { Library } from './library.jsx'
 import { Quiz } from './quiz.jsx'
-import { getAllSgfs, updateSgf, addScore, getBestScore, kv, kvSet, kvRemove } from './db.js'
+import { getAllSgfs, updateSgf, addScore, getBestScore, getLatestScoreDate, kv, kvSet, kvRemove } from './db.js'
 
 class ErrorBoundary extends Component {
   state = { error: null }
@@ -31,13 +31,8 @@ class ErrorBoundary extends Component {
 export function App() {
   const [attempt, setAttempt] = useState(0)
   const [position, setPosition] = useState(null)
-
-  const [active, setActive] = useState(() => {
-    let stored = kv('activeSgf')
-    if (!stored) return null
-    try { return JSON.parse(stored) }
-    catch { kvRemove('activeSgf'); return null }
-  })
+  const [active, setActive] = useState(null) // never restore quiz on cold load
+  const [cwd, setCwd] = useState(() => kv('lastPath', ''))
 
   async function refreshPosition(id, path) {
     let siblings = await getSiblings(path)
@@ -49,8 +44,9 @@ export function App() {
     let val = { id, content, path, filename, solved: !!solved }
     kvSet('activeSgf', JSON.stringify(val))
     kvSet('lastPath', path)
+    setCwd(path)
     setActive(val)
-    history.pushState({ sgfId: id }, '')
+    history.pushState({ sgfId: id, cwd: path }, '')
     refreshPosition(id, path)
   }
 
@@ -58,18 +54,27 @@ export function App() {
     kvRemove('activeSgf')
     setActive(null)
     setPosition(null)
-    history.pushState({ sgfId: null }, '')
+    history.pushState({ sgfId: null, cwd }, '')
+  }
+
+  function changeCwd(newCwd) {
+    setCwd(newCwd)
+    kvSet('lastPath', newCwd)
+    history.pushState({ sgfId: null, cwd: newCwd }, '')
   }
 
   // Replace initial history entry with current state
   useEffect(() => {
-    history.replaceState({ sgfId: active?.id || null }, '')
+    history.replaceState({ sgfId: active?.id || null, cwd }, '')
   }, [])
 
   // Handle browser back/forward
   useEffect(() => {
     async function onPopState(e) {
       let sgfId = e.state?.sgfId
+      let stateCwd = e.state?.cwd ?? ''
+      setCwd(stateCwd)
+      kvSet('lastPath', stateCwd)
       if (!sgfId) {
         kvRemove('activeSgf')
         setActive(null)
@@ -86,7 +91,6 @@ export function App() {
       }
       let val = { id: found.id, content: found.content, path: found.path || '', filename: found.filename }
       kvSet('activeSgf', JSON.stringify(val))
-      kvSet('lastPath', val.path)
       setActive(val)
       refreshPosition(val.id, val.path)
     }
@@ -151,7 +155,14 @@ export function App() {
         return
       }
     }
-    clearSgf()
+    // All perfect — pick least recently practiced
+    let sorted = [...siblings].sort((a, b) => getLatestScoreDate(a.id) - getLatestScoreDate(b.id))
+    if (sorted.length > 0) {
+      let s = sorted[0]
+      selectSgf({ id: s.id, content: s.content, path: s.path || '', filename: s.filename })
+    } else {
+      clearSgf()
+    }
   }
 
   function handleLoadError() {
@@ -172,5 +183,5 @@ export function App() {
       </ErrorBoundary>
     )
   }
-  return <Library onSelect={selectSgf} initialPath={kv('lastPath', '')} />
+  return <Library onSelect={selectSgf} cwd={cwd} onCwdChange={changeCwd} />
 }

@@ -149,13 +149,17 @@ export function getBestScore(sgfId) {
 }
 
 export function addReplay(sgfId, date, events) {
-  kvSet(`replay:${sgfId}:${date}`, JSON.stringify(events))
+  kvSet(`replay:${sgfId}:${date}`, JSON.stringify({ v: 2, events }))
 }
 
 export function getReplay(sgfId, date) {
   let raw = kv(`replay:${sgfId}:${date}`)
   if (!raw) return null
-  try { return JSON.parse(raw) } catch { return null }
+  try {
+    let parsed = JSON.parse(raw)
+    if (!parsed || parsed.v !== 2) return null // ignore old format replays
+    return parsed.events
+  } catch { return null }
 }
 
 export function getLatestScoreDate(sgfId) {

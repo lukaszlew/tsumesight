@@ -608,6 +608,7 @@ function buildFinishedMaps(engine, reviewVertex = null, reviewComp = null) {
     }
 
   for (let [key, q] of qByVertex) {
+    if (reviewVertex && key !== reviewVertex) continue
     let [x, y] = key.split(',').map(Number)
     if (q.correct) {
       markerMap[y][x] = { type: 'label', label: '✓' }
@@ -949,6 +950,24 @@ describe('QuizEngine → Goban integration: finished review', () => {
       crossCount++
     }
     expect(crossCount).toBeGreaterThan(0)
+  })
+
+  it('reviewing one question hides other question markers', () => {
+    let engine = playToFinish(SGF_5x5)
+    // Find two questioned vertices
+    let qVertices = []
+    for (let moveQs of engine.questionsAsked)
+      for (let q of moveQs)
+        if (q.vertex) qVertices.push(`${q.vertex[0]},${q.vertex[1]}`)
+    if (qVertices.length < 2) return
+    let reviewed = qVertices[0]
+    let other = qVertices[1]
+    let maps = buildFinishedMaps(engine, reviewed)
+    let c = renderGoban(maps)
+    // The OTHER vertex should NOT have a ✓/mistake label (hidden during review)
+    let [ox, oy] = other.split(',').map(Number)
+    let ovNode = getVertex(c, ox, oy)
+    expect(ovNode.classList.contains('shudan-marker_label')).toBe(false)
   })
 
   it('non-selected question shows no liberty markers', () => {

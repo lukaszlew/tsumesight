@@ -18,43 +18,68 @@ Spec: In order to emulate approach move in semeai, user should be able  to volun
 - We should not be asking about the same group too many times. matching instead of spanning tree.
 - We should probably start on simplifying the code and formalizing the framework.
 - We should mix up all the problems and start by difficulty.
+- Number of questions should be proportional to number of moves.
 
 ## Spec-ed, can start working
 
 ## To spec
 
+- Sound: completion chord should wait a mini pause after the last question's correct sound, then start from the streak pitch. Liberty marking should play stone-like sounds that crescendo with each mark (and audibly undo when unmarking). On next liberty question, reset crescendo base to match current correct-answer streak level. Details TBD.
 
-- When all problems are solved then we click next, we should choose the problem we didn't solve for the longest time in the dir.
+- Fonts on mobile have strange outline problem. Blocked on screenshot.
 
-- Draw equal just next to X and Z so they form a "triangle". Ideally below the left sign (Z) or to the right of the left of the top sign (Z).
+## To verify
 
-- When the problem is solved there should be show/hide toggle that modifies whether additional stones are visible.
+- When all problems are solved (and all perfect), Next should pick the problem with the oldest latestScoreDate (least recently practiced) instead of going back to library.
+  - Done: goNextUnsolved sorts siblings by getLatestScoreDate ascending when both loops find nothing.
 
-- Don't show the first move. user have to click to see it just like all other moves. but the time should started and included in the final score
+- Draw = adjacent to Z and X forming a tight triangle. If Z-X are horizontal, place = below Z. If Z-X are vertical, place = right of Z. Fall back to nearest empty if preferred spot is occupied. Reposition = per comparison question (not fixed for the whole problem).
+  - Done: _computeEqualVertex per comparison question, triangle logic with manhattan fallback.
 
-- Back gesture should go back to menu like Escape instead of going to previous screen. Also dir up.
+- When the problem is finished, show/hide toggle for sequence stones (stones played during the move sequence). Toggle hides them, reverting board to initial/setup position. Toggle shows them again. When stones are hidden, review still works: show liberty markers on the empty board (no stones revealed). Button placement: find reasonable spot in bottom bar.
+  - Done: showSeqStones state, toggle button in bottom bar, uses engine.initialBoard.signMap when hidden.
 
-- My installed app should remember whether whether I was in pr production or development mode.
+- Don't auto-show the first move. User must tap to see it (same as all other moves). Global solve timer starts at problem load and is used for the highscore time.
+  - Done: removed auto-advance, loadTimeRef for global timer, catch-all "Tap board for the next move" hint.
 
-- When we open the app, we should no be in the problem, but in the dir where we had last problem or the dir we left.
+- Android/browser back gesture should act like Escape: in quiz go to library, in library go to parent directory.
+  - Done: cwd lifted to app.jsx, history.pushState on dir/sgf changes, onPopState restores cwd.
 
-- The final chord on finishing the puzzle should start with the note of the final question so they produce nice harmony together. There should be crescendo when we Mark continuous liberties (but undo when we unmark). But we should drop back when we get to next question of liberties.
+- Installed PWA should remember last used environment (prod/dev) in localStorage and redirect on load if mismatched.
+  - Done: env toggle saves preferredEnv to localStorage, main.jsx redirects on load.
 
-- Fonts on mobile have strange outline problem, I'll show you screenshot when you ask.
+- On app open, don't restore into a problem. Instead navigate to the directory of the last problem (or directory the user left from).
+  - Done: activeSgf starts null, library opens at kv('lastPath').
 
-- Recording is messed up in the way the answers are classified incorrectly when there is a playback. even though in the game they were classified correctly.
+- Bug: Replay playback classifies answers incorrectly (wrong pip colors and sounds) even though the original run was correct.
+  - Done: moved recordEvent({v}) after comparison check so comparisons only record {cmp}. Old replays ignored via v2 format wrapper.
 
 - Pips and hint text should be 2x bigger.
+  - Done: doubled pip dimensions, gap, shadow, action-hint font.
 
-- When tapping a question pip or marker, all the other markers of other questions should disappear.
+- When tapping a question pip or stone in review, hide ALL other questions' markers (checkmarks, mistake counts). Only show the tapped question's review.
+  - Done: `if (reviewVertex && key !== reviewVertex) continue` in marker loop.
 
-- When watching replay  we should have a timer and the progress bar.
+- Replay should show a timer (original solve time counting up) and a progress bar (fraction of replay events played).
+  - Done: replayProgress state with elapsed/totalMs, progress bar width proportional to time.
 
-- Is the last answer visible on replay? It should pause at the end with visibility.
+- Replay should pause indefinitely on the final state (with last answer visible) until user taps/presses Esc to exit.
+  - Done: replayFinished state, "Replay complete — tap or Esc to exit" hint, no auto-restore.
 
-- Incorrect answer on comparison is showing green and gray still.
+- Bug: Incorrect comparison answer in review is showing green and gray instead of correct colors.
+  - Done: on incorrect answer, both comp-failed and comp-correct classes added.
 
-- When entering the directory we should see the same tile at the top. We used to enter it except maybe in a different color.
+- When entering a directory, show the same directory tile at the top as a header (with its solved/total count and name).
+  - Done: header tile with dir name and recursive solved/total in library.jsx.
+
+- Bug: Playing a move on a vertex that had a setup stone renders incorrectly.
+  - Done: _pruneCaptured now zeroes baseSignMap for captured stones.
+
+- Replay should play stone click sounds when advancing moves. Refactor replay to share advance/answer logic with live play.
+  - Done: playStoneClick() on replay advance, resetStreak() at replay start. Fixed missing recordEvent calls for liberty toggles and tap-to-advance.
+
+- Show a restart button during replay mode.
+  - Done: Restart and Exit buttons in bottom bar during replay. Restart re-creates engine via replayAttempt counter.
 
 
 ## Done
