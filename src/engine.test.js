@@ -201,7 +201,7 @@ describe('QuizEngine', () => {
   })
 
   describe('captures', () => {
-    it('removes captured stones from trueBoard but keeps on display', () => {
+    it('captures on trueBoard but keeps stones in invisibleStones for display', () => {
       let engine = new QuizEngine(captureSgf)
       // Move 1: B[aa] = [0,0]
       engine.advance()
@@ -216,10 +216,10 @@ describe('QuizEngine', () => {
 
       // Move 4: W[ab] = [0,1] — captures B[aa]
       engine.advance()
-      // B[aa] should be dead on true board
+      // B[aa] captured on true board (for correct liberty answers)
       expect(engine.trueBoard.get([0, 0])).toBe(0)
-      // B[aa] was invisible, now captured — removed from invisible set
-      expect(engine.invisibleStones.has('0,0')).toBe(false)
+      // B[aa] still in invisibleStones (for display — user needs to remember it)
+      expect(engine.invisibleStones.has('0,0')).toBe(true)
     })
   })
 

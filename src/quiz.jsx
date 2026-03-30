@@ -576,13 +576,10 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       signMap[y][x] = engine.currentMove.sign
       markerMap[y][x] = { type: 'label', label: String(engine.moveIndex) }
       // Show window: also reveal recent previous stones based on wrong-answer count
-      for (let { vertex, moveNumber } of engine.getWindowStones()) {
+      for (let { sign, vertex, moveNumber } of engine.getWindowStones()) {
         let [wx, wy] = vertex
-        let sign = engine.trueBoard.get(vertex)
-        if (sign !== 0) {
-          signMap[wy][wx] = sign
-          markerMap[wy][wx] = { type: 'label', label: String(moveNumber) }
-        }
+        signMap[wy][wx] = sign
+        markerMap[wy][wx] = { type: 'label', label: String(moveNumber) }
       }
     }
 

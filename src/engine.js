@@ -119,7 +119,7 @@ export class QuizEngine {
         this.prevLibs.set(key, libertySetKey(this.trueBoard.getLiberties([x, y])))
     }
 
-    // Play on true board (may fail on illegal positions in problem SGFs)
+    // Play on true board (captures processed for correct liberty answers)
     try {
       this.trueBoard = this.trueBoard.makeMove(move.sign, move.vertex)
     } catch {
@@ -140,9 +140,6 @@ export class QuizEngine {
     let key = vertexKey(move.vertex)
     this.invisibleStones.set(key, { sign: move.sign, vertex: move.vertex, moveNumber: this.moveIndex })
     this.staleness.set(key, 0)
-
-    // Remove captured stones from tracking
-    this._pruneCaptured()
 
     this._advanceLiberty(move)
 
@@ -573,16 +570,6 @@ export class QuizEngine {
     return candidates[0]
   }
 
-  _pruneCaptured() {
-    for (let [key] of this.staleness) {
-      let [x, y] = key.split(',').map(Number)
-      if (this.trueBoard.get([x, y]) === 0) {
-        this.staleness.delete(key)
-        this.invisibleStones.delete(key)
-        this.baseSignMap[y][x] = 0
-      }
-    }
-  }
 
   static fromReplay(sgfString, history, maxQuestions = 3) {
     let engine = new QuizEngine(sgfString, true, maxQuestions)
