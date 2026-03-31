@@ -529,8 +529,6 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
         </div>
       </div>
 
-      {/* no pips */}
-
       <div class="bottom-bar">
         {replayMode
           ? <>
