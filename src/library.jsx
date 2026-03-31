@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'preact/hooks'
-import { getAllSgfs, addSgfBatch, deleteSgf, deleteSgfsByPrefix, renameSgfsByPrefix, clearAll, getBestScore, getLatestScoreDate, updateSgf } from './db.js'
+import { getAllSgfs, addSgfBatch, deleteSgf, deleteSgfsByPrefix, renameSgfsByPrefix, clearAll, getBestScore, getLatestScoreDate, updateSgf, exportDb, downloadExport } from './db.js'
 import { parseSgf } from './sgf-utils.js'
 import { isArchive, extractSgfs } from './archive.js'
 import { decodeSgf } from './sgf-utils.js'
@@ -371,6 +371,7 @@ export function Library({ onSelect, cwd, onCwdChange }) {
               let url = prompt('Enter URL to SGF or archive:', 'https://files.catbox.moe/r92xsw.zip')
               if (url) fetchUrl(url)
             }}>Upload from URL</button>
+            <button class="menu-item" onClick={async () => { setMenuOpen(false); downloadExport(await exportDb()) }}>Export data</button>
             {canInstall && <button class="menu-item" onClick={() => { setMenuOpen(false); handleInstall() }}>Install app</button>}
             <button class="menu-item menu-danger" onClick={() => { setMenuOpen(false); handleReset() }}>Reset all data</button>
             <div class="menu-sep" />

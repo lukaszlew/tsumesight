@@ -168,6 +168,29 @@ export function getLatestScoreDate(sgfId) {
   return Math.max(...scores.map(s => s.date || 0))
 }
 
+export async function exportDb() {
+  let db = await openDb()
+  let sgfs = await promisify(tx(db, 'readonly').getAll())
+  let kvKeys = await promisify(tx(db, 'readonly', KV_STORE).getAllKeys())
+  let kvVals = await promisify(tx(db, 'readonly', KV_STORE).getAll())
+  let kvData = {}
+  for (let i = 0; i < kvKeys.length; i++) kvData[kvKeys[i]] = kvVals[i]
+  return { version: DB_VERSION, exportedAt: new Date().toISOString(), sgfs, kv: kvData }
+}
+
+export async function downloadExport(data) {
+  let { default: JSZip } = await import('jszip')
+  let zip = new JSZip()
+  zip.file('tsumesight.json', JSON.stringify(data))
+  let blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' })
+  let url = URL.createObjectURL(blob)
+  let a = document.createElement('a')
+  a.href = url
+  a.download = `tsumesight-${new Date().toISOString().slice(0, 10)}.zip`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export async function clearAll() {
   let db = await openDb()
   await promisify(tx(db, 'readwrite').clear())
