@@ -5,43 +5,36 @@ import { QuizEngine } from './engine.js'
 function replayEvents(sgfString, events, maxQ = 2) {
   let engine = new QuizEngine(sgfString, true, maxQ)
   engine.advance()
-  let marks = new Set()
 
   for (let evt of events) {
     if (engine.finished) break
 
-    if (evt.cmp) {
-      if (engine.comparisonPair) {
-        let result = engine.answerComparison(evt.cmp)
-        if (result.done && !engine.finished) engine.advance()
+    if (evt.ex) {
+      // Exercise submission
+      if (engine.libertyExerciseActive) {
+        let marksPerPhase = new Map(Object.entries(evt.ex).map(([k, v]) => [k, v]))
+        engine.submitLibertyExercise(marksPerPhase)
+        engine.advance()
       }
     } else if (evt.v) {
-      if (!engine.questionVertex) {
+      // Vertex click — during exercise it's just visual (marks tracked in UI)
+      // During advance phase, it advances
+      if (!engine.libertyExerciseActive) {
         if (engine.showingMove) {
           engine.activateQuestions()
-          if (!engine.questionVertex && !engine.comparisonPair && !engine.finished) engine.advance()
+          if (!engine.libertyExerciseActive && !engine.finished) engine.advance()
         } else if (!engine.finished) {
           engine.advance()
         }
-      } else {
-        let key = `${evt.v[0]},${evt.v[1]}`
-        if (marks.has(key)) marks.delete(key)
-        else marks.add(key)
       }
     } else if (evt.a) {
-      if (!engine.finished && !engine.questionVertex && !engine.comparisonPair) {
+      if (!engine.finished && !engine.libertyExerciseActive) {
         if (engine.showingMove) {
           engine.activateQuestions()
-          if (!engine.questionVertex && !engine.comparisonPair && !engine.finished) engine.advance()
+          if (!engine.libertyExerciseActive && !engine.finished) engine.advance()
         } else {
           engine.advance()
         }
-      }
-    } else if (evt.s) {
-      if (engine.questionVertex) {
-        let result = engine.answerMark(marks)
-        marks = new Set()
-        if (result.done && !engine.finished) engine.advance()
       }
     }
   }
@@ -61,36 +54,26 @@ function playAndRecord(sgfString, { maxQ = 2, correct = true } = {}) {
       t += 100
       events.push({ t, a: 1 })
       engine.activateQuestions()
-      if (!engine.questionVertex && !engine.comparisonPair && !engine.finished) engine.advance()
+      if (!engine.libertyExerciseActive && !engine.finished) engine.advance()
       continue
     }
 
-    if (engine.questionVertex) {
+    if (engine.libertyExerciseActive) {
+      let changedGroups = engine.libertyExercise.groups.filter(g => g.changed)
+      let marksObj = {}
+      let marksMap = new Map()
       if (correct) {
-        let libs = engine.trueBoard.getLiberties(engine.questionVertex)
-        for (let [x, y] of libs) {
-          t += 50
-          events.push({ t, v: [x, y] })
+        for (let g of changedGroups) {
+          let k = [...g.chainKeys][0]
+          let v = Math.min(g.libCount, 6)
+          marksObj[k] = v
+          marksMap.set(k, v)
         }
       }
       t += 100
-      events.push({ t, s: 1 })
-      let markedSet = correct
-        ? new Set(engine.trueBoard.getLiberties(engine.questionVertex).map(([x, y]) => `${x},${y}`))
-        : new Set()
-      let result = engine.answerMark(markedSet)
-      if (result.done && !engine.finished) engine.advance()
-      continue
-    }
-
-    if (engine.comparisonPair) {
-      let { libsZ, libsX } = engine.comparisonPair
-      let trueAnswer = libsZ < libsX ? 'Z' : libsX < libsZ ? 'X' : 'equal'
-      let answer = correct ? trueAnswer : (trueAnswer === 'Z' ? 'X' : 'Z')
-      t += 100
-      events.push({ t, cmp: answer })
-      let result = engine.answerComparison(answer)
-      if (result.done && !engine.finished) engine.advance()
+      events.push({ t, ex: marksObj })
+      engine.submitLibertyExercise(marksMap)
+      engine.advance()
       continue
     }
 
@@ -112,32 +95,24 @@ function playAndRecordWithClicks(sgfString, { maxQ = 2 } = {}) {
       t += 100
       events.push({ t, v: [0, 0] })
       engine.activateQuestions()
-      if (!engine.questionVertex && !engine.comparisonPair && !engine.finished) engine.advance()
+      if (!engine.libertyExerciseActive && !engine.finished) engine.advance()
       continue
     }
 
-    if (engine.questionVertex) {
-      let libs = engine.trueBoard.getLiberties(engine.questionVertex)
-      for (let [x, y] of libs) {
-        t += 50
-        events.push({ t, v: [x, y] })
+    if (engine.libertyExerciseActive) {
+      let changedGroups = engine.libertyExercise.groups.filter(g => g.changed)
+      let marksObj = {}
+      let marksMap = new Map()
+      for (let g of changedGroups) {
+        let k = [...g.chainKeys][0]
+        let v = Math.min(g.libCount, 6)
+        marksObj[k] = v
+        marksMap.set(k, v)
       }
       t += 100
-      events.push({ t, s: 1 })
-      let markedSet = new Set(libs.map(([x, y]) => `${x},${y}`))
-      let result = engine.answerMark(markedSet)
-      if (result.done && !engine.finished) engine.advance()
-      continue
-    }
-
-    if (engine.comparisonPair) {
-      let { libsZ, libsX } = engine.comparisonPair
-      let trueAnswer = libsZ < libsX ? 'Z' : libsX < libsZ ? 'X' : 'equal'
-      t += 100
-      // Clicking Z/X stone records {cmp} event (matching quiz.jsx onVertexClick)
-      events.push({ t, cmp: trueAnswer })
-      let result = engine.answerComparison(trueAnswer)
-      if (result.done && !engine.finished) engine.advance()
+      events.push({ t, ex: marksObj })
+      engine.submitLibertyExercise(marksMap)
+      engine.advance()
       continue
     }
 
@@ -173,17 +148,17 @@ describe('Replay playback logic', () => {
   })
 
   describe('advance events', () => {
-    it('{a} event past showing phase activates questions', () => {
+    it('{a} event past showing phase activates exercise', () => {
       let engine = replayEvents(SGF_1MOVE, [{ t: 100, a: 1 }])
-      // single move = last move, so questions should activate
+      // single move = last move, so exercise should activate
       expect(engine.showingMove).toBe(false)
-      expect(engine.questionVertex).not.toBe(null)
+      expect(engine.libertyExerciseActive).toBe(true)
     })
 
     it('{v} event (vertex click) also advances past showing phase', () => {
       let engine = replayEvents(SGF_1MOVE, [{ t: 100, v: [0, 0] }])
       expect(engine.showingMove).toBe(false)
-      expect(engine.questionVertex).not.toBe(null)
+      expect(engine.libertyExerciseActive).toBe(true)
     })
 
     it('multiple {a} events advance through non-last moves', () => {
@@ -191,83 +166,46 @@ describe('Replay playback logic', () => {
       let engine = replayEvents(SGF_3MOVE, [
         { t: 100, a: 1 },  // activate move 1 (no questions) → advance move 2
         { t: 200, a: 1 },  // activate move 2 (no questions) → advance move 3
-        { t: 300, a: 1 },  // activate move 3 (last) → questions appear
+        { t: 300, a: 1 },  // activate move 3 (last) → exercise appears
       ])
       expect(engine.moveIndex).toBe(3)
-      expect(engine.questionVertex).not.toBe(null)
+      expect(engine.libertyExerciseActive).toBe(true)
     })
   })
 
-  describe('mark and submit events', () => {
-    it('marking liberties and submitting records correct answer', () => {
-      // Advance to question, mark correct liberties, submit
+  describe('exercise submission events', () => {
+    it('submitting correct marks records correct answers', () => {
       let fresh = new QuizEngine(SGF_1MOVE, true, 2)
       fresh.advance()
       fresh.activateQuestions()
-      let libs = fresh.trueBoard.getLiberties(fresh.questionVertex)
-
-      let events = [{ t: 100, a: 1 }] // activate questions
-      for (let i = 0; i < libs.length; i++) {
-        events.push({ t: 200 + i * 50, v: libs[i] })
-      }
-      events.push({ t: 500, s: 1 })
-
-      let engine = replayEvents(SGF_1MOVE, events)
-      expect(engine.correct).toBe(1)
-      expect(engine.results[0]).toBe(true)
-    })
-
-    it('submitting with no marks records wrong answer', () => {
-      let events = [
-        { t: 100, a: 1 }, // activate questions
-        { t: 200, s: 1 }, // submit empty
-      ]
-      let engine = replayEvents(SGF_1MOVE, events)
-      expect(engine.correct).toBe(0)
-      expect(engine.wrong).toBe(1)
-      expect(engine.results[0]).toBe(false)
-    })
-
-    it('toggling a mark on then off excludes it from submission', () => {
-      let fresh = new QuizEngine(SGF_1MOVE, true, 2)
-      fresh.advance()
-      fresh.activateQuestions()
-      let libs = fresh.trueBoard.getLiberties(fresh.questionVertex)
-      let firstLib = libs[0]
+      let changedGroups = fresh.libertyExercise.groups.filter(g => g.changed)
+      let marks = {}
+      for (let g of changedGroups)
+        marks[[...g.chainKeys][0]] = Math.min(g.libCount, 6)
 
       let events = [
-        { t: 100, a: 1 },          // activate
-        { t: 200, v: firstLib },    // mark
-        { t: 300, v: firstLib },    // unmark (toggle off)
-        { t: 400, s: 1 },          // submit with nothing marked
+        { t: 100, a: 1 },
+        { t: 200, ex: marks },
       ]
+
       let engine = replayEvents(SGF_1MOVE, events)
-      // Submitted empty set → all liberties missed
-      expect(engine.errors).toBe(libs.length)
+      expect(engine.correct).toBe(changedGroups.length)
+      expect(engine.finished).toBe(true)
     })
 
-    it('toggling mark on-off-on includes it in submission', () => {
-      let fresh = new QuizEngine(SGF_1MOVE, true, 2)
-      fresh.advance()
-      fresh.activateQuestions()
-      let libs = fresh.trueBoard.getLiberties(fresh.questionVertex)
-
-      let events = [{ t: 100, a: 1 }]
-      // Mark all, unmark first, re-mark first
-      let t = 200
-      for (let lib of libs) { events.push({ t: t++, v: lib }) }
-      events.push({ t: t++, v: libs[0] }) // unmark
-      events.push({ t: t++, v: libs[0] }) // re-mark
-      events.push({ t: t++, s: 1 })
-
+    it('submitting empty marks records wrong answers', () => {
+      let events = [
+        { t: 100, a: 1 },
+        { t: 200, ex: {} },
+      ]
       let engine = replayEvents(SGF_1MOVE, events)
-      expect(engine.correct).toBe(1)
-      expect(engine.errors).toBe(0)
+      expect(engine.wrong).toBeGreaterThan(0)
+      expect(engine.finished).toBe(true)
     })
   })
 
   describe('round-trip: record then replay', () => {
-    it('1-move SGF perfect play with end questions', () => {
+    it('1-move SGF perfect play', () => {
       let { engine: original, events } = playAndRecord(SGF_1MOVE)
       expect(original.finished).toBe(true)
 
@@ -279,7 +217,7 @@ describe('Replay playback logic', () => {
       expect(replayed.results).toEqual(original.results)
     })
 
-    it('3-move SGF perfect play with end questions', () => {
+    it('3-move SGF perfect play', () => {
       let { engine: original, events } = playAndRecord(SGF_3MOVE)
       expect(original.finished).toBe(true)
 
@@ -290,7 +228,7 @@ describe('Replay playback logic', () => {
       expect(replayed.results).toEqual(original.results)
     })
 
-    it('5-move SGF perfect play with end questions', () => {
+    it('5-move SGF perfect play', () => {
       let { engine: original, events } = playAndRecord(SGF_5MOVE)
       expect(original.finished).toBe(true)
 
@@ -332,7 +270,7 @@ describe('Replay playback logic', () => {
       expect(replayed.results).toEqual(original.results)
     })
 
-    it('wrong answers: empty marks on all questions', () => {
+    it('wrong answers: empty marks', () => {
       let { engine: original, events } = playAndRecord(SGF_5MOVE, { correct: false })
       expect(original.finished).toBe(true)
       expect(original.wrong).toBeGreaterThan(0)
@@ -387,55 +325,20 @@ describe('Replay playback logic', () => {
     })
   })
 
-  describe('mixed event types', () => {
-    it('mixing {a} and {v} advances produces valid replay', () => {
-      // Manually build events: some advances with {a}, some with {v}
-      let fresh = new QuizEngine(SGF_3MOVE, true, 2)
-      fresh.advance()
-
-      let events = [
-        { t: 100, v: [0, 0] },  // vertex click advance (move 1 → move 2)
-        { t: 200, a: 1 },       // keyboard advance (move 2 → move 3, last)
-        { t: 300, a: 1 },       // activate questions on last move
-      ]
-
-      // Continue: advance through moves
-      fresh.activateQuestions() // move 1, no questions (not last move)
-      if (!fresh.questionVertex && !fresh.finished) fresh.advance()
-      fresh.activateQuestions()
-      if (!fresh.questionVertex && !fresh.finished) fresh.advance()
-      fresh.activateQuestions()
-
-      // Now add mark + submit for each question
-      let eng = replayEvents(SGF_3MOVE, events)
-      // Should be at question phase
-      if (eng.questionVertex) {
-        let libs = eng.trueBoard.getLiberties(eng.questionVertex)
-        for (let [x, y] of libs) events.push({ t: events.length * 50 + 400, v: [x, y] })
-        events.push({ t: events.length * 50 + 500, s: 1 })
-      }
-
-      // Replay full events
-      let replayed = replayEvents(SGF_3MOVE, events)
-      expect(replayed.results.length).toBeGreaterThan(0)
-    })
-  })
-
   describe('edge cases', () => {
     it('extra events after finish are ignored', () => {
       let { events } = playAndRecord(SGF_1MOVE)
       // Append garbage events
       events.push({ t: 9999, a: 1 })
       events.push({ t: 9999, v: [0, 0] })
-      events.push({ t: 9999, s: 1 })
 
       let engine = replayEvents(SGF_1MOVE, events)
       expect(engine.finished).toBe(true)
     })
 
-    it('submit without active question is ignored', () => {
+    it('exercise submission without active exercise is ignored', () => {
       let events = [
-        { t: 100, s: 1 }, // submit when showing, no question
+        { t: 100, ex: {} }, // submit when showing, no exercise
       ]
       let engine = replayEvents(SGF_1MOVE, events)
       // Engine should still be in showing state, unaffected
@@ -443,13 +346,13 @@ describe('Replay playback logic', () => {
       expect(engine.results.length).toBe(0)
     })
 
-    it('{a} event during question phase is ignored', () => {
+    it('{a} event during exercise phase is ignored', () => {
       let events = [
-        { t: 100, a: 1 },  // activate questions
-        { t: 200, a: 1 },  // should be ignored (question active)
+        { t: 100, a: 1 },  // activate exercise
+        { t: 200, a: 1 },  // should be ignored (exercise active)
       ]
       let engine = replayEvents(SGF_1MOVE, events)
-      expect(engine.questionVertex).not.toBe(null)
+      expect(engine.libertyExerciseActive).toBe(true)
       expect(engine.results.length).toBe(0) // no answer given
     })
 
@@ -478,23 +381,11 @@ describe('Replay playback logic', () => {
       }
     })
 
-    it('each event has exactly one type key (v, a, or s)', () => {
+    it('each event has exactly one type key (a or ex)', () => {
       let { events } = playAndRecord(SGF_5MOVE)
       for (let evt of events) {
-        let keys = ['v', 'a', 's'].filter(k => k in evt)
+        let keys = ['v', 'a', 'ex'].filter(k => k in evt)
         expect(keys.length).toBe(1)
-      }
-    })
-
-    it('vertex events have 2-element arrays', () => {
-      let { events } = playAndRecord(SGF_5MOVE)
-      for (let evt of events) {
-        if (evt.v) {
-          expect(Array.isArray(evt.v)).toBe(true)
-          expect(evt.v.length).toBe(2)
-          expect(typeof evt.v[0]).toBe('number')
-          expect(typeof evt.v[1]).toBe('number')
-        }
       }
     })
 
@@ -505,14 +396,12 @@ describe('Replay playback logic', () => {
       }
     })
 
-    it('recorded events include all three types for a full game', () => {
+    it('recorded events include advance and exercise types', () => {
       let { events } = playAndRecord(SGF_5MOVE)
       let hasA = events.some(e => e.a)
-      let hasV = events.some(e => e.v)
-      let hasS = events.some(e => e.s)
+      let hasEx = events.some(e => e.ex)
       expect(hasA).toBe(true)
-      expect(hasV).toBe(true)
-      expect(hasS).toBe(true)
+      expect(hasEx).toBe(true)
     })
   })
 
@@ -547,18 +436,6 @@ describe('Replay playback logic', () => {
       expect(replayed.trueBoard.signMap).toEqual(original.trueBoard.signMap)
       // Captured stone at 0,0 should be empty
       expect(replayed.trueBoard.get([0, 0])).toBe(0)
-    })
-
-    it('marks are stored in questionsAsked after replay', () => {
-      let { engine: original, events } = playAndRecord(SGF_1MOVE)
-      let replayed = replayEvents(SGF_1MOVE, events)
-      let origQ = original.questionsAsked.flat().filter(q => q.marks)
-      let replayQ = replayed.questionsAsked.flat().filter(q => q.marks)
-      expect(replayQ.length).toBe(origQ.length)
-      for (let i = 0; i < origQ.length; i++) {
-        expect(new Set(replayQ[i].marks)).toEqual(new Set(origQ[i].marks))
-        expect(new Set(replayQ[i].trueLibs)).toEqual(new Set(origQ[i].trueLibs))
-      }
     })
   })
 
@@ -596,7 +473,7 @@ describe('Replay playback logic', () => {
 
 describe('Replay versioning format', () => {
   it('v2 wrapper round-trips correctly', () => {
-    let events = [{ t: 100, a: 1 }, { t: 200, s: 1 }]
+    let events = [{ t: 100, a: 1 }, { t: 200, ex: {} }]
     let stored = JSON.stringify({ v: 2, events })
     let parsed = JSON.parse(stored)
     expect(parsed.v).toBe(2)

@@ -14,6 +14,10 @@ function transpose(map) {
   return Array.from({ length: cols }, (_, x) => Array.from({ length: rows }, (_, y) => map[y][x]))
 }
 
+function libLabel(n) {
+  return n >= 6 ? '6+' : String(n)
+}
+
 export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsolved, onProgress, onLoadError, onNextUnsolved, onRetry }) {
   let engineRef = useRef(null)
   let solvedRef = useRef(false)
@@ -24,14 +28,13 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   let boardRowRef = useRef(null)
   let [maxQ] = useState(() => parseInt(kv('quizMaxQ', '2')))
   let [error, setError] = useState(null)
-  let questionStartRef = useRef(null)
   let loadTimeRef = useRef(performance.now())
   let [wrongFlash, setWrongFlash] = useState(false)
-  let [markedLiberties, setMarkedLiberties] = useState(new Set())
-  let [reviewVertex, setReviewVertex] = useState(null)
-  let [reviewComp, setReviewComp] = useState(null) // { compIdx, correct } or null
   let [soundOn, setSoundOn] = useState(() => isSoundEnabled())
   let [showSeqStones, setShowSeqStones] = useState(true)
+
+  // Liberty exercise state: Map<vertexKey, number> — user's label (1-5) per stone
+  let [libMarks, setLibMarks] = useState(() => new Map())
 
   // Replay recording
   let replayEventsRef = useRef([])
@@ -41,11 +44,8 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   let [replayMode, setReplayMode] = useState(false)
   let replayModeRef = useRef(false)
   let replayDataRef = useRef(null)
-  let replayMarksRef = useRef(new Set())
   let savedEngineRef = useRef(null)
   let savedSolvedRef = useRef(false)
-  let savedReviewVertexRef = useRef(null)
-  let savedReviewCompRef = useRef(null)
   let [replayProgress, setReplayProgress] = useState({ index: 0, total: 0, elapsed: 0, totalMs: 0 })
   let [replayFinished, setReplayFinished] = useState(false)
   let [replayAttempt, setReplayAttempt] = useState(0)
@@ -111,8 +111,6 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     // Save current state
     savedEngineRef.current = engineRef.current
     savedSolvedRef.current = solvedRef.current
-    savedReviewVertexRef.current = reviewVertex
-    savedReviewCompRef.current = reviewComp
 
     // Create fresh engine for replay
     try {
@@ -123,11 +121,8 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     // Reset transient state
     resetStreak()
     solvedRef.current = false
-    setMarkedLiberties(new Set())
-    setReviewVertex(null)
+    setLibMarks(new Map())
     setWrongFlash(false)
-    questionStartRef.current = null
-    replayMarksRef.current = new Set()
     replayDataRef.current = events
     setReplayProgress({ index: 0, total: events.length, elapsed: 0, totalMs: events[events.length - 1]?.t || 0 })
     setReplayFinished(false)
@@ -140,19 +135,14 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     if (!savedEngineRef.current) return // guard against double-call
     setReplayModeSync(false)
     replayDataRef.current = null
-    replayMarksRef.current = new Set()
-    setMarkedLiberties(new Set())
+    setLibMarks(new Map())
     setReplayFinished(false)
     setReplayProgress({ index: 0, total: 0, elapsed: 0, totalMs: 0 })
     // Restore saved engine and state
     engineRef.current = savedEngineRef.current
     solvedRef.current = savedSolvedRef.current
-    setReviewVertex(savedReviewVertexRef.current)
-    setReviewComp(savedReviewCompRef.current)
     savedEngineRef.current = null
     savedSolvedRef.current = false
-    savedReviewVertexRef.current = null
-    savedReviewCompRef.current = null
     rerender()
   }
 
@@ -165,9 +155,8 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     } catch { return }
     resetStreak()
     solvedRef.current = false
-    setMarkedLiberties(new Set())
+    setLibMarks(new Map())
     setWrongFlash(false)
-    replayMarksRef.current = new Set()
     setReplayProgress({ index: 0, total: events.length, elapsed: 0, totalMs: events[events.length - 1]?.t || 0 })
     setReplayFinished(false)
     setReplayAttempt(a => a + 1)
@@ -179,8 +168,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   }
 
   function startShowSequence() {
-    seqSavedRef.current = { marks: markedLiberties, questionStart: questionStartRef.current }
-    setMarkedLiberties(new Set())
+    seqSavedRef.current = { libMarks }
     setSeqIdx(1)
   }
 
@@ -189,8 +177,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     seqSavedRef.current = null
     setSeqIdx(0)
     if (saved) {
-      setMarkedLiberties(saved.marks)
-      questionStartRef.current = saved.questionStart
+      setLibMarks(saved.libMarks)
     }
   }
 
@@ -203,12 +190,15 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   }
 
   let advance = useCallback(() => {
-    if (engine.finished || engine.questionVertex || engine.comparisonPair) return
+    if (engine.finished || engine.libertyExerciseActive) return
     if (engine.showingMove) {
       engine.activateQuestions()
-      if (!engine.questionVertex && !engine.comparisonPair && !engine.finished) {
+      if (!engine.libertyExerciseActive && !engine.finished) {
         engine.advance()
         if (engine.showingMove) playStoneClick()
+      }
+      if (engine.libertyExerciseActive) {
+        setLibMarks(new Map())
       }
     } else {
       engine.advance()
@@ -218,82 +208,54 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     rerender()
   }, [])
 
-  let submitMarks = useCallback(() => {
-    if (!engine.questionVertex) return
-    let result = engine.answerMark(markedLiberties)
-    if (result.penalties === 0) playCorrect()
+  let submitExercise = useCallback(() => {
+    if (!engine.libertyExerciseActive) return
+    recordEvent({ ex: Object.fromEntries(libMarks) })
+    let result = engine.submitLibertyExercise(libMarks)
+    if (result.correctCount === result.total) playCorrect()
     else {
       playWrong()
       setWrongFlash(true)
       setTimeout(() => setWrongFlash(false), 150)
     }
-    setMarkedLiberties(new Set())
-    if (result.done) engine.advance()
+    engine.advance() // finish
     let total = engine.questionsPerMove.reduce((a, b) => a + b, 0)
     onProgress({ correct: engine.correct, done: engine.results.length, total })
     checkFinished()
     rerender()
-  }, [markedLiberties])
-
-  let submitComparison = useCallback((choice) => {
-    if (!engine.comparisonPair) return
-    let result = engine.answerComparison(choice)
-    if (result.correct) playCorrect()
-    else {
-      playWrong()
-      setWrongFlash(true)
-      setTimeout(() => setWrongFlash(false), 150)
-    }
-    if (result.done) engine.advance()
-    let total = engine.questionsPerMove.reduce((a, b) => a + b, 0)
-    onProgress({ correct: engine.correct, done: engine.results.length, total })
-    checkFinished()
-    rerender()
-  }, [])
+  }, [libMarks])
 
   let onVertexClick = useCallback((evt, vertex) => {
     if (replayModeRef.current) { exitReplayEarly(); return }
     if (seqIdx > 0) { advanceShowSequence(); return }
     let key = `${vertex[0]},${vertex[1]}`
-    // Review mode: toggle liberty display on tap
+    // Review mode: toggle review display on tap
     if (engine.finished) {
-      setReviewComp(null)
-      setReviewVertex(prev => prev === key ? null : key)
       return
     }
-    // Comparison phase: click Z or X stone
-    if (engine.comparisonPair) {
-      let pair = engine.comparisonPair
-      let zKey = `${pair.vertexZ[0]},${pair.vertexZ[1]}`
-      let xKey = `${pair.vertexX[0]},${pair.vertexX[1]}`
-      let eqVertex = engine.comparisonPair?.equalVertex
-      let eqKey = eqVertex ? `${eqVertex[0]},${eqVertex[1]}` : null
-      if (key === zKey) { recordEvent({ cmp: 'Z' }); submitComparison('Z') }
-      else if (key === xKey) { recordEvent({ cmp: 'X' }); submitComparison('X') }
-      else if (eqKey && key === eqKey) { recordEvent({ cmp: 'equal' }); submitComparison('equal') }
-      return
-    }
-    // No question: tap = advance
-    if (!engine.questionVertex) {
+    // No exercise: tap = advance
+    if (!engine.libertyExerciseActive) {
       recordEvent({ a: 1 })
       advance()
       return
     }
-    // Tapping the question mark → submit if marks exist, otherwise ignore
-    if (key === `${engine.questionVertex[0]},${engine.questionVertex[1]}`) {
-      if (markedLiberties.size > 0) { recordEvent({ s: 1 }); submitMarks() }
-      return
-    }
-    // Toggle liberty mark
+    // Liberty exercise: cycle label on stone (nomark → 1 → 2 → 3 → 4 → 5 → nomark)
+    // Check if this stone belongs to a locked (unchanged) group
+    let exercise = engine.libertyExercise
+    let lockedGroup = exercise.groups.find(g => !g.changed && g.chainKeys.has(key))
+    if (lockedGroup) return // locked, can't change
+
     recordEvent({ v: vertex })
     playMark()
-    setMarkedLiberties(prev => {
-      let next = new Set(prev)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
+    setLibMarks(prev => {
+      let next = new Map(prev)
+      let current = next.get(key) || 0
+      let nextVal = current >= 6 ? 0 : current + 1
+      if (nextVal === 0) next.delete(key)
+      else next.set(key, nextVal)
       return next
     })
-  }, [advance, markedLiberties, submitMarks, submitComparison])
+  }, [advance, libMarks, submitExercise])
 
   let toggleSolved = useCallback(() => {
     if (wasSolved) {
@@ -319,21 +281,11 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
         else if (e.key === 'Escape') { e.preventDefault(); exitShowSequence() }
         return
       }
-      // Comparison phase: Z/X/Space keys
-      if (engine.comparisonPair) {
-        if (e.key === 'z' || e.key === 'Z') {
-          e.preventDefault(); recordEvent({ cmp: 'Z' }); submitComparison('Z')
-        } else if (e.key === 'x' || e.key === 'X') {
-          e.preventDefault(); recordEvent({ cmp: 'X' }); submitComparison('X')
-        } else if (e.key === ' ') {
-          e.preventDefault(); recordEvent({ cmp: 'equal' }); submitComparison('equal')
-        } else if (e.key === 'Escape') { e.preventDefault(); onBack() }
-        return
-      }
       if (e.key === 'Escape') { e.preventDefault(); onBack() }
       else if (e.key === 'Enter') {
         e.preventDefault()
         if (engine.finished) onNextUnsolved()
+        else if (engine.libertyExerciseActive) submitExercise()
         else if (preSolve) toggleSolved()
       }
       else if ((e.key === 'r' || e.key === 'R') && engine.finished) {
@@ -342,9 +294,8 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       }
       else if (e.key === ' ') {
         e.preventDefault()
-        if (engine.questionVertex) {
-          recordEvent({ s: 1 })
-          submitMarks()
+        if (engine.libertyExerciseActive) {
+          submitExercise()
         }
         else if (!engine.finished) {
           recordEvent({ a: 1 })
@@ -354,7 +305,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [advance, submitMarks, submitComparison])
+  }, [advance, submitExercise])
 
   // Replay playback
   useEffect(() => {
@@ -372,66 +323,31 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
         let eng = engineRef.current
         let evt = events[i]
 
-        if (evt.cmp) {
-          if (eng.comparisonPair) {
-            let result = eng.answerComparison(evt.cmp)
-            if (result.correct) playCorrect()
+        if (evt.ex) {
+          // Exercise submission
+          if (eng.libertyExerciseActive) {
+            let marksPerPhase = new Map(Object.entries(evt.ex).map(([k, v]) => [k, v]))
+            let result = eng.submitLibertyExercise(marksPerPhase)
+            if (result.correctCount === result.total) playCorrect()
             else {
               playWrong()
               setWrongFlash(true)
               setTimeout(() => { if (!cancelled) setWrongFlash(false) }, 150)
             }
-            if (result.done && !eng.finished) {
-              eng.advance()
-              if (eng.showingMove) playStoneClick()
-            }
+            eng.advance()
           }
         } else if (evt.v) {
-          if (!eng.questionVertex) {
-            if (eng.showingMove) {
-              eng.activateQuestions()
-              if (!eng.questionVertex && !eng.comparisonPair && !eng.finished) {
-                eng.advance()
-                if (eng.showingMove) playStoneClick()
-              }
-            } else if (!eng.finished) {
-              eng.advance()
-              if (eng.showingMove) playStoneClick()
-            }
-          } else {
-            let key = `${evt.v[0]},${evt.v[1]}`
-            let marks = replayMarksRef.current
-            if (marks.has(key)) marks.delete(key)
-            else marks.add(key)
-            replayMarksRef.current = new Set(marks)
-            setMarkedLiberties(new Set(marks))
-          }
+          // Mark toggle during exercise — just visual, no engine action
+          playMark()
         } else if (evt.a) {
-          if (!eng.finished && !eng.questionVertex && !eng.comparisonPair) {
+          if (!eng.finished && !eng.libertyExerciseActive) {
             if (eng.showingMove) {
               eng.activateQuestions()
-              if (!eng.questionVertex && !eng.comparisonPair && !eng.finished) {
+              if (!eng.libertyExerciseActive && !eng.finished) {
                 eng.advance()
                 if (eng.showingMove) playStoneClick()
               }
             } else {
-              eng.advance()
-              if (eng.showingMove) playStoneClick()
-            }
-          }
-        } else if (evt.s) {
-          if (eng.questionVertex) {
-            let marks = replayMarksRef.current
-            let result = eng.answerMark(marks)
-            if (result.penalties === 0) playCorrect()
-            else {
-              playWrong()
-              setWrongFlash(true)
-              setTimeout(() => { if (!cancelled) setWrongFlash(false) }, 150)
-            }
-            replayMarksRef.current = new Set()
-            setMarkedLiberties(new Set())
-            if (result.done && !eng.finished) {
               eng.advance()
               if (eng.showingMove) playStoneClick()
             }
@@ -453,18 +369,6 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     play()
     return () => { cancelled = true }
   }, [replayMode, replayAttempt])
-
-  // Start question timer / clear marks when a question appears
-  useEffect(() => {
-    if (!engine) return
-    if (replayModeRef.current) return
-    let hasQuestion = engine.questionVertex || engine.comparisonPair
-    if (hasQuestion && questionStartRef.current === null) {
-      questionStartRef.current = performance.now()
-      setMarkedLiberties(new Set())
-    }
-    if (!hasQuestion) questionStartRef.current = null
-  })
 
   // Compute vertex size from container
   let rangeX = engine.boardRange ? [engine.boardRange[0], engine.boardRange[2]] : undefined
@@ -510,58 +414,44 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     signMap = (showSeqStones ? engine.trueBoard.signMap : engine.initialBoard.signMap).map(row => [...row])
     markerMap = makeEmptyMap(size)
     ghostStoneMap = makeEmptyMap(size)
-    paintMap = makeEmptyMap(size)
+    paintMap = makeEmptyMap(size, 0)
 
-    let qByVertex = new Map()
-    let ri = 0
-    for (let moveQs of engine.questionsAsked)
-      for (let q of moveQs) {
-        if (q.vertex) qByVertex.set(`${q.vertex[0]},${q.vertex[1]}`, { ...q, correct: engine.results[ri] })
-        ri++
-      }
+    // Show lib count labels on all groups with correct/wrong coloring
+    let exercise = engine.libertyExercise
+    if (exercise) {
+      let userMarks = exercise.userMarks || new Map()
+      let moveIdx = engine.moveProgress.length - 1
+      let asked = engine.questionsAsked[moveIdx] || []
+      let changedIdx = 0
 
-    // Place ✓ or mistake-count markers on questioned groups (hide others when reviewing one)
-    for (let [key, q] of qByVertex) {
-      if (reviewVertex && key !== reviewVertex) continue
-      let [x, y] = key.split(',').map(Number)
-      if (q.correct) {
-        markerMap[y][x] = { type: 'label', label: '✓' }
-      } else {
-        let trueSet = new Set(q.trueLibs || [])
-        let marksSet = new Set(q.marks || [])
-        let mistakes = 0
-        for (let k of marksSet) if (!trueSet.has(k)) mistakes++
-        for (let k of trueSet) if (!marksSet.has(k)) mistakes++
-        markerMap[y][x] = { type: 'label', label: String(mistakes) }
-      }
-    }
+      for (let g of exercise.groups) {
+        if (!g.changed) {
+          // Pre-marked: show on representative vertex, neutral color
+          let [x, y] = g.vertex
+          markerMap[y][x] = { type: 'label', label: libLabel(g.libCount) }
+        } else {
+          let correct = asked[changedIdx]?.markedCorrectly
+          changedIdx++
 
-    // Clicked question: blue circles for correct, red crosses for errors
-    if (reviewVertex && qByVertex.has(reviewVertex)) {
-      let q = qByVertex.get(reviewVertex)
-      let trueSet = new Set(q.trueLibs || [])
-      let marksSet = new Set(q.marks || [])
-      for (let k of marksSet) {
-        let [x, y] = k.split(',').map(Number)
-        markerMap[y][x] = trueSet.has(k)
-          ? { type: 'circle' }
-          : { type: 'cross' }
-      }
-      for (let k of trueSet) {
-        if (marksSet.has(k)) continue
-        let [x, y] = k.split(',').map(Number)
-        markerMap[y][x] = { type: 'cross' }
-      }
-    }
+          // Find which vertex the user marked in this group
+          let userVertex = null
+          let userVal = null
+          for (let k of g.chainKeys) {
+            if (userMarks.has(k)) { userVertex = k; userVal = userMarks.get(k); break }
+          }
 
-    // Comparison review: show Z/X markers with green/red coloring
-    if (reviewComp !== null) {
-      let compQ = engine.comparisonQuestions[reviewComp.compIdx]
-      if (compQ) {
-        let [zx, zy] = compQ.vertexZ
-        let [xx, xy] = compQ.vertexX
-        markerMap[zy][zx] = { type: 'label', label: 'Z' }
-        markerMap[xy][xx] = { type: 'label', label: 'X' }
+          if (userVertex !== null) {
+            // User marked: show their label, green if correct, red if wrong
+            let [mx, my] = userVertex.split(',').map(Number)
+            markerMap[my][mx] = { type: 'label', label: libLabel(userVal) }
+            paintMap[my][mx] = correct ? 1 : -1
+          } else {
+            // Missed: show correct number on representative vertex, red
+            let [x, y] = g.vertex
+            markerMap[y][x] = { type: 'label', label: libLabel(g.libCount) }
+            paintMap[y][x] = -1
+          }
+        }
       }
     }
   } else {
@@ -583,23 +473,19 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       }
     }
 
-    if (engine.questionVertex) {
-      let [x, y] = engine.questionVertex
-      markerMap[y][x] = { type: 'label', label: '?' }
-      for (let key of markedLiberties) {
-        let [mx, my] = key.split(',').map(Number)
-        markerMap[my][mx] = { type: 'circle' }
+    // Liberty exercise: show labels on stones
+    if (engine.libertyExerciseActive) {
+      let exercise = engine.libertyExercise
+      // Pre-marked (locked) groups
+      for (let g of exercise.groups) {
+        if (g.changed) continue
+        let [x, y] = g.vertex
+        markerMap[y][x] = { type: 'label', label: libLabel(g.libCount) }
       }
-    }
-
-    if (engine.comparisonPair) {
-      let [zx, zy] = engine.comparisonPair.vertexZ
-      let [xx, xy] = engine.comparisonPair.vertexX
-      markerMap[zy][zx] = { type: 'label', label: 'Z' }
-      markerMap[xy][xx] = { type: 'label', label: 'X' }
-      if (engine.comparisonPair?.equalVertex) {
-        let [ex, ey] = engine.comparisonPair.equalVertex
-        markerMap[ey][ex] = { type: 'label', label: '=' }
+      // User marks
+      for (let [key, val] of libMarks) {
+        let [mx, my] = key.split(',').map(Number)
+        markerMap[my][mx] = { type: 'label', label: libLabel(val) }
       }
     }
   }
@@ -621,27 +507,12 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     ? (evt, [x, y]) => onVertexClick(evt, [y, x])
     : onVertexClick
 
-  let compClass = ''
-  if (reviewComp) {
-    let { userChoice, correct, trueAnswer } = reviewComp
-    compClass = ' comp-review'
-    if (correct) {
-      if (userChoice === 'equal') compClass += ' comp-equal-correct'
-      else compClass += ` comp-correct-${userChoice.toLowerCase()}`
-    } else {
-      // Show user's wrong choice in red AND the correct answer in green
-      if (userChoice === 'Z' || userChoice === 'X') compClass += ` comp-failed-${userChoice.toLowerCase()}`
-      if (trueAnswer === 'Z' || trueAnswer === 'X') compClass += ` comp-correct-${trueAnswer.toLowerCase()}`
-      else if (trueAnswer === 'equal') compClass += ' comp-equal-correct'
-    }
-  }
-
   return (
     <div class="quiz">
       <div class="board-row" ref={boardRowRef}>
         {replayMode && <div class="replay-indicator">REPLAY</div>}
         {seqIdx > 0 && <div class="replay-indicator">SEQUENCE</div>}
-        <div class={`board-container${wrongFlash ? ' wrong-flash' : ''}${engine.finished && !replayMode ? ' finished' : ''}${compClass}`}>
+        <div class={`board-container${wrongFlash ? ' wrong-flash' : ''}${engine.finished && !replayMode ? ' finished' : ''}`}>
           {vertexSize > 0 && <Goban
             vertexSize={vertexSize}
             signMap={signMap}
@@ -658,7 +529,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
         </div>
       </div>
 
-      <ProgressPips engine={engine} reviewVertex={reviewVertex} setReviewVertex={setReviewVertex} reviewComp={reviewComp} setReviewComp={setReviewComp} rerender={rerender} />
+      {/* no pips */}
 
       <div class="bottom-bar">
         {replayMode
@@ -678,19 +549,18 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
           : seqIdx > 0
             ? <div class="replay-exit-hint">Move {seqIdx}/{engine.moveIndex} — tap to advance</div>
             : <>
-                {engine.comparisonPair
-                  ? <div class="action-hint"><span>Tap the group with <span class="hint-blue">less</span> liberties, or <span class="hint-blue">=</span> on board</span></div>
-                  : engine.questionVertex
-                    ? <div class="action-hint">Tap all liberties of <span class="hint-blue">?</span> group, then tap <span class="hint-blue">?</span> or Space</div>
-                    : !engine.finished
-                      ? <div class="action-hint">Tap board for the next move{engine.showingMove ? '. Remember the sequence.' : ''}</div>
-                      : null}
+                {engine.libertyExerciseActive
+                  ? <div class="action-hint">Tap stones to label liberty counts, then <span class="hint-blue">Done</span></div>
+                  : !engine.finished
+                    ? <div class="action-hint">Tap board for the next move{engine.showingMove ? '. Remember the sequence.' : ''}</div>
+                    : null}
                 {engine.finished && !replayMode && <StatsBar sgfId={sgfId} onReplay={startReplay} />}
                 <div class="bottom-bar-row">
                   <button class="bar-btn" title="Return to library (Esc)" onClick={onBack}>&#x25C2; Back</button>
                   <button class="bar-btn" title={`Sound ${soundOn ? 'on' : 'off'}`} onClick={() => { setSoundOn(toggleSound()) }}>{soundOn ? '\uD83D\uDD0A' : '\uD83D\uDD07'}</button>
-                  {(engine.questionVertex || engine.comparisonPair) && <button class="bar-btn" title="Replay the move sequence" onClick={startShowSequence}>&#x25B6; Replay</button>}
-                  {preSolve && <button class="bar-btn mark-solved-btn" title={wasSolved ? 'Remove solved mark' : 'Skip and mark as solved (Enter)'} onClick={toggleSolved}>{wasSolved ? 'Mark as unsolved' : 'Mark as solved'}</button>}
+                  {engine.libertyExerciseActive && <button class="bar-btn" title="Replay the move sequence" onClick={startShowSequence}>&#x25B6; Replay</button>}
+                  {engine.libertyExerciseActive && <button class="next-hero" title="Submit (Space/Enter)" onClick={submitExercise}>Done</button>}
+                  {preSolve && !engine.libertyExerciseActive && <button class="bar-btn mark-solved-btn" title={wasSolved ? 'Remove solved mark' : 'Skip and mark as solved (Enter)'} onClick={toggleSolved}>{wasSolved ? 'Mark as unsolved' : 'Mark as solved'}</button>}
                   {engine.finished && <button class="bar-btn" title={showSeqStones ? 'Hide sequence stones' : 'Show sequence stones'} onClick={() => setShowSeqStones(v => !v)}>{showSeqStones ? '\u25CB' : '\u25CF'}</button>}
                   {engine.finished && <button class="bar-btn" title="Restart this problem (R)" onClick={onRetry}>Retry</button>}
                   {engine.finished && <button class="next-hero" title="Next unsolved problem (Enter)" onClick={onNextUnsolved}>Next</button>}
@@ -698,66 +568,6 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
               </>
         }
       </div>
-    </div>
-  )
-}
-
-function ProgressPips({ engine, reviewVertex, setReviewVertex, reviewComp, setReviewComp, rerender }) {
-  let pips = []
-  let resultIdx = 0
-  let compIdxCounter = 0
-  for (let moveIdx = 0; moveIdx < engine.moveProgress.length; moveIdx++) {
-    let mp = engine.moveProgress[moveIdx]
-    let asked = engine.questionsAsked[moveIdx] || []
-    for (let qi = 0; qi < asked.length; qi++) {
-      let status = resultIdx < mp.results.length ? mp.results[resultIdx] : 'pending'
-      pips.push({ type: 'liberty', vertex: asked[qi].vertex, status, resultIdx })
-      resultIdx++
-    }
-    let compCount = mp.total - asked.length
-    for (let ci = 0; ci < compCount; ci++) {
-      let status = resultIdx < mp.results.length ? mp.results[resultIdx] : 'pending'
-      pips.push({ type: 'comparison', status, resultIdx, compIdx: compIdxCounter++ })
-      resultIdx++
-    }
-  }
-
-  let showPips = pips.length > 0 && !engine.showingMove
-
-  let handleClick = (pip) => {
-    if (!engine.finished) return
-    if (pip.type === 'liberty' && pip.vertex) {
-      let key = `${pip.vertex[0]},${pip.vertex[1]}`
-      setReviewComp(null)
-      setReviewVertex(prev => prev === key ? null : key)
-      rerender()
-    } else if (pip.type === 'comparison') {
-      setReviewVertex(null)
-      let compQ = engine.comparisonQuestions[pip.compIdx]
-      setReviewComp(prev => prev?.compIdx === pip.compIdx ? null : { compIdx: pip.compIdx, correct: pip.status === 'correct', userChoice: compQ?.userChoice, trueAnswer: compQ?.trueAnswer })
-      rerender()
-    }
-  }
-
-  return (
-    <div class="progress-pips">
-      {showPips && pips.map((pip, i) => {
-        let cls = `pip pip-${pip.status}`
-        let isActive = false
-        if (pip.type === 'liberty' && pip.vertex)
-          isActive = reviewVertex === `${pip.vertex[0]},${pip.vertex[1]}`
-        else if (pip.type === 'comparison')
-          isActive = reviewComp?.compIdx === pip.compIdx
-        if (isActive) cls += ' pip-active'
-        if (engine.finished) cls += ' pip-clickable'
-        let gap = i > 0 && pip.type === 'comparison' && pips[i - 1].type === 'liberty'
-        return <>
-          {gap && <div class="pip-gap" />}
-          <div key={i} class={cls} onClick={() => handleClick(pip)}>
-            {pip.type === 'liberty' ? '?' : '\u2264'}
-          </div>
-        </>
-      })}
     </div>
   )
 }

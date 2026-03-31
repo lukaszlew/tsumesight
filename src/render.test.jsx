@@ -141,16 +141,6 @@ describe('markerMap rendering', () => {
     expect(marker.textContent).toBe('✗')
   })
 
-  it('question marker renders ? text', () => {
-    let markerMap = makeEmptyMap(5)
-    markerMap[0][4] = { type: 'label', label: '?' }
-    let signMap = makeEmptyMap(5, 0)
-    signMap[0][4] = 1
-    let c = renderGoban({ signMap, markerMap })
-    let marker = getVertex(c, 4, 0).querySelector('.shudan-marker')
-    expect(marker.textContent).toBe('?')
-  })
-
   it('circle marker renders SVG', () => {
     let markerMap = makeEmptyMap(5)
     markerMap[0][0] = { type: 'circle' }
@@ -386,68 +376,6 @@ describe('combined maps — review display scenarios', () => {
     expect(marker.textContent).toBe('✗')
   })
 
-  it('liberty display: ghost stones on empty vertices around a stone', () => {
-    // Black stone at 2,2; liberties at 1,2 2,1 3,2 2,3
-    let signMap = makeEmptyMap(5, 0)
-    signMap[2][2] = 1
-    let markerMap = makeEmptyMap(5)
-    markerMap[2][2] = { type: 'label', label: '✓' }
-    let ghostStoneMap = makeEmptyMap(5)
-    // True liberties shown as "good" ghost stones
-    ghostStoneMap[2][1] = { sign: 1, type: 'good' }
-    ghostStoneMap[1][2] = { sign: 1, type: 'good' }
-    ghostStoneMap[2][3] = { sign: 1, type: 'good' }
-    ghostStoneMap[3][2] = { sign: 1, type: 'good' }
-    let c = renderGoban({ signMap, markerMap, ghostStoneMap })
-
-    // Check liberties have ghost divs
-    for (let [x, y] of [[1,2],[2,1],[3,2],[2,3]]) {
-      let v = getVertex(c, x, y)
-      expect(v.classList.contains('shudan-ghost_good')).toBe(true)
-      expect(v.querySelector('.shudan-ghost')).not.toBeNull()
-    }
-    // Stone vertex has no ghost div
-    expect(getVertex(c, 2, 2).querySelector('.shudan-ghost')).toBeNull()
-  })
-
-  it('wrong marks: bad ghost stones on empty non-liberty vertices', () => {
-    let signMap = makeEmptyMap(5, 0)
-    signMap[2][2] = 1
-    let ghostStoneMap = makeEmptyMap(5)
-    // Wrong mark at 0,0 (not adjacent)
-    ghostStoneMap[0][0] = { sign: -1, type: 'bad' }
-    let c = renderGoban({ signMap, ghostStoneMap })
-    let v = getVertex(c, 0, 0)
-    expect(v.classList.contains('shudan-ghost_bad')).toBe(true)
-    expect(v.querySelector('.shudan-ghost')).not.toBeNull()
-  })
-
-  it('question mark during play: marker on stone', () => {
-    let signMap = makeEmptyMap(5, 0)
-    signMap[2][2] = 1
-    let markerMap = makeEmptyMap(5)
-    markerMap[2][2] = { type: 'label', label: '?' }
-    let c = renderGoban({ signMap, markerMap })
-    let v = getVertex(c, 2, 2)
-    expect(v.getAttribute('title')).toBe('?')
-    let marker = v.querySelector('.shudan-stone .shudan-marker')
-    expect(marker.textContent).toBe('?')
-  })
-
-  it('marked liberties during play: interesting ghost stones', () => {
-    let signMap = makeEmptyMap(5, 0)
-    signMap[2][2] = 1
-    let markerMap = makeEmptyMap(5)
-    markerMap[2][2] = { type: 'label', label: '?' }
-    let ghostStoneMap = makeEmptyMap(5)
-    // User marked liberties shown as "interesting" (blue)
-    ghostStoneMap[2][1] = { sign: 1, type: 'interesting' }
-    ghostStoneMap[1][2] = { sign: 1, type: 'interesting' }
-    let c = renderGoban({ signMap, markerMap, ghostStoneMap })
-    expect(getVertex(c, 1, 2).classList.contains('shudan-ghost_interesting')).toBe(true)
-    expect(getVertex(c, 2, 1).classList.contains('shudan-ghost_interesting')).toBe(true)
-  })
-
   it('move number marker on stone', () => {
     let signMap = makeEmptyMap(5, 0)
     signMap[3][3] = -1
@@ -491,54 +419,15 @@ describe('combined maps — review display scenarios', () => {
     expect(v2.classList.contains('shudan-ghost_-1')).toBe(true)
   })
 
-  it('full review scenario: ✓ and mistake count with liberty display', () => {
-    let signMap = makeEmptyMap(9, 0)
-    let markerMap = makeEmptyMap(9)
-    let ghostStoneMap = makeEmptyMap(9)
-
-    // Two black groups, one white group
+  it('liberty exercise: circle markers on marked stones', () => {
+    // During exercise, marked stones show as circles
+    let signMap = makeEmptyMap(5, 0)
     signMap[2][2] = 1
-    signMap[2][3] = 1
-    signMap[5][5] = -1
-    // Group 1 answered correctly
-    markerMap[2][2] = { type: 'label', label: '✓' }
-    // Group 2: 1 wrong mark + 4 missed liberties = 5 mistakes
-    markerMap[5][5] = { type: 'label', label: '5' }
-
-    // Show liberties for group 2 (clicked)
-    // True liberties of white stone at 5,5: 4,5 6,5 5,4 5,6
-    ghostStoneMap[5][4] = { sign: 1, type: 'good' }
-    ghostStoneMap[5][6] = { sign: 1, type: 'good' }
-    ghostStoneMap[4][5] = { sign: 1, type: 'good' }
-    ghostStoneMap[6][5] = { sign: 1, type: 'good' }
-    // User wrong mark at 3,3
-    ghostStoneMap[3][3] = { sign: -1, type: 'bad' }
-
-    let c = renderGoban({ signMap, markerMap, ghostStoneMap })
-
-    // Correct group marker
-    let g1 = getVertex(c, 2, 2)
-    expect(g1.getAttribute('title')).toBe('✓')
-    expect(g1.querySelector('.shudan-stone .shudan-marker').textContent).toBe('✓')
-
-    // Wrong group marker: shows mistake count
-    let g2 = getVertex(c, 5, 5)
-    expect(g2.getAttribute('title')).toBe('5')
-    expect(g2.querySelector('.shudan-stone .shudan-marker').textContent).toBe('5')
-
-    // True liberties are green ghosts
-    for (let [x, y] of [[4,5],[6,5],[5,4],[5,6]]) {
-      let v = getVertex(c, x, y)
-      expect(v.classList.contains('shudan-ghost_good')).toBe(true)
-    }
-
-    // Wrong mark is red ghost
-    let wrong = getVertex(c, 3, 3)
-    expect(wrong.classList.contains('shudan-ghost_bad')).toBe(true)
-
-    // Non-involved vertices have no ghosts
-    let empty = getVertex(c, 0, 0)
-    expect(empty.querySelector('.shudan-ghost')).toBeNull()
+    let markerMap = makeEmptyMap(5)
+    markerMap[2][2] = { type: 'circle' }
+    let c = renderGoban({ signMap, markerMap })
+    let v = getVertex(c, 2, 2)
+    expect(v.classList.contains('shudan-marker_circle')).toBe(true)
   })
 })
 
@@ -591,69 +480,53 @@ describe('onVertexClick interaction', () => {
 // Mirrors quiz.jsx map-building logic exactly
 // ============================================================
 
-// Build display maps from engine state, same as quiz.jsx
-function buildFinishedMaps(engine, reviewVertex = null, reviewComp = null) {
+function libLabel(n) {
+  return n >= 6 ? '6+' : String(n)
+}
+
+// Build display maps from engine state in finished mode, same as quiz.jsx
+function buildFinishedMaps(engine) {
   let size = engine.boardSize
   let signMap = engine.trueBoard.signMap.map(row => [...row])
   let markerMap = makeEmptyMap(size)
   let ghostStoneMap = makeEmptyMap(size)
-  let paintMap = makeEmptyMap(size)
+  let paintMap = makeEmptyMap(size, 0)
 
-  let qByVertex = new Map()
-  let ri = 0
-  for (let moveQs of engine.questionsAsked)
-    for (let q of moveQs) {
-      if (q.vertex) qByVertex.set(`${q.vertex[0]},${q.vertex[1]}`, { ...q, correct: engine.results[ri] })
-      ri++
-    }
+  let exercise = engine.libertyExercise
+  if (exercise) {
+    let userMarks = exercise.userMarks || new Map()
+    let moveIdx = engine.moveProgress.length - 1
+    let asked = engine.questionsAsked[moveIdx] || []
+    let changedIdx = 0
 
-  for (let [key, q] of qByVertex) {
-    if (reviewVertex && key !== reviewVertex) continue
-    let [x, y] = key.split(',').map(Number)
-    if (q.correct) {
-      markerMap[y][x] = { type: 'label', label: '✓' }
-    } else {
-      let trueSet = new Set(q.trueLibs || [])
-      let marksSet = new Set(q.marks || [])
-      let mistakes = 0
-      for (let k of marksSet) if (!trueSet.has(k)) mistakes++
-      for (let k of trueSet) if (!marksSet.has(k)) mistakes++
-      markerMap[y][x] = { type: 'label', label: String(mistakes) }
-    }
-  }
-
-  if (reviewVertex && qByVertex.has(reviewVertex)) {
-    let q = qByVertex.get(reviewVertex)
-    let trueSet = new Set(q.trueLibs || [])
-    let marksSet = new Set(q.marks || [])
-    for (let k of marksSet) {
-      let [x, y] = k.split(',').map(Number)
-      markerMap[y][x] = trueSet.has(k)
-        ? { type: 'circle' }
-        : { type: 'cross' }
-    }
-    for (let k of trueSet) {
-      if (marksSet.has(k)) continue
-      let [x, y] = k.split(',').map(Number)
-      markerMap[y][x] = { type: 'cross' }
+    for (let g of exercise.groups) {
+      if (!g.changed) {
+        let [x, y] = g.vertex
+        markerMap[y][x] = { type: 'label', label: libLabel(g.libCount) }
+      } else {
+        let correct = asked[changedIdx]?.markedCorrectly
+        changedIdx++
+        let userVertex = null, userVal = null
+        for (let k of g.chainKeys) {
+          if (userMarks.has(k)) { userVertex = k; userVal = userMarks.get(k); break }
+        }
+        if (userVertex !== null) {
+          let [mx, my] = userVertex.split(',').map(Number)
+          markerMap[my][mx] = { type: 'label', label: libLabel(userVal) }
+          paintMap[my][mx] = correct ? 1 : -1
+        } else {
+          let [x, y] = g.vertex
+          markerMap[y][x] = { type: 'label', label: libLabel(g.libCount) }
+          paintMap[y][x] = -1
+        }
+      }
     }
   }
 
-  // Comparison review: show Z/X markers with green/red coloring
-  if (reviewComp !== null) {
-    let compQ = engine.comparisonQuestions[reviewComp.compIdx]
-    if (compQ) {
-      let [zx, zy] = compQ.vertexZ
-      let [xx, xy] = compQ.vertexX
-      markerMap[zy][zx] = { type: 'label', label: 'Z' }
-      markerMap[xy][xx] = { type: 'label', label: 'X' }
-    }
-  }
-
-  return { signMap, markerMap, ghostStoneMap, paintMap, qByVertex }
+  return { signMap, markerMap, ghostStoneMap, paintMap }
 }
 
-function buildPlayMaps(engine, peeking = false, markedLiberties = new Set()) {
+function buildPlayMaps(engine, peeking = false) {
   let size = engine.boardSize
   let signMap = engine.getDisplaySignMap()
   let markerMap = makeEmptyMap(size)
@@ -683,16 +556,47 @@ function buildPlayMaps(engine, peeking = false, markedLiberties = new Set()) {
         ghostStoneMap[y][x] = { sign, faint: true }
       }
     }
-  } else if (engine.questionVertex) {
-    let [x, y] = engine.questionVertex
-    markerMap[y][x] = { type: 'label', label: '?' }
-    for (let key of markedLiberties) {
-      let [mx, my] = key.split(',').map(Number)
-      markerMap[my][mx] = { type: 'circle' }
-    }
   }
 
   return { signMap, markerMap, ghostStoneMap, paintMap }
+}
+
+function buildExerciseMaps(engine, libMarks) {
+  let size = engine.boardSize
+  let signMap = engine.getDisplaySignMap()
+  let markerMap = makeEmptyMap(size)
+  let ghostStoneMap = makeEmptyMap(size)
+  let paintMap = makeEmptyMap(size)
+
+  let exercise = engine.libertyExercise
+  for (let g of exercise.groups) {
+    if (g.changed) continue
+    let [x, y] = g.vertex
+    markerMap[y][x] = { type: 'label', label: libLabel(g.libCount) }
+  }
+  for (let [key, val] of libMarks) {
+    let [mx, my] = key.split(',').map(Number)
+    markerMap[my][mx] = { type: 'label', label: libLabel(val) }
+  }
+
+  return { signMap, markerMap, ghostStoneMap, paintMap }
+}
+
+// Helper: play to finished state with correct answers
+function playToFinish(sgf, maxQ = 2) {
+  let engine = new QuizEngine(sgf, true, maxQ)
+  while (!engine.finished) {
+    engine.advance()
+    engine.activateQuestions()
+    if (engine.libertyExerciseActive) {
+      let marks = new Map()
+      for (let g of engine.libertyExercise.groups.filter(g => g.changed))
+        marks.set([...g.chainKeys][0], Math.min(g.libCount, 6))
+      engine.submitLibertyExercise(marks)
+      engine.advance()
+    }
+  }
+  return engine
 }
 
 // Simple 5-move SGF: alternating black/white on a 5x5 board
@@ -710,34 +614,27 @@ describe('QuizEngine → Goban integration: show phase', () => {
     expect(v.querySelector('.shudan-stone .shudan-marker').textContent).toBe('1')
   })
 
-  it('after activateQuestions on non-last move, no question marker', () => {
+  it('after activateQuestions on non-last move, no markers', () => {
     let engine = new QuizEngine(SGF_5x5, true, 2)
     engine.advance()
     engine.activateQuestions()
     let maps = buildPlayMaps(engine)
     let c = renderGoban(maps)
-    // no questions until last move
+    // no exercise until last move
     let vertices = c.querySelectorAll('.shudan-vertex')
-    let hasQuestion = Array.from(vertices).some(v => v.getAttribute('title') === '?')
-    expect(hasQuestion).toBe(false)
+    let hasMarker = Array.from(vertices).some(v => v.querySelector('.shudan-marker'))
+    expect(hasMarker).toBe(false)
   })
 
-  it('after all advances, last move triggers questions', () => {
+  it('after all advances, last move triggers exercise', () => {
     let engine = new QuizEngine(SGF_5x5, true, 2)
     while (!engine.finished) {
       engine.advance()
       engine.activateQuestions()
-      if (engine.questionVertex) break
-      if (!engine.finished) continue
+      if (engine.libertyExerciseActive) break
     }
-    if (engine.questionVertex) {
-      let maps = buildPlayMaps(engine)
-      let c = renderGoban(maps)
-      let [qx, qy] = engine.questionVertex
-      let v = getVertex(c, qx, qy)
-      expect(v.getAttribute('title')).toBe('?')
-      expect(v.querySelector('.shudan-marker').textContent).toBe('?')
-    }
+    expect(engine.libertyExerciseActive).toBe(true)
+    expect(engine.libertyExercise.groups.length).toBeGreaterThan(0)
   })
 })
 
@@ -758,57 +655,62 @@ describe('QuizEngine → Goban integration: peek mode', () => {
   })
 })
 
-describe('QuizEngine → Goban integration: question phase with marks', () => {
-  it('marked liberties show as circle markers', () => {
-    let engine = new QuizEngine(SGF_5x5, true, 2)
-    // Advance to last move to get questions
+describe('QuizEngine → Goban integration: liberty exercise', () => {
+  it('pre-marked groups show as label markers', () => {
+    // Setup: dd has 4 libs. Moves: B[ee], W[aa] — dd unchanged
+    let engine = new QuizEngine('(;SZ[9]AB[dd];B[ee];W[aa])', true, 3)
     while (!engine.finished) {
       engine.advance()
       engine.activateQuestions()
-      if (engine.questionVertex) break
+      if (engine.libertyExerciseActive) break
     }
-    if (!engine.questionVertex) return // skip if no questions
-    let qv = engine.questionVertex
-    // Mark some adjacent vertices
-    let marks = new Set()
-    for (let [dx, dy] of [[-1,0],[1,0],[0,-1],[0,1]]) {
-      let nx = qv[0] + dx, ny = qv[1] + dy
-      if (nx >= 0 && nx < 5 && ny >= 0 && ny < 5)
-        marks.add(`${nx},${ny}`)
-    }
-    let maps = buildPlayMaps(engine, false, marks)
+    let ddGroup = engine.libertyExercise.groups.find(g => [...g.chainKeys].includes('3,3'))
+    if (!ddGroup || ddGroup.changed) return
+    let maps = buildExerciseMaps(engine, new Map())
     let c = renderGoban(maps)
-    for (let key of marks) {
-      let [x, y] = key.split(',').map(Number)
-      let v = getVertex(c, x, y)
-      expect(v.classList.contains('shudan-marker_circle')).toBe(true)
+    let [dx, dy] = ddGroup.vertex
+    let v = getVertex(c, dx, dy)
+    expect(v.classList.contains('shudan-marker_label')).toBe(true)
+    expect(v.querySelector('.shudan-marker').textContent).toBe(libLabel(ddGroup.libCount))
+  })
+
+  it('user marks show as label markers with number', () => {
+    let engine = new QuizEngine('(;SZ[9];B[ee];W[de])', true, 3)
+    while (!engine.finished) {
+      engine.advance()
+      engine.activateQuestions()
+      if (engine.libertyExerciseActive) break
     }
+    // Mark ee with label 3
+    let marks = new Map([['4,4', 3]])
+    let maps = buildExerciseMaps(engine, marks)
+    let c = renderGoban(maps)
+    let v = getVertex(c, 4, 4)
+    expect(v.classList.contains('shudan-marker_label')).toBe(true)
+    expect(v.querySelector('.shudan-marker').textContent).toBe('3')
+  })
+
+  it('groups with >5 libs show "5+" label when pre-marked', () => {
+    // 3 black stones in row: 8 libs. Setup so they exist in initial position too (unchanged)
+    let engine = new QuizEngine('(;SZ[9]AB[ee][fe][ge];B[aa])', true, 3)
+    engine.advance(); engine.activateQuestions()
+    let bigGroup = engine.libertyExercise.groups.find(g => g.libCount > 5 && !g.changed)
+    if (!bigGroup) return
+    let maps = buildExerciseMaps(engine, new Map())
+    let c = renderGoban(maps)
+    let [bx, by] = bigGroup.vertex
+    let v = getVertex(c, bx, by)
+    expect(v.querySelector('.shudan-marker').textContent).toBe('6+')
   })
 })
 
 describe('QuizEngine → Goban integration: finished review', () => {
-  function playToFinish(sgf, maxQ = 2) {
-    let engine = new QuizEngine(sgf, true, maxQ)
-    while (!engine.finished) {
-      engine.advance()
-      engine.activateQuestions()
-      while (engine.questionVertex) {
-        let libs = engine.trueBoard.getLiberties(engine.questionVertex)
-        let markedSet = new Set(libs.map(([x, y]) => `${x},${y}`))
-        engine.answerMark(markedSet)
-      }
-    }
-    return engine
-  }
-
   it('finished board shows all stones from true board', () => {
     let engine = playToFinish(SGF_5x5)
     let maps = buildFinishedMaps(engine)
     let c = renderGoban(maps)
-    // Count stones on rendered board (vertex-level only, not inner stone divs)
     let black = c.querySelectorAll('.shudan-vertex.shudan-sign_1').length
     let white = c.querySelectorAll('.shudan-vertex.shudan-sign_-1').length
-    // Count stones on true board
     let trueBlack = 0, trueWhite = 0
     for (let y = 0; y < 5; y++)
       for (let x = 0; x < 5; x++) {
@@ -820,48 +722,38 @@ describe('QuizEngine → Goban integration: finished review', () => {
     expect(white).toBe(trueWhite)
   })
 
-  it('all correct answers show ✓ markers', () => {
+  it('correct answers show lib count labels with paint_1 (green)', () => {
     let engine = playToFinish(SGF_5x5)
     let maps = buildFinishedMaps(engine)
     let c = renderGoban(maps)
-    // All answers were correct (we gave perfect answers)
-    let checkmarks = c.querySelectorAll('[title="✓"]')
-    let crosses = c.querySelectorAll('[title="✗"]')
-    expect(checkmarks.length).toBeGreaterThan(0)
-    expect(crosses.length).toBe(0)
-    // Each checkmark vertex has ✓ text in marker
-    for (let v of checkmarks) {
+    // Correct marks get paint_1 class
+    let greenVertices = c.querySelectorAll('.shudan-vertex.shudan-paint_1')
+    expect(greenVertices.length).toBeGreaterThan(0)
+    for (let v of greenVertices) {
       let marker = v.querySelector('.shudan-marker')
-      expect(marker.textContent).toBe('✓')
+      expect(marker).not.toBeNull()
+      expect(marker.textContent).toMatch(/^[1-5]|6\+$/)
     }
   })
 
-  it('wrong answers show mistake count markers', () => {
-    // Play with wrong answers
+  it('wrong answers show lib count labels with paint_-1 (red)', () => {
     let engine = new QuizEngine(SGF_5x5, true, 2)
     while (!engine.finished) {
       engine.advance()
       engine.activateQuestions()
-      while (engine.questionVertex) {
-        // Give wrong answer: mark nothing
-        engine.answerMark(new Set())
+      if (engine.libertyExerciseActive) {
+        // Mark everything as 1 (wrong for most groups)
+        let marks = new Map()
+        for (let g of engine.libertyExercise.groups.filter(g => g.changed))
+          marks.set([...g.chainKeys][0], 1)
+        engine.submitLibertyExercise(marks)
+        engine.advance()
       }
     }
     let maps = buildFinishedMaps(engine)
     let c = renderGoban(maps)
-    // No ✗ markers — replaced by numeric mistake counts
-    let crosses = c.querySelectorAll('[title="✗"]')
-    expect(crosses.length).toBe(0)
-    // Should have non-✓ markers with numeric labels
-    let checkmarks = c.querySelectorAll('[title="✓"]')
-    let allMarked = c.querySelectorAll('.shudan-vertex.shudan-marker_label')
-    let mistakeMarkers = allMarked.length - checkmarks.length
-    expect(mistakeMarkers).toBeGreaterThan(0)
-    for (let v of allMarked) {
-      if (v.getAttribute('title') === '✓') continue
-      let label = v.querySelector('.shudan-marker').textContent
-      expect(parseInt(label)).toBeGreaterThan(0)
-    }
+    let redVertices = c.querySelectorAll('.shudan-vertex.shudan-paint_-1')
+    expect(redVertices.length).toBeGreaterThan(0)
   })
 
   it('no paintMap values are strings (regression: white squares bug)', () => {
@@ -872,123 +764,46 @@ describe('QuizEngine → Goban integration: finished review', () => {
         expect(typeof cell !== 'string').toBe(true)
   })
 
-  it('no paintMap values are strings with review vertex selected', () => {
-    let engine = playToFinish(SGF_5x5)
-    let qKey = engine.questionsAsked.flat().find(q => q.vertex)
-    if (!qKey) return
-    let rv = `${qKey.vertex[0]},${qKey.vertex[1]}`
-    let maps = buildFinishedMaps(engine, rv)
-    for (let row of maps.paintMap)
-      for (let cell of row)
-        expect(typeof cell !== 'string').toBe(true)
-  })
-
-  it('holding a question vertex shows correct marks as blue circles', () => {
-    let engine = playToFinish(SGF_5x5)
-    let q = engine.questionsAsked.flat().find(q => q.vertex && q.marks && q.marks.length > 0)
-    if (!q) return
-    let rv = `${q.vertex[0]},${q.vertex[1]}`
-    let maps = buildFinishedMaps(engine, rv)
-    let c = renderGoban(maps)
-    // Perfect answers: all user marks are true liberties → circles
-    let markCount = 0
-    for (let k of q.marks) {
-      let [x, y] = k.split(',').map(Number)
-      let v = getVertex(c, x, y)
-      expect(v.classList.contains('shudan-marker_circle')).toBe(true)
-      markCount++
-    }
-    expect(markCount).toBeGreaterThan(0)
-  })
-
-  it('wrong marks show as red crosses', () => {
-    let engine = new QuizEngine(SGF_5x5, true, 2)
+  it('wrong mark gets paint_-1, correct gets paint_1 on specific vertices', () => {
+    let engine = new QuizEngine('(;SZ[9];B[ee];W[de])', true, 3)
     while (!engine.finished) {
       engine.advance()
       engine.activateQuestions()
-      while (engine.questionVertex) {
-        // Mark a wrong vertex (0,0 is almost certainly wrong)
-        engine.answerMark(new Set(['0,0']))
+      if (engine.libertyExerciseActive) {
+        let marks = new Map([['4,4', 1]]) // B[ee] has 3 libs → wrong
+        let wGroup = engine.libertyExercise.groups.find(g => [...g.chainKeys].includes('3,4'))
+        marks.set('3,4', Math.min(wGroup.libCount, 6)) // correct
+        engine.submitLibertyExercise(marks)
+        engine.advance()
       }
     }
-    // Find a question with wrong marks
-    let q = engine.questionsAsked.flat().find(q => q.marks && q.marks.length > 0)
-    if (!q) return
-    let rv = `${q.vertex[0]},${q.vertex[1]}`
-    let maps = buildFinishedMaps(engine, rv)
+    let maps = buildFinishedMaps(engine)
+    // B[ee]=[4,4] marked wrong → paint -1
+    expect(maps.paintMap[4][4]).toBe(-1)
+    // W[de]=[3,4] marked correct → paint 1
+    expect(maps.paintMap[4][3]).toBe(1)
+
     let c = renderGoban(maps)
-    let trueSet = new Set(q.trueLibs || [])
-    for (let k of (q.marks || [])) {
-      if (!trueSet.has(k)) {
-        let [x, y] = k.split(',').map(Number)
-        let v = getVertex(c, x, y)
-        expect(v.classList.contains('shudan-marker_cross')).toBe(true)
-      }
+    // Verify classes on rendered vertices
+    let vEE = getVertex(c, 4, 4)
+    expect(vEE.classList.contains('shudan-paint_-1')).toBe(true)
+    expect(vEE.querySelector('.shudan-marker').textContent).toBe('1')
+    let vDE = getVertex(c, 3, 4)
+    expect(vDE.classList.contains('shudan-paint_1')).toBe(true)
+  })
+
+  it('pre-marked groups show labels in finished state', () => {
+    // Use SGF with setup stones so some groups are unchanged
+    let engine = playToFinish('(;SZ[9]AB[dd];B[ee];W[aa])', 3)
+    let maps = buildFinishedMaps(engine)
+    let c = renderGoban(maps)
+    // dd is pre-marked (unchanged), should have a label
+    let ddGroup = engine.libertyExercise.groups.find(g => [...g.chainKeys].includes('3,3'))
+    if (ddGroup && !ddGroup.changed) {
+      let [dx, dy] = ddGroup.vertex
+      let v = getVertex(c, dx, dy)
+      expect(v.classList.contains('shudan-marker_label')).toBe(true)
     }
-  })
-
-  it('missed liberties show as cross markers', () => {
-    let engine = new QuizEngine(SGF_5x5, true, 2)
-    while (!engine.finished) {
-      engine.advance()
-      engine.activateQuestions()
-      while (engine.questionVertex) {
-        // Mark nothing — all true liberties are missed
-        engine.answerMark(new Set())
-      }
-    }
-    let q = engine.questionsAsked.flat().find(q => q.trueLibs && q.trueLibs.length > 0)
-    if (!q) return
-    let rv = `${q.vertex[0]},${q.vertex[1]}`
-    let maps = buildFinishedMaps(engine, rv)
-    let c = renderGoban(maps)
-    let crossCount = 0
-    for (let k of q.trueLibs) {
-      let [x, y] = k.split(',').map(Number)
-      let v = getVertex(c, x, y)
-      expect(v.classList.contains('shudan-marker_cross')).toBe(true)
-      crossCount++
-    }
-    expect(crossCount).toBeGreaterThan(0)
-  })
-
-  it('reviewing one question hides other question markers', () => {
-    let engine = playToFinish(SGF_5x5)
-    // Find two questioned vertices
-    let qVertices = []
-    for (let moveQs of engine.questionsAsked)
-      for (let q of moveQs)
-        if (q.vertex) qVertices.push(`${q.vertex[0]},${q.vertex[1]}`)
-    if (qVertices.length < 2) return
-    let reviewed = qVertices[0]
-    let other = qVertices[1]
-    let maps = buildFinishedMaps(engine, reviewed)
-    let c = renderGoban(maps)
-    // The OTHER vertex should NOT have a ✓/mistake label (hidden during review)
-    let [ox, oy] = other.split(',').map(Number)
-    let ovNode = getVertex(c, ox, oy)
-    expect(ovNode.classList.contains('shudan-marker_label')).toBe(false)
-  })
-
-  it('non-selected question shows no liberty markers', () => {
-    let engine = playToFinish(SGF_5x5)
-    let maps = buildFinishedMaps(engine) // no reviewVertex
-    let c = renderGoban(maps)
-    let circles = c.querySelectorAll('.shudan-marker_circle')
-    let crosses = c.querySelectorAll('.shudan-marker_cross')
-    // Only label markers (✓ / mistake counts), no circles or crosses
-    expect(circles.length).toBe(0)
-    expect(crosses.length).toBe(0)
-  })
-
-  it('selecting non-question vertex shows no liberty markers', () => {
-    let engine = playToFinish(SGF_5x5)
-    let maps = buildFinishedMaps(engine, '0,0')
-    let c = renderGoban(maps)
-    let circles = c.querySelectorAll('.shudan-marker_circle')
-    let crosses = c.querySelectorAll('.shudan-marker_cross')
-    expect(circles.length).toBe(0)
-    expect(crosses.length).toBe(0)
   })
 })
 
@@ -996,21 +811,8 @@ describe('QuizEngine → Goban integration: finished review', () => {
 let SGF_TSUMEGO = '(;SZ[9]AB[aa][ba][ca][ab][bb]AW[cb][ac][bc][cc];B[da];W[db])'
 
 describe('QuizEngine → Goban integration: tsumego with setup stones', () => {
-  function playToFinish(sgf) {
-    let engine = new QuizEngine(sgf, true, 3)
-    while (!engine.finished) {
-      engine.advance()
-      engine.activateQuestions()
-      while (engine.questionVertex) {
-        let libs = engine.trueBoard.getLiberties(engine.questionVertex)
-        engine.answerMark(new Set(libs.map(([x, y]) => `${x},${y}`)))
-      }
-    }
-    return engine
-  }
-
   it('setup stones are visible on finished board', () => {
-    let engine = playToFinish(SGF_TSUMEGO)
+    let engine = playToFinish(SGF_TSUMEGO, 3)
     let maps = buildFinishedMaps(engine)
     let c = renderGoban(maps)
     // AB[aa] = black at 0,0
@@ -1019,49 +821,26 @@ describe('QuizEngine → Goban integration: tsumego with setup stones', () => {
     expect(getVertex(c, 2, 1).classList.contains('shudan-sign_-1')).toBe(true)
   })
 
-  it('setup stones have no markers (only questioned groups do)', () => {
-    let engine = playToFinish(SGF_TSUMEGO)
+  it('all groups have labels in finished state', () => {
+    let engine = playToFinish(SGF_TSUMEGO, 3)
     let maps = buildFinishedMaps(engine)
     let c = renderGoban(maps)
-    // Setup stone at 0,0 should not have a marker unless it was questioned
-    let qVertices = new Set()
-    for (let moveQs of engine.questionsAsked)
-      for (let q of moveQs)
-        if (q.vertex) qVertices.add(`${q.vertex[0]},${q.vertex[1]}`)
-    // All markers should be on questioned vertices
-    let markedVertices = c.querySelectorAll('[title]')
-    for (let v of markedVertices) {
-      let key = `${v.dataset.x},${v.dataset.y}`
-      expect(qVertices.has(key)).toBe(true)
-    }
-  })
-
-  it('question count matches engine results', () => {
-    let engine = playToFinish(SGF_TSUMEGO)
-    let maps = buildFinishedMaps(engine)
-    let c = renderGoban(maps)
-    let totalMarkers = c.querySelectorAll('.shudan-vertex.shudan-marker_label').length
-    // qByVertex deduplicates by vertex, so count unique questioned vertices
-    let uniqueQ = new Set()
-    for (let moveQs of engine.questionsAsked)
-      for (let q of moveQs)
-        if (q.vertex) uniqueQ.add(`${q.vertex[0]},${q.vertex[1]}`)
-    expect(totalMarkers).toBe(uniqueQ.size)
+    // Every group (changed and unchanged) should have a label marker
+    let markedVertices = c.querySelectorAll('.shudan-vertex.shudan-marker_label')
+    expect(markedVertices.length).toBe(engine.libertyExercise.groups.length)
   })
 })
 
 describe('display map integrity', () => {
   it('signMap dimensions match boardSize', () => {
-    let engine = new QuizEngine(SGF_5x5, true, 2)
-    while (!engine.finished) { engine.advance(); engine.activateQuestions() }
+    let engine = playToFinish(SGF_5x5)
     let maps = buildFinishedMaps(engine)
     expect(maps.signMap.length).toBe(5)
     for (let row of maps.signMap) expect(row.length).toBe(5)
   })
 
   it('all map dimensions match', () => {
-    let engine = new QuizEngine(SGF_5x5, true, 2)
-    while (!engine.finished) { engine.advance(); engine.activateQuestions() }
+    let engine = playToFinish(SGF_5x5)
     let maps = buildFinishedMaps(engine)
     for (let mapName of ['signMap', 'markerMap', 'ghostStoneMap', 'paintMap']) {
       expect(maps[mapName].length).toBe(5)
@@ -1079,65 +858,12 @@ describe('display map integrity', () => {
     }
   })
 
-  it('no ghost stones in finished review (circles/crosses used instead)', () => {
-    let engine = new QuizEngine(SGF_5x5, true, 2)
-    while (!engine.finished) {
-      engine.advance(); engine.activateQuestions()
-      while (engine.questionVertex) {
-        let libs = engine.trueBoard.getLiberties(engine.questionVertex)
-        engine.answerMark(new Set(libs.map(([x, y]) => `${x},${y}`)))
-      }
-    }
-    for (let moveQs of engine.questionsAsked) {
-      for (let q of moveQs) {
-        if (!q.vertex || !q.trueLibs) continue
-        let rv = `${q.vertex[0]},${q.vertex[1]}`
-        let maps = buildFinishedMaps(engine, rv)
-        for (let y = 0; y < 5; y++)
-          for (let x = 0; x < 5; x++)
-            expect(maps.ghostStoneMap[y][x]).toBeNull()
-      }
-    }
-  })
-
-  it('review: correct marks → circle, wrong marks → cross, missed → cross', () => {
-    // Engine where user marks only SOME liberties and one wrong vertex
-    let engine = new QuizEngine(SGF_5x5, true, 2)
-    while (!engine.finished) {
-      engine.advance(); engine.activateQuestions()
-      while (engine.questionVertex) {
-        let libs = engine.trueBoard.getLiberties(engine.questionVertex)
-        // Mark only the first liberty + one wrong vertex
-        let markedSet = new Set()
-        if (libs.length > 0) markedSet.add(`${libs[0][0]},${libs[0][1]}`)
-        markedSet.add('0,0') // likely wrong
-        engine.answerMark(markedSet)
-      }
-    }
-    let q = engine.questionsAsked.flat().find(q => q.vertex && q.trueLibs && q.marks)
-    if (!q) return
-    let rv = `${q.vertex[0]},${q.vertex[1]}`
-    let maps = buildFinishedMaps(engine, rv)
-    let c = renderGoban(maps)
-    let trueSet = new Set(q.trueLibs)
-    let marksSet = new Set(q.marks)
-    // Correct user marks → circle, wrong → cross
-    for (let k of marksSet) {
-      let [x, y] = k.split(',').map(Number)
-      let v = getVertex(c, x, y)
-      if (trueSet.has(k)) {
-        expect(v.classList.contains('shudan-marker_circle')).toBe(true)
-      } else {
-        expect(v.classList.contains('shudan-marker_cross')).toBe(true)
-      }
-    }
-    // Unmarked true liberties → cross marker
-    for (let k of trueSet) {
-      if (marksSet.has(k)) continue
-      let [x, y] = k.split(',').map(Number)
-      let v = getVertex(c, x, y)
-      expect(v.classList.contains('shudan-marker_cross')).toBe(true)
-    }
+  it('no ghost stones in finished review', () => {
+    let engine = playToFinish(SGF_5x5)
+    let maps = buildFinishedMaps(engine)
+    for (let y = 0; y < 5; y++)
+      for (let x = 0; x < 5; x++)
+        expect(maps.ghostStoneMap[y][x]).toBeNull()
   })
 
   it('no paint string values anywhere in play mode maps', () => {
@@ -1147,117 +873,5 @@ describe('display map integrity', () => {
     for (let row of maps.paintMap)
       for (let cell of row)
         expect(typeof cell !== 'string').toBe(true)
-  })
-})
-
-describe('comparison pip tap → Z/X markers on board', () => {
-  // B[ba]=(1,0) then W[aa]=(0,0): adjacent, opposite color, diff=1 → comparison
-  let compSgf = '(;SZ[9];B[ba];W[aa])'
-
-  function playWithComparison(sgf, compAnswer) {
-    let engine = new QuizEngine(sgf, true, 3)
-    while (!engine.finished) {
-      engine.advance()
-      engine.activateQuestions()
-      while (engine.questionVertex) {
-        let libs = engine.trueBoard.getLiberties(engine.questionVertex)
-        engine.answerMark(new Set(libs.map(([x, y]) => `${x},${y}`)))
-      }
-      while (engine.comparisonPair) {
-        engine.answerComparison(compAnswer)
-      }
-    }
-    return engine
-  }
-
-  function advanceToQuestions(engine) {
-    while (!engine.finished) {
-      engine.advance()
-      engine.activateQuestions()
-      if (engine.questionVertex || engine.comparisonPair) break
-    }
-  }
-
-  function answerAllLiberty(engine) {
-    while (engine.questionVertex) {
-      let libs = engine.trueBoard.getLiberties(engine.questionVertex)
-      engine.answerMark(new Set(libs.map(([x, y]) => `${x},${y}`)))
-    }
-  }
-
-  it('correct comparison pip tap shows Z/X markers on board', () => {
-    let engine = new QuizEngine(compSgf, true, 3)
-    advanceToQuestions(engine)
-    answerAllLiberty(engine)
-    expect(engine.comparisonPair).not.toBeNull()
-    let { libsZ, libsX } = engine.comparisonPair
-    let trueAnswer = libsZ < libsX ? 'Z' : libsX < libsZ ? 'X' : 'equal'
-    let compQ = engine.comparisonQuestions[0]
-    engine.answerComparison(trueAnswer)
-    while (!engine.finished) { engine.advance(); engine.activateQuestions() }
-
-    let reviewComp = { compIdx: 0, correct: true }
-    let maps = buildFinishedMaps(engine, null, reviewComp)
-    let c = renderGoban(maps)
-
-    let [zx, zy] = compQ.vertexZ
-    let [xx, xy] = compQ.vertexX
-    let vZ = getVertex(c, zx, zy)
-    let vX = getVertex(c, xx, xy)
-    expect(vZ.getAttribute('title')).toBe('Z')
-    expect(vZ.querySelector('.shudan-marker').textContent).toBe('Z')
-    expect(vX.getAttribute('title')).toBe('X')
-    expect(vX.querySelector('.shudan-marker').textContent).toBe('X')
-  })
-
-  it('wrong comparison pip tap shows Z/X markers on board', () => {
-    let engine = new QuizEngine(compSgf, true, 3)
-    advanceToQuestions(engine)
-    answerAllLiberty(engine)
-    expect(engine.comparisonPair).not.toBeNull()
-    let { libsZ, libsX } = engine.comparisonPair
-    let trueAnswer = libsZ < libsX ? 'Z' : libsX < libsZ ? 'X' : 'equal'
-    let wrongAnswer = trueAnswer === 'Z' ? 'X' : 'Z'
-    let compQ = engine.comparisonQuestions[0]
-    engine.answerComparison(wrongAnswer)
-    while (!engine.finished) { engine.advance(); engine.activateQuestions() }
-
-    let reviewComp = { compIdx: 0, correct: false }
-    let maps = buildFinishedMaps(engine, null, reviewComp)
-    let c = renderGoban(maps)
-
-    let [zx, zy] = compQ.vertexZ
-    let [xx, xy] = compQ.vertexX
-    let vZ = getVertex(c, zx, zy)
-    let vX = getVertex(c, xx, xy)
-    expect(vZ.getAttribute('title')).toBe('Z')
-    expect(vX.getAttribute('title')).toBe('X')
-  })
-
-  it('answerComparison stores userChoice and trueAnswer on question', () => {
-    let engine = new QuizEngine(compSgf, true, 3)
-    advanceToQuestions(engine)
-    answerAllLiberty(engine)
-    expect(engine.comparisonPair).not.toBeNull()
-    let { libsZ, libsX } = engine.comparisonPair
-    let trueAnswer = libsZ < libsX ? 'Z' : libsX < libsZ ? 'X' : 'equal'
-    let wrongAnswer = trueAnswer === 'Z' ? 'X' : 'Z'
-    engine.answerComparison(wrongAnswer)
-    while (!engine.finished) { engine.advance(); engine.activateQuestions() }
-
-    let compQ = engine.comparisonQuestions[0]
-    expect(compQ.userChoice).toBe(wrongAnswer)
-    expect(compQ.trueAnswer).toBe(trueAnswer)
-    expect(compQ.userChoice).not.toBe(compQ.trueAnswer)
-  })
-
-  it('no reviewComp means no Z/X markers in finished state', () => {
-    let engine = playWithComparison(compSgf, 'Z')
-    let maps = buildFinishedMaps(engine)
-    let c = renderGoban(maps)
-    let zMarkers = c.querySelectorAll('[title="Z"]')
-    let xMarkers = c.querySelectorAll('[title="X"]')
-    expect(zMarkers.length).toBe(0)
-    expect(xMarkers.length).toBe(0)
   })
 })
