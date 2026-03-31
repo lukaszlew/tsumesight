@@ -32,6 +32,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   let [wrongFlash, setWrongFlash] = useState(false)
   let [soundOn, setSoundOn] = useState(() => isSoundEnabled())
   let [showSeqStones, setShowSeqStones] = useState(true)
+  let [confirmExit, setConfirmExit] = useState(false)
 
   // Liberty exercise state: Map<vertexKey, number> — user's label (1-5) per stone
   let [libMarks, setLibMarks] = useState(() => new Map())
@@ -228,6 +229,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   let onVertexClick = useCallback((evt, vertex) => {
     if (replayModeRef.current) { exitReplayEarly(); return }
     if (seqIdx > 0) { advanceShowSequence(); return }
+    if (confirmExit) { setConfirmExit(false); return }
     let key = `${vertex[0]},${vertex[1]}`
     // Review mode: toggle review display on tap
     if (engine.finished) {
@@ -257,6 +259,11 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     })
   }, [advance, libMarks, submitExercise])
 
+  let tryBack = useCallback(() => {
+    if (confirmExit || engine.finished) { onBack(); return }
+    setConfirmExit(true)
+  }, [confirmExit])
+
   let toggleSolved = useCallback(() => {
     if (wasSolved) {
       onUnsolved()
@@ -272,6 +279,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     let preSolve = !engine.finished && engine.results.length === 0
     function onKeyDown(e) {
       if (e.repeat) return
+      if (e.key !== 'Escape') setConfirmExit(false)
       if (replayModeRef.current) {
         if (e.key === 'Escape') { e.preventDefault(); exitReplayEarly() }
         return
@@ -281,7 +289,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
         else if (e.key === 'Escape') { e.preventDefault(); exitShowSequence() }
         return
       }
-      if (e.key === 'Escape') { e.preventDefault(); onBack() }
+      if (e.key === 'Escape') { e.preventDefault(); tryBack() }
       else if (e.key === 'Enter') {
         e.preventDefault()
         if (engine.finished) onNextUnsolved()
@@ -334,11 +342,34 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
               setWrongFlash(true)
               setTimeout(() => { if (!cancelled) setWrongFlash(false) }, 150)
             }
+            setLibMarks(new Map())
             eng.advance()
           }
         } else if (evt.v) {
-          // Mark toggle during exercise — just visual, no engine action
-          playMark()
+          if (eng.libertyExerciseActive) {
+            // Replay mark cycle on stone
+            let key = `${evt.v[0]},${evt.v[1]}`
+            playMark()
+            setLibMarks(prev => {
+              let next = new Map(prev)
+              let current = next.get(key) || 0
+              let nextVal = current >= 6 ? 0 : current + 1
+              if (nextVal === 0) next.delete(key)
+              else next.set(key, nextVal)
+              return next
+            })
+          } else if (!eng.finished) {
+            if (eng.showingMove) {
+              eng.activateQuestions()
+              if (!eng.libertyExerciseActive && !eng.finished) {
+                eng.advance()
+                if (eng.showingMove) playStoneClick()
+              }
+            } else {
+              eng.advance()
+              if (eng.showingMove) playStoneClick()
+            }
+          }
         } else if (evt.a) {
           if (!eng.finished && !eng.libertyExerciseActive) {
             if (eng.showingMove) {
@@ -546,24 +577,32 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
             </>
           : seqIdx > 0
             ? <div class="replay-exit-hint">Move {seqIdx}/{engine.moveIndex} — tap to advance</div>
-            : <>
-                {engine.libertyExerciseActive
-                  ? <div class="action-hint">Tap stones to label liberty counts, then <span class="hint-blue">Done</span></div>
-                  : !engine.finished
-                    ? <div class="action-hint">Tap board for the next move{engine.showingMove ? '. Remember the sequence.' : ''}</div>
-                    : null}
-                {engine.finished && !replayMode && <StatsBar sgfId={sgfId} onReplay={startReplay} />}
-                <div class="bottom-bar-row">
-                  <button class="bar-btn" title="Return to library (Esc)" onClick={onBack}>&#x25C2; Back</button>
-                  <button class="bar-btn" title={`Sound ${soundOn ? 'on' : 'off'}`} onClick={() => { setSoundOn(toggleSound()) }}>{soundOn ? '\uD83D\uDD0A' : '\uD83D\uDD07'}</button>
-                  {engine.libertyExerciseActive && <button class="bar-btn" title="Replay the move sequence" onClick={startShowSequence}>&#x25B6; Replay</button>}
-                  {engine.libertyExerciseActive && <button class="next-hero" title="Submit (Space/Enter)" onClick={submitExercise}>Done</button>}
-                  {preSolve && !engine.libertyExerciseActive && <button class="bar-btn mark-solved-btn" title={wasSolved ? 'Remove solved mark' : 'Skip and mark as solved (Enter)'} onClick={toggleSolved}>{wasSolved ? 'Mark as unsolved' : 'Mark as solved'}</button>}
-                  {engine.finished && <button class="bar-btn" title={showSeqStones ? 'Hide sequence stones' : 'Show sequence stones'} onClick={() => setShowSeqStones(v => !v)}>{showSeqStones ? '\u25CB' : '\u25CF'}</button>}
-                  {engine.finished && <button class="bar-btn" title="Restart this problem (R)" onClick={onRetry}>Retry</button>}
-                  {engine.finished && <button class="next-hero" title="Next unsolved problem (Enter)" onClick={onNextUnsolved}>Next</button>}
-                </div>
-              </>
+            : confirmExit
+              ? <>
+                  <div class="action-hint">Exit this problem?</div>
+                  <div class="bottom-bar-row">
+                    <button class="bar-btn" onClick={() => setConfirmExit(false)}>Cancel</button>
+                    <button class="next-hero" onClick={onBack}>Exit</button>
+                  </div>
+                </>
+              : <>
+                  {engine.libertyExerciseActive
+                    ? <div class="action-hint">Tap stones to label liberty counts, then <span class="hint-blue">Done</span></div>
+                    : !engine.finished
+                      ? <div class="action-hint">Tap board for the next move{engine.showingMove ? '. Remember the sequence.' : ''}</div>
+                      : null}
+                  {engine.finished && !replayMode && <StatsBar sgfId={sgfId} onReplay={startReplay} />}
+                  <div class="bottom-bar-row">
+                    <button class="bar-btn" title="Return to library (Esc)" onClick={tryBack}>&#x25C2; Back</button>
+                    <button class="bar-btn" title={`Sound ${soundOn ? 'on' : 'off'}`} onClick={() => { setSoundOn(toggleSound()) }}>{soundOn ? '\uD83D\uDD0A' : '\uD83D\uDD07'}</button>
+                    {engine.libertyExerciseActive && <button class="bar-btn" title="Replay the move sequence" onClick={startShowSequence}>&#x25B6; Replay</button>}
+                    {engine.libertyExerciseActive && <button class="next-hero" title="Submit (Space/Enter)" onClick={submitExercise}>Done</button>}
+                    {preSolve && !engine.libertyExerciseActive && <button class="bar-btn mark-solved-btn" title={wasSolved ? 'Remove solved mark' : 'Skip and mark as solved (Enter)'} onClick={toggleSolved}>{wasSolved ? 'Mark as unsolved' : 'Mark as solved'}</button>}
+                    {engine.finished && <button class="bar-btn" title={showSeqStones ? 'Hide sequence stones' : 'Show sequence stones'} onClick={() => setShowSeqStones(v => !v)}>{showSeqStones ? '\u25CB' : '\u25CF'}</button>}
+                    {engine.finished && <button class="bar-btn" title="Restart this problem (R)" onClick={onRetry}>Retry</button>}
+                    {engine.finished && <button class="next-hero" title="Next unsolved problem (Enter)" onClick={onNextUnsolved}>Next</button>}
+                  </div>
+                </>
         }
       </div>
     </div>
