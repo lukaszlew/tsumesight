@@ -85,6 +85,30 @@ body {
   transform: scale(0.97);
 }
 
+.done-hero {
+  display: block;
+  width: 100%;
+  max-width: 400px;
+  margin: 0.5rem auto 0;
+  padding: 0.9rem 2rem;
+  background: #4af;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1.3rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  transition: all 0.15s ease;
+}
+.done-hero:hover {
+  background: #5bf;
+  box-shadow: 0 0 12px rgba(70,140,255,.3);
+}
+.done-hero:active {
+  transform: scale(0.97);
+}
+
 /* Hamburger menu */
 .menu-wrap {
   position: absolute;

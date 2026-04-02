@@ -559,6 +559,8 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
         </div>
       </div>
 
+      {engine.libertyExerciseActive && <button class="done-hero" title="Submit (Space/Enter)" onClick={submitExercise}>Done</button>}
+
       <div class="bottom-bar">
         {replayMode
           ? <>
@@ -595,7 +597,6 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
                     <button class="bar-btn" title="Return to library (Esc)" onClick={tryBack}>&#x25C2; Back</button>
                     <button class="bar-btn" title={`Sound ${soundOn ? 'on' : 'off'}`} onClick={() => { setSoundOn(toggleSound()) }}>{soundOn ? '\uD83D\uDD0A' : '\uD83D\uDD07'}</button>
                     {engine.libertyExerciseActive && <button class="bar-btn" title="Replay the move sequence" onClick={startShowSequence}>&#x25B6; Replay</button>}
-                    {engine.libertyExerciseActive && <button class="next-hero" title="Submit (Space/Enter)" onClick={submitExercise}>Done</button>}
                     {preSolve && !engine.libertyExerciseActive && <button class="bar-btn mark-solved-btn" title={wasSolved ? 'Remove solved mark' : 'Skip and mark as solved (Enter)'} onClick={toggleSolved}>{wasSolved ? 'Mark as unsolved' : 'Mark as solved'}</button>}
                     {engine.finished && <button class="bar-btn" title={showSeqStones ? 'Hide sequence stones' : 'Show sequence stones'} onClick={() => setShowSeqStones(v => !v)}>{showSeqStones ? '\u25CB' : '\u25CF'}</button>}
                     {engine.finished && <button class="bar-btn" title="Restart this problem (R)" onClick={onRetry}>Retry</button>}
