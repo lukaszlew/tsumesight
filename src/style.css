@@ -85,29 +85,6 @@ body {
   transform: scale(0.97);
 }
 
-.done-hero {
-  display: block;
-  width: 100%;
-  max-width: 400px;
-  margin: 0.5rem auto 0;
-  padding: 0.9rem 2rem;
-  background: #4af;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 1.3rem;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  transition: all 0.15s ease;
-}
-.done-hero:hover {
-  background: #5bf;
-  box-shadow: 0 0 12px rgba(70,140,255,.3);
-}
-.done-hero:active {
-  transform: scale(0.97);
-}
 
 /* Hamburger menu */
 .menu-wrap {
@@ -542,6 +519,13 @@ body {
   font-size: calc(2 * var(--s));
   border-radius: calc(0.8 * var(--s));
 }
+.bottom-bar .next-hero {
+  padding: calc(1.2 * var(--s)) calc(2.5 * var(--s));
+  font-size: calc(2.2 * var(--s));
+  border-radius: calc(0.8 * var(--s));
+  width: 80%;
+  margin: 0 auto calc(1 * var(--s));
+}
 .bottom-bar-row .next-hero {
   width: auto;
   flex: 1;
@@ -572,7 +556,7 @@ body {
   width: 100%;
   height: 90%;
   align-self: center;
-  overflow: hidden;
+  overflow: visible;
 }
 
 /* High score table */

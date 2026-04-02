@@ -559,8 +559,6 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
         </div>
       </div>
 
-      {engine.libertyExerciseActive && <button class="done-hero" title="Submit (Space/Enter)" onClick={submitExercise}>Done</button>}
-
       <div class="bottom-bar">
         {replayMode
           ? <>
@@ -592,6 +590,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
                     : !engine.finished
                       ? <div class="action-hint">Tap board for the next move{engine.showingMove ? '. Remember the sequence.' : ''}</div>
                       : null}
+                  {engine.libertyExerciseActive && <button class="next-hero" title="Submit (Space/Enter)" onClick={submitExercise}>Done</button>}
                   {engine.finished && !replayMode && <StatsBar sgfId={sgfId} onReplay={startReplay} />}
                   <div class="bottom-bar-row">
                     <button class="bar-btn" title="Return to library (Esc)" onClick={tryBack}>&#x25C2; Back</button>
