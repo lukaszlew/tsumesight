@@ -37,6 +37,8 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
 
   // Liberty exercise state: Map<vertexKey, number> — user's label (1-5) per stone
   let [libMarks, setLibMarks] = useState(() => new Map())
+  // Feedback after Done press: null or array per changed group: {status, group, userVertex, userVal} | null
+  let [libFeedback, setLibFeedback] = useState(null)
 
   // Replay recording
   let replayEventsRef = useRef([])
@@ -127,6 +129,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     resetStreak()
     solvedRef.current = false
     setLibMarks(new Map())
+    setLibFeedback(null)
     setWrongFlash(false)
     replayDataRef.current = events
     setReplayProgress({ index: 0, total: events.length, elapsed: 0, totalMs: events[events.length - 1]?.t || 0 })
@@ -141,6 +144,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     setReplayModeSync(false)
     replayDataRef.current = null
     setLibMarks(new Map())
+    setLibFeedback(null)
     setReplayFinished(false)
     setReplayProgress({ index: 0, total: 0, elapsed: 0, totalMs: 0 })
     // Restore saved engine and state
@@ -161,6 +165,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     resetStreak()
     solvedRef.current = false
     setLibMarks(new Map())
+    setLibFeedback(null)
     setWrongFlash(false)
     setReplayProgress({ index: 0, total: events.length, elapsed: 0, totalMs: events[events.length - 1]?.t || 0 })
     setReplayFinished(false)
@@ -204,6 +209,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       }
       if (engine.libertyExerciseActive) {
         setLibMarks(new Map())
+        setLibFeedback(null)
       }
     } else {
       engine.advance()
@@ -215,13 +221,35 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
 
   let submitExercise = useCallback(() => {
     if (!engine.libertyExerciseActive) return
-    recordEvent({ ex: Object.fromEntries(libMarks) })
-    let result = engine.submitLibertyExercise(libMarks)
-    if (result.correctCount === result.total) playCorrect()
-    engine.advance() // finish
-    let total = engine.questionsPerMove.reduce((a, b) => a + b, 0)
-    onProgress({ correct: engine.correct, done: engine.results.length, total })
-    checkFinished()
+
+    let exercise = engine.libertyExercise
+    let changedGroups = exercise.groups.filter(g => g.changed)
+    let feedback = changedGroups.map(g => {
+      let target = Math.min(g.libCount, config.maxLibertyLabel)
+      let userVertex = null, userVal = null
+      for (let k of g.chainKeys) {
+        if (libMarks.has(k)) { userVertex = k; userVal = libMarks.get(k); break }
+      }
+      if (userVertex === null) return { status: 'missed', group: g }
+      if (userVal === target) return { status: 'correct', group: g, userVertex, userVal }
+      return { status: 'wrong', group: g, userVertex, userVal }
+    })
+
+    if (feedback.every(f => f.status === 'correct')) {
+      recordEvent({ ex: Object.fromEntries(libMarks) })
+      engine.submitLibertyExercise(libMarks)
+      playCorrect()
+      engine.advance()
+      let total = engine.questionsPerMove.reduce((a, b) => a + b, 0)
+      onProgress({ correct: engine.correct, done: engine.results.length, total })
+      setLibFeedback(null)
+      checkFinished()
+    } else {
+      playWrong()
+      setWrongFlash(true)
+      setTimeout(() => setWrongFlash(false), 150)
+      setLibFeedback(feedback)
+    }
     rerender()
   }, [libMarks])
 
@@ -246,6 +274,33 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     let lockedGroup = exercise.groups.find(g => !g.changed && g.chainKeys.has(key))
     if (lockedGroup) return // locked, can't change
 
+    // Feedback mode: handle taps on checked groups
+    if (libFeedback) {
+      let changedGroups = exercise.groups.filter(g => g.changed)
+      let feedbackIdx = changedGroups.findIndex(g => g.chainKeys.has(key))
+      if (feedbackIdx !== -1) {
+        let fb = libFeedback[feedbackIdx]
+        if (fb?.status === 'correct') return // correct groups are locked
+        if (fb) {
+          // Wrong or missed: reset to 1, clear feedback for this group
+          recordEvent({ v: vertex })
+          playMark(1)
+          setLibMarks(prev => {
+            let next = new Map(prev)
+            for (let k of changedGroups[feedbackIdx].chainKeys) next.delete(k)
+            next.set(key, 1)
+            return next
+          })
+          setLibFeedback(prev => {
+            let next = [...prev]
+            next[feedbackIdx] = null
+            return next
+          })
+          return
+        }
+      }
+    }
+
     recordEvent({ v: vertex })
     let current = libMarks.get(key) || 0
     let nextVal = current >= config.maxLibertyLabel ? 0 : current + 1
@@ -256,7 +311,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       else next.set(key, nextVal)
       return next
     })
-  }, [advance, libMarks, submitExercise])
+  }, [advance, libMarks, libFeedback, submitExercise])
 
   let tryBack = useCallback(() => {
     if (confirmExit || engine.finished) { onBack(); return }
@@ -511,10 +566,42 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
         let [x, y] = g.vertex
         markerMap[y][x] = { type: 'label', label: libLabel(g.libCount) }
       }
-      // User marks
-      for (let [key, val] of libMarks) {
-        let [mx, my] = key.split(',').map(Number)
-        markerMap[my][mx] = { type: 'label', label: libLabel(val) }
+
+      if (libFeedback) {
+        // Feedback mode: show green/red/? for checked groups
+        let changedGroups = exercise.groups.filter(g => g.changed)
+        for (let i = 0; i < changedGroups.length; i++) {
+          let fb = libFeedback[i]
+          let g = changedGroups[i]
+          if (!fb) {
+            // Cleared by tap: show user's current marks normally
+            for (let k of g.chainKeys) {
+              if (libMarks.has(k)) {
+                let [mx, my] = k.split(',').map(Number)
+                markerMap[my][mx] = { type: 'label', label: libLabel(libMarks.get(k)) }
+              }
+            }
+          } else if (fb.status === 'correct') {
+            let [mx, my] = fb.userVertex.split(',').map(Number)
+            markerMap[my][mx] = { type: 'label', label: libLabel(fb.userVal) }
+            paintMap[my][mx] = 1
+          } else if (fb.status === 'wrong') {
+            let [mx, my] = fb.userVertex.split(',').map(Number)
+            markerMap[my][mx] = { type: 'label', label: libLabel(fb.userVal) }
+            paintMap[my][mx] = -1
+          } else {
+            // missed
+            let [x, y] = g.vertex
+            markerMap[y][x] = { type: 'label', label: '?' }
+            paintMap[y][x] = -1
+          }
+        }
+      } else {
+        // No feedback: show user marks normally
+        for (let [key, val] of libMarks) {
+          let [mx, my] = key.split(',').map(Number)
+          markerMap[my][mx] = { type: 'label', label: libLabel(val) }
+        }
       }
     }
   }
@@ -541,7 +628,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       <div class="board-row" ref={boardRowRef}>
         {replayMode && <div class="replay-indicator">REPLAY</div>}
         {seqIdx > 0 && <div class="replay-indicator">SEQUENCE</div>}
-        <div class={`board-container${wrongFlash ? ' wrong-flash' : ''}${engine.finished && !replayMode ? ' finished' : ''}`}>
+        <div class={`board-container${wrongFlash ? ' wrong-flash' : ''}${engine.finished && !replayMode ? ' finished' : ''}${libFeedback ? ' lib-feedback' : ''}`}>
           {vertexSize > 0 && <Goban
             vertexSize={vertexSize}
             signMap={signMap}
@@ -585,7 +672,10 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
                 </>
               : <>
                   {engine.libertyExerciseActive
-                    ? <div class="action-hint">Tap stones to label liberty counts, then <span class="hint-blue">Done</span></div>
+                    ? <div class="action-hint">{libFeedback
+                        ? <>Tap red labels to fix, then <span class="hint-blue">Done</span></>
+                        : <>Tap stones to label liberty counts, then <span class="hint-blue">Done</span></>
+                      }</div>
                     : !engine.finished
                       ? <div class="action-hint">Tap board for the next move{engine.showingMove ? '. Remember the sequence.' : ''}</div>
                       : null}

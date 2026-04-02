@@ -758,17 +758,20 @@ body {
   transform: translate(-50%, -50%);
 }
 
-/* Finished review: hide paint overlay, use paint class for label coloring */
-.board-container.finished .shudan-paint {
+/* Finished review / feedback: hide paint overlay, use paint class for label coloring */
+.board-container.finished .shudan-paint,
+.board-container.lib-feedback .shudan-paint {
   display: none;
 }
 /* Correct marks: green */
-.board-container.finished .shudan-vertex.shudan-paint_1 .shudan-marker {
+.board-container.finished .shudan-vertex.shudan-paint_1 .shudan-marker,
+.board-container.lib-feedback .shudan-vertex.shudan-paint_1 .shudan-marker {
   color: #0c0 !important;
   -webkit-text-stroke: .03em #060;
 }
 /* Wrong marks: red */
-.board-container.finished .shudan-vertex.shudan-paint_-1 .shudan-marker {
+.board-container.finished .shudan-vertex.shudan-paint_-1 .shudan-marker,
+.board-container.lib-feedback .shudan-vertex.shudan-paint_-1 .shudan-marker {
   color: #f44 !important;
   -webkit-text-stroke: .03em #800;
 }
