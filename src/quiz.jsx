@@ -32,7 +32,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   let loadTimeRef = useRef(performance.now())
   let [wrongFlash, setWrongFlash] = useState(false)
   let [soundOn, setSoundOn] = useState(() => isSoundEnabled())
-  let [showSeqStones, setShowSeqStones] = useState(true)
+  let [showSeqStones, setShowSeqStones] = useState(false)
   let [confirmExit, setConfirmExit] = useState(false)
 
   // Liberty exercise state: Map<vertexKey, number> — user's label (1-5) per stone
