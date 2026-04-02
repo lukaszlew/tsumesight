@@ -195,8 +195,10 @@ export function computeRange(sgfString) {
   minY = Math.max(0, minY - 1)
   maxY = Math.min(size - 1, maxY + 1)
 
-  // If range covers nearly the full board, just show full
-  if (maxX - minX >= size - 2 && maxY - minY >= size - 2) return null
+  // If a dimension spans 16+, expand it to full board
+  if (maxX - minX >= 15) { minX = 0; maxX = size - 1 }
+  if (maxY - minY >= 15) { minY = 0; maxY = size - 1 }
+  if (minX === 0 && maxX === size - 1 && minY === 0 && maxY === size - 1) return null
 
   return [minX, minY, maxX, maxY]
 }
