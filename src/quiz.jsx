@@ -476,7 +476,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
             markerMap[my][mx] = { type: 'label', label: libLabel(userVal) }
             paintMap[my][mx] = correct ? 1 : -1
           } else {
-            // Missed: show "?" on representative vertex, red
+            // Missed: show red "?" on representative vertex
             let [x, y] = g.vertex
             markerMap[y][x] = { type: 'label', label: '?' }
             paintMap[y][x] = -1
