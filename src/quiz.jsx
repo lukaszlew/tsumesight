@@ -178,8 +178,22 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   }
 
   function startShowSequence() {
-    seqSavedRef.current = { libMarks }
+    // If already in sequence mode, restore first
+    if (seqSavedRef.current) {
+      let saved = seqSavedRef.current
+      engineRef.current = saved.engine
+      setLibMarks(saved.libMarks)
+      setLibFeedback(saved.libFeedback)
+    }
+    seqSavedRef.current = { engine: engineRef.current, libMarks, libFeedback }
+    let tempEngine = new QuizEngine(sgf, true, maxQ)
+    tempEngine.advance()
+    engineRef.current = tempEngine
+    setLibMarks(new Map())
+    setLibFeedback(null)
     setSeqIdx(1)
+    playStoneClick()
+    rerender()
   }
 
   function exitShowSequence() {
@@ -187,16 +201,28 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     seqSavedRef.current = null
     setSeqIdx(0)
     if (saved) {
+      engineRef.current = saved.engine
       setLibMarks(saved.libMarks)
+      setLibFeedback(saved.libFeedback)
     }
+    rerender()
   }
 
   function advanceShowSequence() {
-    let targetIdx = engineRef.current.moveIndex
-    setSeqIdx(prev => {
-      if (prev >= targetIdx) { exitShowSequence(); return 0 }
-      return prev + 1
-    })
+    let eng = engineRef.current
+    if (eng.showingMove) {
+      eng.activateQuestions()
+      if (eng.libertyExerciseActive || eng.finished) { exitShowSequence(); return }
+      eng.advance()
+      if (eng.showingMove) playStoneClick()
+    } else if (!eng.finished) {
+      eng.advance()
+      if (eng.showingMove) playStoneClick()
+    } else {
+      exitShowSequence()
+      return
+    }
+    rerender()
   }
 
   let advance = useCallback(() => {
@@ -474,19 +500,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   let size = engine.boardSize
   let signMap, markerMap, ghostStoneMap, paintMap
 
-  if (seqIdx > 0) {
-    // Show base position + only the current move stone (like during the quiz)
-    signMap = engine.baseSignMap.map(row => [...row])
-    markerMap = makeEmptyMap(size)
-    ghostStoneMap = makeEmptyMap(size)
-    paintMap = makeEmptyMap(size)
-    let move = engine.moves[seqIdx - 1]
-    if (move) {
-      let [x, y] = move.vertex
-      signMap[y][x] = move.sign
-      markerMap[y][x] = { type: 'label', label: String(seqIdx) }
-    }
-  } else if (engine.finished && !replayMode) {
+  if (engine.finished && !replayMode && seqIdx === 0) {
     signMap = (showSeqStones ? engine.trueBoard.signMap : engine.initialBoard.signMap).map(row => [...row])
     markerMap = makeEmptyMap(size)
     ghostStoneMap = makeEmptyMap(size)
@@ -619,7 +633,6 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     <div class="quiz">
       <div class="board-row" ref={boardRowRef}>
         {replayMode && <div class="replay-indicator">REPLAY</div>}
-        {seqIdx > 0 && <div class="replay-indicator">SEQUENCE</div>}
         <div class={`board-container${wrongFlash ? ' wrong-flash' : ''}${engine.finished && !replayMode ? ' finished' : ''}${libFeedback ? ' lib-feedback' : ''}`}>
           {vertexSize > 0 && <Goban
             vertexSize={vertexSize}
@@ -652,9 +665,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
                 <button class="bar-btn" title="Exit replay (Esc)" onClick={exitReplayEarly}>Exit</button>
               </div>
             </>
-          : seqIdx > 0
-            ? <div class="replay-exit-hint">Move {seqIdx}/{engine.moveIndex} — tap to advance</div>
-            : confirmExit
+          : confirmExit
               ? <>
                   <div class="action-hint">Exit this problem?</div>
                   <div class="bottom-bar-row">
@@ -663,20 +674,22 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
                   </div>
                 </>
               : <>
-                  {engine.libertyExerciseActive
-                    ? <div class="action-hint">{libFeedback
-                        ? <>Tap red labels to fix, then <span class="hint-blue">Done</span></>
-                        : <>Tap stones to label liberty counts, then <span class="hint-blue">Done</span></>
-                      }</div>
-                    : !engine.finished
-                      ? <div class="action-hint">Tap board for the next move{engine.showingMove ? '. Remember the sequence.' : ''}</div>
-                      : null}
+                  {seqIdx > 0
+                    ? <div class="action-hint">Move {engine.moveIndex}/{engine.totalMoves} — tap to advance</div>
+                    : engine.libertyExerciseActive
+                      ? <div class="action-hint">{libFeedback
+                          ? <>Tap red labels to fix, then <span class="hint-blue">Done</span></>
+                          : <>Tap stones to label liberty counts, then <span class="hint-blue">Done</span></>
+                        }</div>
+                      : !engine.finished
+                        ? <div class="action-hint">Tap board for the next move{engine.showingMove ? '. Remember the sequence.' : ''}</div>
+                        : null}
                   {engine.libertyExerciseActive && <button class="next-hero" title="Submit (Space/Enter)" onClick={submitExercise}>Done</button>}
                   {engine.finished && !replayMode && <StatsBar sgfId={sgfId} onReplay={startReplay} />}
                   <div class="bottom-bar-row">
                     <button class="bar-btn" title="Return to library (Esc)" onClick={tryBack}>&#x25C2; Back</button>
                     <button class="bar-btn" title={`Sound ${soundOn ? 'on' : 'off'}`} onClick={() => { setSoundOn(toggleSound()) }}>{soundOn ? '\uD83D\uDD0A' : '\uD83D\uDD07'}</button>
-                    {engine.libertyExerciseActive && <button class="bar-btn" title="Replay the move sequence" onClick={startShowSequence}>&#x25B6; Replay</button>}
+                    {!engine.finished && <button class="bar-btn" title="Restart the move sequence" onClick={startShowSequence}>&#x21BB; Restart</button>}
                     {preSolve && !engine.libertyExerciseActive && <button class="bar-btn mark-solved-btn" title={wasSolved ? 'Remove solved mark' : 'Skip and mark as solved (Enter)'} onClick={toggleSolved}>{wasSolved ? 'Mark as unsolved' : 'Mark as solved'}</button>}
                     {engine.finished && <button class="bar-btn eye-toggle" title={showSeqStones ? 'Hide sequence stones' : 'Show sequence stones'} onClick={() => setShowSeqStones(v => !v)}>{showSeqStones ? '\u{1F441}' : '\u{1F9E0}'}</button>}
                     {engine.finished && <button class="bar-btn" title="Restart this problem (R)" onClick={onRetry}>Retry</button>}
