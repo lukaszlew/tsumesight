@@ -447,6 +447,27 @@ describe('QuizEngine', () => {
       expect(deGroup.changed).toBe(true) // new group
     })
 
+    it('marks group changed when libs varied during sequence even if final matches initial', () => {
+      // Setup: black at ee (4 libs). Moves: W[de] (ee→3 libs), B[df] (ee→4 libs again)
+      // ee ends with 4 libs same as initial, but changed mid-sequence
+      let engine = new QuizEngine('(;SZ[9]AB[ee];W[de];B[df])')
+      engine.advance()
+      engine.advance(); engine.activateQuestions()
+      let groups = engine.libertyExercise.groups
+      let eeGroup = groups.find(g => [...g.chainKeys].includes('4,4'))
+      expect(eeGroup.changed).toBe(true) // changed mid-sequence even though final = initial
+    })
+
+    it('marks group unchanged when libs never varied during sequence', () => {
+      // Setup: black at aa (2 libs). Moves far away: B[ee], W[ff]
+      let engine = new QuizEngine('(;SZ[9]AB[aa];B[ee];W[ff])')
+      engine.advance()
+      engine.advance(); engine.activateQuestions()
+      let groups = engine.libertyExercise.groups
+      let aaGroup = groups.find(g => [...g.chainKeys].includes('0,0'))
+      expect(aaGroup.changed).toBe(false)
+    })
+
     it('clears staleness on materialize', () => {
       let engine = new QuizEngine(simpleSgf)
       engine.advance()

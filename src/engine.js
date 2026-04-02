@@ -72,6 +72,7 @@ export class QuizEngine {
     this.showWindow = 1 // how many recent stones visible during show phase
     this.finished = false
     this.questionsAsked = [] // per move: [{vertex, libCount}...]
+    this.boardHistory = [] // trueBoard after each move (for intermediate lib tracking)
 
     // Precompute question counts per move (ideal play, no wrong answers)
     if (_precompute) {
@@ -120,6 +121,8 @@ export class QuizEngine {
       this.libertyExerciseActive = false
       return null
     }
+
+    this.boardHistory.push(this.trueBoard)
 
     // Track as invisible (not shown on base display)
     let key = vertexKey(move.vertex)
@@ -318,7 +321,7 @@ export class QuizEngine {
 
   // Enumerate all groups on final board.
   // Each group: { vertex (representative), chainKeys, libCount, changed }.
-  // changed = liberty count differs from initial position or group is new.
+  // changed = liberty count changed at any point during the variation.
   _setupLibertyExercise() {
     // Map initial groups: vertexSetKey → libCount
     let initialGroups = new Map()
@@ -349,8 +352,21 @@ export class QuizEngine {
         let libCount = this.trueBoard.getLiberties(v).length
         let vSetKey = chain.map(vertexKey).sort().join(';')
         let initialLibCount = initialGroups.get(vSetKey)
-        // Changed if: new group (not in initial) or liberty count changed
+        // Changed if: new group, or liberty count differs from initial or any intermediate state
         let changed = initialLibCount === undefined || initialLibCount !== libCount
+        if (!changed) {
+          // Same chain and libs as initial — check intermediate boards
+          for (let i = 0; i < this.boardHistory.length - 1; i++) {
+            let board = this.boardHistory[i]
+            let ref = chain[0]
+            if (board.get(ref) === 0) { changed = true; break }
+            let midChain = board.getChain(ref)
+            let midKey = midChain.map(vertexKey).sort().join(';')
+            if (midKey !== vSetKey || board.getLiberties(ref).length !== libCount) {
+              changed = true; break
+            }
+          }
+        }
         let vertex = chain[Math.floor(this.random() * chain.length)]
         groups.push({ vertex, chainKeys, libCount, changed })
       }
