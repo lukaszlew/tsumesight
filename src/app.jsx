@@ -30,7 +30,11 @@ class ErrorBoundary extends Component {
 
 export function App() {
   const [position, setPosition] = useState(null)
-  const [active, setActive] = useState(null) // never restore quiz on cold load
+  const [active, setActive] = useState(() => {
+    let saved = kv('activeSgf')
+    if (!saved) return null
+    try { return JSON.parse(saved) } catch { return null }
+  })
   const [cwd, setCwd] = useState(() => kv('lastPath', ''))
 
   async function refreshPosition(id, path) {
