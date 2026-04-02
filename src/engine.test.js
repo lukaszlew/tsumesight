@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { QuizEngine } from './engine.js'
+import config from './config.js'
 
 // Simple 9x9 game: 3 non-pass moves (questions only on last move)
 let simpleSgf = '(;SZ[9];B[ee];W[ce];B[gc])'
@@ -20,7 +21,7 @@ let passSgf = '(;SZ[9];B[ee];W[];B[dd])'
 function correctMarks(engine) {
   let marks = new Map()
   for (let g of engine.libertyExercise.groups.filter(g => g.changed))
-    marks.set([...g.chainKeys][0], Math.min(g.libCount, 6))
+    marks.set([...g.chainKeys][0], Math.min(g.libCount, config.maxLibertyLabel))
   return marks
 }
 
@@ -244,7 +245,7 @@ describe('QuizEngine', () => {
       marks.set('4,3', Math.min(bGroup.libCount, 6))
       // Mark other changed groups correctly too
       for (let g of groups.filter(g => g.changed && g !== bGroup))
-        marks.set([...g.chainKeys][0], Math.min(g.libCount, 6))
+        marks.set([...g.chainKeys][0], Math.min(g.libCount, config.maxLibertyLabel))
       engine.submitLibertyExercise(marks)
       let bIdx = groups.filter(g => g.changed).indexOf(bGroup)
       expect(engine.results[bIdx]).toBe(true)

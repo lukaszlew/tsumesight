@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest'
 import { render } from '@testing-library/preact'
 import { Goban } from '@sabaki/shudan'
 import { QuizEngine } from './engine.js'
+import config from './config.js'
 
 // Import Shudan CSS so class-based styles are available
 import '@sabaki/shudan/css/goban.css'
@@ -481,7 +482,7 @@ describe('onVertexClick interaction', () => {
 // ============================================================
 
 function libLabel(n) {
-  return n >= 6 ? '6+' : String(n)
+  return n >= config.maxLibertyLabel ? config.maxLibertyLabel + '+' : String(n)
 }
 
 // Build display maps from engine state in finished mode, same as quiz.jsx
@@ -690,7 +691,7 @@ describe('QuizEngine → Goban integration: liberty exercise', () => {
     expect(v.querySelector('.shudan-marker').textContent).toBe('3')
   })
 
-  it('groups with >5 libs show "5+" label when pre-marked', () => {
+  it('groups with >5 libs show capped label when pre-marked', () => {
     // 3 black stones in row: 8 libs. Setup so they exist in initial position too (unchanged)
     let engine = new QuizEngine('(;SZ[9]AB[ee][fe][ge];B[aa])', true, 3)
     engine.advance(); engine.activateQuestions()
@@ -700,7 +701,7 @@ describe('QuizEngine → Goban integration: liberty exercise', () => {
     let c = renderGoban(maps)
     let [bx, by] = bigGroup.vertex
     let v = getVertex(c, bx, by)
-    expect(v.querySelector('.shudan-marker').textContent).toBe('6+')
+    expect(v.querySelector('.shudan-marker').textContent).toBe(config.maxLibertyLabel + '+')
   })
 })
 

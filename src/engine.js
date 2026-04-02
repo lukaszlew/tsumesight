@@ -1,5 +1,6 @@
 import Board from '@sabaki/go-board'
 import { parseSgf, computeRange } from './sgf-utils.js'
+import config from './config.js'
 
 function mulberry32(seed) {
   return function() {
@@ -160,7 +161,7 @@ export class QuizEngine {
 
     for (let i = 0; i < changedGroups.length; i++) {
       let g = changedGroups[i]
-      let target = Math.min(g.libCount, 6)
+      let target = Math.min(g.libCount, config.maxLibertyLabel)
       let markedCorrectly = false
       for (let k of g.chainKeys) {
         if (marks.get(k) === target) { markedCorrectly = true; break }
@@ -377,7 +378,7 @@ export class QuizEngine {
       let g = changedGroups[i]
       let wasCorrect = i < history.length ? history[i] : false
       if (wasCorrect) {
-        marks.set([...g.chainKeys][0], Math.min(g.libCount, 6))
+        marks.set([...g.chainKeys][0], Math.min(g.libCount, config.maxLibertyLabel))
       }
     }
 

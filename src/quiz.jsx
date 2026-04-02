@@ -16,7 +16,7 @@ function transpose(map) {
 }
 
 function libLabel(n) {
-  return n >= 6 ? '6+' : String(n)
+  return n >= config.maxLibertyLabel ? config.maxLibertyLabel + '+' : String(n)
 }
 
 export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsolved, onProgress, onLoadError, onNextUnsolved, onRetry }) {
@@ -251,7 +251,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     setLibMarks(prev => {
       let next = new Map(prev)
       let current = next.get(key) || 0
-      let nextVal = current >= 6 ? 0 : current + 1
+      let nextVal = current >= config.maxLibertyLabel ? 0 : current + 1
       if (nextVal === 0) next.delete(key)
       else next.set(key, nextVal)
       return next
@@ -352,7 +352,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
             setLibMarks(prev => {
               let next = new Map(prev)
               let current = next.get(key) || 0
-              let nextVal = current >= 6 ? 0 : current + 1
+              let nextVal = current >= config.maxLibertyLabel ? 0 : current + 1
               if (nextVal === 0) next.delete(key)
               else next.set(key, nextVal)
               return next
