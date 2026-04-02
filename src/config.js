@@ -14,5 +14,6 @@ export default {
   //   'repeat'   — N short beeps for N, longer tone for max+
   //   'interval' — rising musical interval: 1=unison, max+=octave
   //   'pluck'    — plucked string with different timbre per number
-  markSoundMode: 'repeat',
+  //   'interval_pluck' — interval frequencies with plucked string timbre
+  markSoundMode: 'interval_pluck',
 }

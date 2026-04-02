@@ -76,6 +76,7 @@ export function playMark(value) {
   if (mode === 'repeat') playMarkRepeat(value, max)
   else if (mode === 'interval') playMarkInterval(value, max)
   else if (mode === 'pluck') playMarkPluck(value, max)
+  else if (mode === 'interval_pluck') playMarkIntervalPluck(value, max)
 }
 
 function playMarkRepeat(value, max) {
@@ -156,6 +157,39 @@ function playMarkPluck(value, max) {
     gain.connect(c.destination)
     osc.start()
     osc.stop(c.currentTime + decay)
+  }
+}
+
+function pluckNote(c, freq, vol, decay) {
+  let harmonics = [1, 2, 3, 4, 5]
+  for (let h of harmonics) {
+    let osc = c.createOscillator()
+    let gain = c.createGain()
+    osc.type = 'sine'
+    osc.frequency.value = freq * h
+    let hVol = vol / (h * h)
+    let hDecay = decay / h
+    gain.gain.setValueAtTime(hVol, c.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + hDecay)
+    osc.connect(gain)
+    gain.connect(c.destination)
+    osc.start()
+    osc.stop(c.currentTime + hDecay)
+  }
+}
+
+function playMarkIntervalPluck(value, max) {
+  if (value === 0) {
+    playTone(300, 0.15, 'sine', 0.12)
+    return
+  }
+  let c = getCtx()
+  // Interval: unison to octave, rendered as plucked strings
+  let ratio = 1 + (value - 1) / (max - 1)
+  let base = 330
+  let notes = [base, base * ratio]
+  for (let freq of notes) {
+    pluckNote(c, freq, 0.12, 0.2)
   }
 }
 
