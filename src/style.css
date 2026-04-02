@@ -289,19 +289,19 @@ body {
   overflow: hidden;
 }
 .dir-header-tile {
-  background: #1a2a3a;
+  background: #0e1820;
   border: 1px solid #2a3a4a;
-  border-top: 2px solid #4a7ab0;
+  border-left: 3px solid #667;
   padding: 0;
   height: 4.5rem;
   display: flex;
   align-items: stretch;
   overflow: hidden;
   border-radius: 6px;
-  margin-bottom: 0.5rem;
+  margin-bottom: 1rem;
 }
 .dir-header-tile .tile-name {
-  color: #8ac;
+  color: #9aa;
   font-weight: 600;
   white-space: normal;
   line-height: 1.3;
