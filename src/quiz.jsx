@@ -3,6 +3,7 @@ import { Goban } from '@sabaki/shudan'
 import { QuizEngine } from './engine.js'
 import { playCorrect, playWrong, playComplete, playStoneClick, playMark, resetStreak, isSoundEnabled, toggleSound } from './sounds.js'
 import { kv, kvRemove, getScores, addReplay, getReplay } from './db.js'
+import config from './config.js'
 
 function makeEmptyMap(size, fill = null) {
   return Array.from({ length: size }, () => Array(size).fill(fill))
@@ -71,6 +72,9 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     resetStreak()
     try {
       engineRef.current = new QuizEngine(sgf, true, maxQ)
+      if (config.autoShowFirstMove) {
+        engineRef.current.advance()
+      }
     } catch (e) {
       kvRemove('quizHistory')
       setError(e.message)
@@ -214,11 +218,6 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     recordEvent({ ex: Object.fromEntries(libMarks) })
     let result = engine.submitLibertyExercise(libMarks)
     if (result.correctCount === result.total) playCorrect()
-    else {
-      playWrong()
-      setWrongFlash(true)
-      setTimeout(() => setWrongFlash(false), 150)
-    }
     engine.advance() // finish
     let total = engine.questionsPerMove.reduce((a, b) => a + b, 0)
     onProgress({ correct: engine.correct, done: engine.results.length, total })
