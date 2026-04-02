@@ -189,7 +189,7 @@ function playMarkIntervalPluck(value, max) {
   let base = 330
   let notes = [base, base * ratio]
   for (let freq of notes) {
-    pluckNote(c, freq, 0.12, 0.2)
+    pluckNote(c, freq, 0.06, 0.2)
   }
 }
 
