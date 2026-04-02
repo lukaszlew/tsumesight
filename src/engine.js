@@ -308,8 +308,9 @@ export class QuizEngine {
   // Each group: { vertex (representative), chainKeys, libCount, changed }.
   // changed = liberty count differs from initial position or group is new.
   _setupLibertyExercise() {
-    // Map initial groups: vertexSetKey → libCount
+    // Map initial groups: vertexSetKey → libCount, and collect representative vertices
     let initialGroups = new Map()
+    let initialVertices = []
     let visited = new Set()
     for (let y = 0; y < this.boardSize; y++)
       for (let x = 0; x < this.boardSize; x++) {
@@ -321,6 +322,8 @@ export class QuizEngine {
         let vSetKey = chain.map(vertexKey).sort().join(';')
         let libCount = this.initialBoard.getLiberties(v).length
         initialGroups.set(vSetKey, libCount)
+        let rv = chain[Math.floor(this.random() * chain.length)]
+        initialVertices.push(vertexKey(rv))
       }
 
     // Enumerate all groups on final board
@@ -343,7 +346,7 @@ export class QuizEngine {
         groups.push({ vertex, chainKeys, libCount, changed })
       }
 
-    this.libertyExercise = { groups }
+    this.libertyExercise = { groups, initialVertices }
   }
 
 

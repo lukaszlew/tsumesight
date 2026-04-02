@@ -37,6 +37,8 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
 
   // Liberty exercise state: Map<vertexKey, number> — user's label (1-5) per stone
   let [libMarks, setLibMarks] = useState(() => new Map())
+  // Cosmetic "?" hints on initial board groups, dismissed on tap
+  let [dismissedHints, setDismissedHints] = useState(() => new Set())
 
   // Replay recording
   let replayEventsRef = useRef([])
@@ -126,7 +128,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     // Reset transient state
     resetStreak()
     solvedRef.current = false
-    setLibMarks(new Map())
+    setLibMarks(new Map()); setDismissedHints(new Set())
     setWrongFlash(false)
     replayDataRef.current = events
     setReplayProgress({ index: 0, total: events.length, elapsed: 0, totalMs: events[events.length - 1]?.t || 0 })
@@ -140,7 +142,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     if (!savedEngineRef.current) return // guard against double-call
     setReplayModeSync(false)
     replayDataRef.current = null
-    setLibMarks(new Map())
+    setLibMarks(new Map()); setDismissedHints(new Set())
     setReplayFinished(false)
     setReplayProgress({ index: 0, total: 0, elapsed: 0, totalMs: 0 })
     // Restore saved engine and state
@@ -160,7 +162,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     } catch { return }
     resetStreak()
     solvedRef.current = false
-    setLibMarks(new Map())
+    setLibMarks(new Map()); setDismissedHints(new Set())
     setWrongFlash(false)
     setReplayProgress({ index: 0, total: events.length, elapsed: 0, totalMs: events[events.length - 1]?.t || 0 })
     setReplayFinished(false)
@@ -173,7 +175,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   }
 
   function startShowSequence() {
-    seqSavedRef.current = { libMarks }
+    seqSavedRef.current = { libMarks, dismissedHints }
     setSeqIdx(1)
   }
 
@@ -183,6 +185,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     setSeqIdx(0)
     if (saved) {
       setLibMarks(saved.libMarks)
+      setDismissedHints(saved.dismissedHints)
     }
   }
 
@@ -203,7 +206,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
         if (engine.showingMove) playStoneClick()
       }
       if (engine.libertyExerciseActive) {
-        setLibMarks(new Map())
+        setLibMarks(new Map()); setDismissedHints(new Set())
       }
     } else {
       engine.advance()
@@ -247,6 +250,11 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     if (lockedGroup) return // locked, can't change
 
     recordEvent({ v: vertex })
+    // Dismiss cosmetic "?" hint on this vertex — first tap only removes the "?"
+    if (!dismissedHints.has(key)) {
+      setDismissedHints(prev => { let s = new Set(prev); s.add(key); return s })
+      return
+    }
     let current = libMarks.get(key) || 0
     let nextVal = current >= config.maxLibertyLabel ? 0 : current + 1
     playMark(nextVal)
@@ -256,7 +264,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       else next.set(key, nextVal)
       return next
     })
-  }, [advance, libMarks, submitExercise])
+  }, [advance, libMarks, dismissedHints, submitExercise])
 
   let tryBack = useCallback(() => {
     if (confirmExit || engine.finished) { onBack(); return }
@@ -323,6 +331,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
 
     async function play() {
       let replayMarks = new Map()
+      let replayDismissed = new Set()
       for (let i = 0; i < events.length; i++) {
         let delay = i === 0 ? events[i].t : events[i].t - events[i - 1].t
         await new Promise(r => setTimeout(r, Math.max(0, delay)))
@@ -343,19 +352,24 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
               setTimeout(() => { if (!cancelled) setWrongFlash(false) }, 150)
             }
             replayMarks = new Map()
-            setLibMarks(new Map())
+            setLibMarks(new Map()); setDismissedHints(new Set())
             eng.advance()
           }
         } else if (evt.v) {
           if (eng.libertyExerciseActive) {
             // Replay mark cycle on stone
             let key = `${evt.v[0]},${evt.v[1]}`
-            let current = replayMarks.get(key) || 0
-            let nextVal = current >= config.maxLibertyLabel ? 0 : current + 1
-            playMark(nextVal)
-            if (nextVal === 0) replayMarks.delete(key)
-            else replayMarks.set(key, nextVal)
-            setLibMarks(new Map(replayMarks))
+            if (!replayDismissed.has(key)) {
+              replayDismissed.add(key)
+              setDismissedHints(new Set(replayDismissed))
+            } else {
+              let current = replayMarks.get(key) || 0
+              let nextVal = current >= config.maxLibertyLabel ? 0 : current + 1
+              playMark(nextVal)
+              if (nextVal === 0) replayMarks.delete(key)
+              else replayMarks.set(key, nextVal)
+              setLibMarks(new Map(replayMarks))
+            }
           } else if (!eng.finished) {
             if (eng.showingMove) {
               eng.activateQuestions()
@@ -506,12 +520,22 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     if (engine.libertyExerciseActive) {
       let exercise = engine.libertyExercise
       // Pre-marked (locked) groups
+      let preMarkedKeys = new Set()
       for (let g of exercise.groups) {
         if (g.changed) continue
         let [x, y] = g.vertex
         markerMap[y][x] = { type: 'label', label: libLabel(g.libCount) }
+        for (let k of g.chainKeys) preMarkedKeys.add(k)
       }
-      // User marks
+      // Cosmetic "?" hints on initial board groups (dismissed on tap)
+      for (let key of exercise.initialVertices) {
+        if (dismissedHints.has(key)) continue
+        if (preMarkedKeys.has(key)) continue
+        let [x, y] = key.split(',').map(Number)
+        if (signMap[y][x] === 0) continue // stone was captured
+        markerMap[y][x] = { type: 'label', label: '?' }
+      }
+      // User marks (overwrite "?" when present)
       for (let [key, val] of libMarks) {
         let [mx, my] = key.split(',').map(Number)
         markerMap[my][mx] = { type: 'label', label: libLabel(val) }
