@@ -247,11 +247,11 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     if (lockedGroup) return // locked, can't change
 
     recordEvent({ v: vertex })
-    playMark()
+    let current = libMarks.get(key) || 0
+    let nextVal = current >= config.maxLibertyLabel ? 0 : current + 1
+    playMark(nextVal)
     setLibMarks(prev => {
       let next = new Map(prev)
-      let current = next.get(key) || 0
-      let nextVal = current >= config.maxLibertyLabel ? 0 : current + 1
       if (nextVal === 0) next.delete(key)
       else next.set(key, nextVal)
       return next
@@ -322,6 +322,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     let cancelled = false
 
     async function play() {
+      let replayMarks = new Map()
       for (let i = 0; i < events.length; i++) {
         let delay = i === 0 ? events[i].t : events[i].t - events[i - 1].t
         await new Promise(r => setTimeout(r, Math.max(0, delay)))
@@ -341,6 +342,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
               setWrongFlash(true)
               setTimeout(() => { if (!cancelled) setWrongFlash(false) }, 150)
             }
+            replayMarks = new Map()
             setLibMarks(new Map())
             eng.advance()
           }
@@ -348,15 +350,12 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
           if (eng.libertyExerciseActive) {
             // Replay mark cycle on stone
             let key = `${evt.v[0]},${evt.v[1]}`
-            playMark()
-            setLibMarks(prev => {
-              let next = new Map(prev)
-              let current = next.get(key) || 0
-              let nextVal = current >= config.maxLibertyLabel ? 0 : current + 1
-              if (nextVal === 0) next.delete(key)
-              else next.set(key, nextVal)
-              return next
-            })
+            let current = replayMarks.get(key) || 0
+            let nextVal = current >= config.maxLibertyLabel ? 0 : current + 1
+            playMark(nextVal)
+            if (nextVal === 0) replayMarks.delete(key)
+            else replayMarks.set(key, nextVal)
+            setLibMarks(new Map(replayMarks))
           } else if (!eng.finished) {
             if (eng.showingMove) {
               eng.activateQuestions()

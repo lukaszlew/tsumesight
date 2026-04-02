@@ -1,4 +1,5 @@
 import { kv, kvSet } from './db.js'
+import config from './config.js'
 
 let ctx = null
 let streak = 0
@@ -66,19 +67,96 @@ export function playStoneClick() {
   osc.stop(c.currentTime + 0.05)
 }
 
-export function playMark() {
+// value: 0 = clear, 1..(max-1) = normal, max = capped (e.g. "5+")
+export function playMark(value) {
   if (!getEnabled()) return
+  let max = config.maxLibertyLabel
+  let mode = config.markSoundMode
+
+  if (mode === 'repeat') playMarkRepeat(value, max)
+  else if (mode === 'interval') playMarkInterval(value, max)
+  else if (mode === 'pluck') playMarkPluck(value, max)
+}
+
+function playMarkRepeat(value, max) {
   let c = getCtx()
-  let osc = c.createOscillator()
-  let gain = c.createGain()
-  osc.type = 'sine'
-  osc.frequency.value = 1200
-  gain.gain.setValueAtTime(0.1, c.currentTime)
-  gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.03)
-  osc.connect(gain)
-  gain.connect(c.destination)
-  osc.start()
-  osc.stop(c.currentTime + 0.03)
+  if (value === 0) {
+    // Clear: low descending tone
+    playTone(300, 0.15, 'sine', 0.12)
+    return
+  }
+  let isMax = value >= max
+  let count = isMax ? max : value
+  let gap = 0.08
+  for (let i = 0; i < count; i++) {
+    let t = c.currentTime + i * gap
+    let osc = c.createOscillator()
+    let gain = c.createGain()
+    osc.type = 'sine'
+    osc.frequency.value = 880
+    let dur = (i === count - 1 && isMax) ? 0.2 : 0.04
+    gain.gain.setValueAtTime(0.001, t)
+    gain.gain.linearRampToValueAtTime(0.12, t + 0.01)
+    gain.gain.exponentialRampToValueAtTime(0.001, t + dur)
+    osc.connect(gain)
+    gain.connect(c.destination)
+    osc.start(t)
+    osc.stop(t + dur)
+  }
+}
+
+function playMarkInterval(value, max) {
+  if (value === 0) {
+    playTone(300, 0.15, 'sine', 0.12)
+    return
+  }
+  // Spread from unison (ratio=1) to octave (ratio=2) across 1..max
+  let ratio = 1 + (value - 1) / (max - 1)
+  let base = 440
+  let c = getCtx()
+  // Play base and interval together
+  let notes = [base, base * ratio]
+  for (let freq of notes) {
+    let osc = c.createOscillator()
+    let gain = c.createGain()
+    osc.type = 'sine'
+    osc.frequency.value = freq
+    gain.gain.setValueAtTime(0.001, c.currentTime)
+    gain.gain.linearRampToValueAtTime(0.1, c.currentTime + 0.01)
+    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.25)
+    osc.connect(gain)
+    gain.connect(c.destination)
+    osc.start()
+    osc.stop(c.currentTime + 0.25)
+  }
+}
+
+function playMarkPluck(value, max) {
+  if (value === 0) {
+    playTone(300, 0.15, 'sine', 0.12)
+    return
+  }
+  let c = getCtx()
+  // Different timbre per value: vary frequency, filter decay, and harmonic content
+  // Spread base frequency from 300 to 700 across 1..max
+  let freq = 300 + (value - 1) / (max - 1) * 400
+  // Pluck: sharp attack, fast exponential decay, with harmonics
+  let harmonics = [1, 2, 3, 4, 5]
+  let decayBase = 0.08 + (max - value) / max * 0.15 // lower values ring longer
+  for (let h of harmonics) {
+    let osc = c.createOscillator()
+    let gain = c.createGain()
+    osc.type = 'sine'
+    osc.frequency.value = freq * h
+    let vol = 0.12 / (h * h) // harmonics fall off
+    let decay = decayBase / h
+    gain.gain.setValueAtTime(vol, c.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + decay)
+    osc.connect(gain)
+    gain.connect(c.destination)
+    osc.start()
+    osc.stop(c.currentTime + decay)
+  }
 }
 
 export function playComplete() {

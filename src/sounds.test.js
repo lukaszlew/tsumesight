@@ -136,18 +136,16 @@ describe('sounds', () => {
     expect(oscillatorsCreated.length).toBe(0)
   })
 
-  it('playMark creates sine oscillator at 1200Hz when enabled', async () => {
+  it('playMark creates oscillator when enabled', async () => {
     let { playMark } = await import('./sounds.js')
-    playMark()
-    expect(oscillatorsCreated.length).toBe(1)
-    expect(oscillatorsCreated[0].type).toBe('sine')
-    expect(oscillatorsCreated[0].frequency.value).toBe(1200)
+    playMark(1)
+    expect(oscillatorsCreated.length).toBeGreaterThan(0)
   })
 
   it('playMark does not create oscillator when disabled', async () => {
     kvStore.sound = 'off'
     let { playMark } = await import('./sounds.js')
-    playMark()
+    playMark(1)
     expect(oscillatorsCreated.length).toBe(0)
   })
 
