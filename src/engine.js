@@ -147,25 +147,37 @@ export class QuizEngine {
     return !this.libertyExerciseActive
   }
 
+  // Check marks without submitting. Returns per changed group:
+  // { status: 'correct'|'wrong'|'missed', userVertex?, userVal? }
+  checkLibertyExercise(marks) {
+    assert(this.libertyExerciseActive, 'No liberty exercise active')
+    let changedGroups = this.libertyExercise.groups.filter(g => g.changed)
+    return changedGroups.map(g => {
+      let target = Math.min(g.libCount, config.maxLibertyLabel)
+      let userVertex = null, userVal = null
+      for (let k of g.chainKeys) {
+        if (marks.has(k)) { userVertex = k; userVal = marks.get(k); break }
+      }
+      if (userVertex === null) return { status: 'missed' }
+      if (userVal === target) return { status: 'correct', userVertex, userVal }
+      return { status: 'wrong', userVertex, userVal }
+    })
+  }
+
   // Submit the liberty exercise: user's label per stone.
   // marks: Map<vertexKey, number> — the number (1-5) the user assigned to each stone
   // Returns { correctCount, wrongCount, total }
   submitLibertyExercise(marks) {
     assert(this.libertyExerciseActive, 'No liberty exercise active')
 
-    let groups = this.libertyExercise.groups
-    let changedGroups = groups.filter(g => g.changed)
+    let checked = this.checkLibertyExercise(marks)
+    let changedGroups = this.libertyExercise.groups.filter(g => g.changed)
     let correctCount = 0
     let wrongCount = 0
     let moveIdx = this.moveProgress.length - 1
 
     for (let i = 0; i < changedGroups.length; i++) {
-      let g = changedGroups[i]
-      let target = Math.min(g.libCount, config.maxLibertyLabel)
-      let markedCorrectly = false
-      for (let k of g.chainKeys) {
-        if (marks.get(k) === target) { markedCorrectly = true; break }
-      }
+      let markedCorrectly = checked[i].status === 'correct'
 
       this.results.push(markedCorrectly)
       this.questionsAsked[moveIdx][i].markedCorrectly = markedCorrectly

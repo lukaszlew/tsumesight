@@ -457,6 +457,95 @@ describe('QuizEngine', () => {
     })
   })
 
+  describe('checkLibertyExercise', () => {
+    it('returns correct for all groups when marks match', () => {
+      let engine = new QuizEngine('(;SZ[9];B[ba];W[aa])')
+      engine.advance()
+      engine.advance(); engine.activateQuestions()
+      let results = engine.checkLibertyExercise(correctMarks(engine))
+      expect(results.every(r => r.status === 'correct')).toBe(true)
+    })
+
+    it('returns missed for unmarked groups', () => {
+      let engine = new QuizEngine('(;SZ[9];B[ba];W[aa])')
+      engine.advance()
+      engine.advance(); engine.activateQuestions()
+      let results = engine.checkLibertyExercise(new Map())
+      expect(results.every(r => r.status === 'missed')).toBe(true)
+    })
+
+    it('returns wrong for incorrectly marked groups', () => {
+      let engine = new QuizEngine('(;SZ[9];B[ee])')
+      engine.advance(); engine.activateQuestions()
+      // B[ee] has 4 libs, mark as 1
+      let marks = new Map([['4,4', 1]])
+      let results = engine.checkLibertyExercise(marks)
+      expect(results[0].status).toBe('wrong')
+      expect(results[0].userVertex).toBe('4,4')
+      expect(results[0].userVal).toBe(1)
+    })
+
+    it('returns correct with userVertex and userVal', () => {
+      let engine = new QuizEngine('(;SZ[9];B[ee])')
+      engine.advance(); engine.activateQuestions()
+      let marks = new Map([['4,4', 4]])
+      let results = engine.checkLibertyExercise(marks)
+      expect(results[0].status).toBe('correct')
+      expect(results[0].userVertex).toBe('4,4')
+      expect(results[0].userVal).toBe(4)
+    })
+
+    it('does not mutate engine state', () => {
+      let engine = new QuizEngine('(;SZ[9];B[ba];W[aa])')
+      engine.advance()
+      engine.advance(); engine.activateQuestions()
+      let before = { correct: engine.correct, wrong: engine.wrong, results: [...engine.results] }
+      engine.checkLibertyExercise(correctMarks(engine))
+      expect(engine.correct).toBe(before.correct)
+      expect(engine.wrong).toBe(before.wrong)
+      expect(engine.results).toEqual(before.results)
+      expect(engine.libertyExerciseActive).toBe(true)
+    })
+
+    it('can be called multiple times without side effects', () => {
+      let engine = new QuizEngine('(;SZ[9];B[ba];W[aa])')
+      engine.advance()
+      engine.advance(); engine.activateQuestions()
+      let r1 = engine.checkLibertyExercise(new Map())
+      let r2 = engine.checkLibertyExercise(correctMarks(engine))
+      let r3 = engine.checkLibertyExercise(new Map())
+      expect(r1.every(r => r.status === 'missed')).toBe(true)
+      expect(r2.every(r => r.status === 'correct')).toBe(true)
+      expect(r3.every(r => r.status === 'missed')).toBe(true)
+    })
+
+    it('distinguishes mixed correct/wrong/missed', () => {
+      let engine = new QuizEngine('(;SZ[9];B[ba];W[aa])')
+      engine.advance()
+      engine.advance(); engine.activateQuestions()
+      let changedGroups = engine.libertyExercise.groups.filter(g => g.changed)
+      assert(changedGroups.length === 2, 'expected 2 changed groups')
+
+      // Mark first group correctly, leave second missed
+      let g0 = changedGroups[0]
+      let marks = new Map([[[...g0.chainKeys][0], Math.min(g0.libCount, config.maxLibertyLabel)]])
+      let results = engine.checkLibertyExercise(marks)
+      expect(results[0].status).toBe('correct')
+      expect(results[1].status).toBe('missed')
+    })
+
+    it('agrees with submitLibertyExercise scoring', () => {
+      let engine = new QuizEngine('(;SZ[9];B[ba];W[aa])')
+      engine.advance()
+      engine.advance(); engine.activateQuestions()
+      let marks = correctMarks(engine)
+      let checked = engine.checkLibertyExercise(marks)
+      let result = engine.submitLibertyExercise(marks)
+      expect(checked.filter(r => r.status === 'correct').length).toBe(result.correctCount)
+      expect(checked.filter(r => r.status !== 'correct').length).toBe(result.wrongCount)
+    })
+  })
+
   describe('deterministic questions (seeded PRNG)', () => {
     it('same SGF produces same exercise groups every time', () => {
       let sgf = '(;SZ[9];B[ba];W[aa];B[ee];W[de])'

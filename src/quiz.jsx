@@ -222,18 +222,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   let submitExercise = useCallback(() => {
     if (!engine.libertyExerciseActive) return
 
-    let exercise = engine.libertyExercise
-    let changedGroups = exercise.groups.filter(g => g.changed)
-    let feedback = changedGroups.map(g => {
-      let target = Math.min(g.libCount, config.maxLibertyLabel)
-      let userVertex = null, userVal = null
-      for (let k of g.chainKeys) {
-        if (libMarks.has(k)) { userVertex = k; userVal = libMarks.get(k); break }
-      }
-      if (userVertex === null) return { status: 'missed', group: g }
-      if (userVal === target) return { status: 'correct', group: g, userVertex, userVal }
-      return { status: 'wrong', group: g, userVertex, userVal }
-    })
+    let feedback = engine.checkLibertyExercise(libMarks)
 
     if (feedback.every(f => f.status === 'correct')) {
       recordEvent({ ex: Object.fromEntries(libMarks) })
@@ -294,7 +283,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
           setLibFeedback(prev => {
             let next = [...prev]
             next[feedbackIdx] = null
-            return next
+            return next.some(f => f !== null) ? next : null
           })
           return
         }
