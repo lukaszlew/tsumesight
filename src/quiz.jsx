@@ -19,7 +19,7 @@ function libLabel(n) {
   return n >= config.maxLibertyLabel ? config.maxLibertyLabel + '+' : String(n)
 }
 
-export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsolved, onProgress, onLoadError, onNextUnsolved, onRetry }) {
+export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsolved, onProgress, onLoadError, onNextUnsolved }) {
   let engineRef = useRef(null)
   let solvedRef = useRef(false)
   let [, forceRender] = useState(0)
@@ -177,20 +177,28 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     restoreSavedState()
   }
 
-  function startShowSequence() {
-    // If already in sequence mode, restore first
+  function startShowSequence(fresh = false) {
+    // If already in sequence mode, restore before re-entering
     if (seqSavedRef.current) {
-      let saved = seqSavedRef.current
-      engineRef.current = saved.engine
-      setLibMarks(saved.libMarks)
-      setLibFeedback(saved.libFeedback)
+      engineRef.current = seqSavedRef.current.engine
     }
-    seqSavedRef.current = { engine: engineRef.current, libMarks, libFeedback }
+    if (fresh) {
+      // Full restart: discard old state, reset scoring
+      seqSavedRef.current = null
+      solvedRef.current = false
+      replayEventsRef.current = []
+      replayStartRef.current = null
+      resetStreak()
+    } else {
+      // Sequence replay: save state for restore
+      seqSavedRef.current = { engine: engineRef.current, libMarks, libFeedback }
+    }
     let tempEngine = new QuizEngine(sgf, true, maxQ)
     tempEngine.advance()
     engineRef.current = tempEngine
     setLibMarks(new Map())
     setLibFeedback(null)
+    setWrongFlash(false)
     setSeqIdx(1)
     playStoneClick()
     rerender()
@@ -368,9 +376,9 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
         else if (engine.libertyExerciseActive) submitExercise()
         else if (preSolve) toggleSolved()
       }
-      else if ((e.key === 'r' || e.key === 'R') && engine.finished) {
+      else if (e.key === 'r' || e.key === 'R') {
         e.preventDefault()
-        onRetry()
+        startShowSequence(engine.finished)
       }
       else if (e.key === ' ') {
         e.preventDefault()
@@ -689,11 +697,10 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
                   <div class="bottom-bar-row">
                     <button class="bar-btn" title="Return to library (Esc)" onClick={tryBack}>&#x25C2; Back</button>
                     <button class="bar-btn" title={`Sound ${soundOn ? 'on' : 'off'}`} onClick={() => { setSoundOn(toggleSound()) }}>{soundOn ? '\uD83D\uDD0A' : '\uD83D\uDD07'}</button>
-                    {!engine.finished && <button class="bar-btn" title="Restart the move sequence" onClick={startShowSequence}>&#x21BB; Restart</button>}
                     {preSolve && !engine.libertyExerciseActive && <button class="bar-btn mark-solved-btn" title={wasSolved ? 'Remove solved mark' : 'Skip and mark as solved (Enter)'} onClick={toggleSolved}>{wasSolved ? 'Mark as unsolved' : 'Mark as solved'}</button>}
                     {engine.finished && <button class="bar-btn eye-toggle" title={showSeqStones ? 'Hide sequence stones' : 'Show sequence stones'} onClick={() => setShowSeqStones(v => !v)}>{showSeqStones ? '\u{1F441}' : '\u{1F9E0}'}</button>}
-                    {engine.finished && <button class="bar-btn" title="Restart this problem (R)" onClick={onRetry}>Retry</button>}
                     {engine.finished && <button class="next-hero" title="Next unsolved problem (Enter)" onClick={onNextUnsolved}>Next</button>}
+                    <button class="bar-btn" title="Restart this problem (R)" onClick={() => startShowSequence(engine.finished)}>&#x21BB; Restart</button>
                   </div>
                 </>
         }

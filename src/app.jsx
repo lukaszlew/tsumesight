@@ -29,7 +29,6 @@ class ErrorBoundary extends Component {
 }
 
 export function App() {
-  const [attempt, setAttempt] = useState(0)
   const [position, setPosition] = useState(null)
   const [active, setActive] = useState(null) // never restore quiz on cold load
   const [cwd, setCwd] = useState(() => kv('lastPath', ''))
@@ -172,13 +171,12 @@ export function App() {
   if (active) {
     return (
       <ErrorBoundary onReset={clearSgf}>
-        <Quiz key={`${active.id}:${attempt}`} quizKey={`${active.id}:${attempt}`} sgf={active.content}
+        <Quiz key={active.id} quizKey={active.id} sgf={active.content}
           sgfId={active.id}
           wasSolved={active.solved}
           onBack={clearSgf} onSolved={markSolved} onUnsolved={markUnsolved} onProgress={saveProgress} onLoadError={handleLoadError}
           onPrev={() => goStep(-1)} onNext={() => goStep(1)}
           onNextUnsolved={goNextUnsolved}
-          onRetry={() => setAttempt(a => a + 1)}
           fileIndex={position?.index} fileTotal={position?.total} />
       </ErrorBoundary>
     )
