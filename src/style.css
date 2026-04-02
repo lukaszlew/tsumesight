@@ -536,6 +536,23 @@ body {
 }
 
 
+.eye-toggle {
+  font-size: calc(3 * var(--s)) !important;
+  padding: calc(0.5 * var(--s)) calc(1.5 * var(--s)) !important;
+  position: relative;
+}
+.eye-toggle.eye-closed::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 15%;
+  right: 15%;
+  height: 2px;
+  background: #f66;
+  transform: rotate(-30deg);
+  pointer-events: none;
+}
+
 /* Board (row 1) */
 .board-row {
   height: 100%;
