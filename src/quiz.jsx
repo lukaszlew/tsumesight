@@ -271,13 +271,16 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
         let fb = libFeedback[feedbackIdx]
         if (fb?.status === 'correct') return // correct groups are locked
         if (fb) {
-          // Wrong or missed: reset to 1, clear feedback for this group
+          // Wrong: cycle from displayed number. Missed: start at 1.
+          let nextVal = fb.status === 'wrong'
+            ? (fb.userVal >= config.maxLibertyLabel ? 1 : fb.userVal + 1)
+            : 1
           recordEvent({ v: vertex })
-          playMark(1)
+          playMark(nextVal)
           setLibMarks(prev => {
             let next = new Map(prev)
             for (let k of changedGroups[feedbackIdx].chainKeys) next.delete(k)
-            next.set(key, 1)
+            next.set(key, nextVal)
             return next
           })
           setLibFeedback(prev => {
