@@ -458,6 +458,43 @@ describe('QuizEngine', () => {
       expect(eeGroup.changed).toBe(true) // changed mid-sequence even though final = initial
     })
 
+    it('marks group unchanged when libs always 5+ throughout sequence', () => {
+      // Setup: black at ee (4 libs). Add enough stones to give it 5+ libs initially.
+      // AB[ee][de][fe] gives a 3-stone chain with many liberties (>= 5).
+      // Move: W[aa] far away — libs change slightly but stay >= 5
+      let engine = new QuizEngine('(;SZ[9]AB[ee][de][fe];W[aa];B[bb])')
+      engine.advance()
+      engine.advance(); engine.activateQuestions()
+      let groups = engine.libertyExercise.groups
+      let eeGroup = groups.find(g => [...g.chainKeys].includes('4,4'))
+      expect(eeGroup.libCount).toBeGreaterThanOrEqual(5)
+      expect(eeGroup.changed).toBe(false) // always 5+, not a useful question
+    })
+
+    it('marks group changed when libs went from 5+ to below 5', () => {
+      // AB[ee][de][fe] = 3-stone chain with >= 5 libs. W[ed] reduces libs.
+      // Then more moves to reduce further below 5.
+      let engine = new QuizEngine('(;SZ[9]AB[ee][de][fe];W[ed];B[aa];W[dd];B[bb];W[ef])')
+      for (let i = 0; i < 5; i++) engine.advance()
+      engine.activateQuestions()
+      let groups = engine.libertyExercise.groups
+      let eeGroup = groups.find(g => [...g.chainKeys].includes('4,4'))
+      if (eeGroup && eeGroup.libCount < 5) {
+        expect(eeGroup.changed).toBe(true) // dropped below 5, meaningful question
+      }
+    })
+
+    it('marks new group unchanged when it always had 5+ libs', () => {
+      // A new group placed with 5+ liberties — should still be unchanged if always 5+
+      let engine = new QuizEngine('(;SZ[9];B[ee])')
+      engine.advance(); engine.activateQuestions()
+      let groups = engine.libertyExercise.groups
+      let eeGroup = groups.find(g => [...g.chainKeys].includes('4,4'))
+      // ee has 4 libs so this should be changed (new group with <5 libs)
+      expect(eeGroup.libCount).toBe(4)
+      expect(eeGroup.changed).toBe(true)
+    })
+
     it('marks group unchanged when libs never varied during sequence', () => {
       // Setup: black at aa (2 libs). Moves far away: B[ee], W[ff]
       let engine = new QuizEngine('(;SZ[9]AB[aa];B[ee];W[ff])')

@@ -76,6 +76,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       engineRef.current = new QuizEngine(sgf, true, maxQ)
       if (config.autoShowFirstMove) {
         engineRef.current.advance()
+        playStoneClick()
       }
     } catch (e) {
       kvRemove('quizHistory')

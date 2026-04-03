@@ -367,6 +367,21 @@ export class QuizEngine {
             }
           }
         }
+        // If the group was 5+ throughout the entire sequence, it's not a useful question
+        if (changed && libCount >= config.maxLibertyLabel) {
+          let alwaysCapped = (initialLibCount === undefined || initialLibCount >= config.maxLibertyLabel)
+          if (alwaysCapped) {
+            alwaysCapped = this.boardHistory.slice(0, -1).every(board => {
+              let ref = chain[0]
+              if (board.get(ref) === 0) return false
+              let midChain = board.getChain(ref)
+              let midKey = midChain.map(vertexKey).sort().join(';')
+              if (midKey !== vSetKey) return false
+              return board.getLiberties(ref).length >= config.maxLibertyLabel
+            })
+          }
+          if (alwaysCapped) changed = false
+        }
         let vertex = chain[Math.floor(this.random() * chain.length)]
         groups.push({ vertex, chainKeys, libCount, changed })
       }
