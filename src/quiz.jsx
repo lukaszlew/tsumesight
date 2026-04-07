@@ -733,16 +733,14 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
                   </div>
                 </>
               : <>
-                  {seqIdx > 0
-                    ? <div class="action-hint">Move {engine.moveIndex}/{engine.totalMoves} — tap board to advance</div>
-                    : engine.libertyExerciseActive
-                      ? <div class="action-hint">{libFeedback
-                          ? <>Tap red labels to fix, then <span class="hint-blue">Done</span></>
-                          : <>Mark liberty counts of all groups by tapping, then <span class="hint-blue">Done</span></>
-                        }</div>
-                      : !engine.finished
-                        ? <div class="action-hint">Tap board to advance{engine.showingMove ? '. Remember the sequence.' : ''}</div>
-                        : null}
+                  {engine.libertyExerciseActive
+                    ? <div class="action-hint">{libFeedback
+                        ? <>Tap red labels to fix, then <span class="hint-blue">Done</span></>
+                        : <>Visualize hidden variation and tap groups to set liberty counts, then <span class="hint-blue">Done</span></>
+                      }</div>
+                    : !engine.finished
+                      ? <div class="action-hint"><span class="hint-blue">Tap</span> board to advance. <span class="hint-blue">Remember</span> the variation. Move {engine.moveIndex}/{engine.totalMoves}.</div>
+                      : null}
                   {engine.libertyExerciseActive && <button class="next-hero" title="Submit (Space/Enter)" onClick={submitExercise}>Done</button>}
                   {engine.finished && !replayMode && <StatsBar sgfId={sgfId} onReplay={startReplay} />}
                   <div class="bottom-bar-row">
