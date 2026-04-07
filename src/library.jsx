@@ -460,7 +460,15 @@ export function Library({ onSelect, cwd, onCwdChange }) {
                 onClick={() => onSelect({ id: s.id, content: s.content, path: s.path || '', filename: s.filename, solved: s.solved })} {...lp}>
                 <span class="tile-num" title="Number of moves">{s.moveCount || '?'}</span>
                 {stars > 0
-                  ? <span class="tile-stars" title={`${stars}/5 stars`}>{'★'.repeat(stars)}{'☆'.repeat(5 - stars)}</span>
+                  ? <span class={`tile-stars${stars === 5 ? ' tile-stars-perfect' : ''}`} title={`${stars}/5 stars`}>
+                      {stars === 5
+                        ? <span class="star-big">★</span>
+                        : <>
+                            <span class="star-row">{'★★★'.split('').map((c, i) => <span key={i} class={i < Math.min(stars, 3) ? 'star-on' : 'star-off'}>{i < Math.min(stars, 3) ? '★' : '☆'}</span>)}</span>
+                            <span class="star-row star-row-bottom">{'★★'.split('').map((c, i) => <span key={i} class={i + 3 < stars ? 'star-on' : 'star-off'}>{i + 3 < stars ? '★' : '☆'}</span>)}</span>
+                          </>
+                      }
+                    </span>
                   : <span class={`tile-acc${best && best.accuracy >= 1 ? ' tile-perfect' : ''}`}
                       title="Best score"
                       style={best && best.accuracy < 1 ? { color: scoreColor(best.accuracy) } : undefined}
