@@ -852,9 +852,12 @@ body {
   margin-top: -.2em;
 }
 .finish-stars .star-off { color: #553; }
-.finish-star-big {
-  font-size: 1.6em;
-  text-shadow: 0 0 16px rgba(255, 200, 0, .8);
+.finish-perfect {
+  font-size: 5em;
+  text-shadow: 0 0 20px rgba(255, 200, 0, .6);
+}
+.finish-perfect + .finish-time {
+  font-size: 3.5em;
 }
 .finish-time {
   font-size: 2.5em;
