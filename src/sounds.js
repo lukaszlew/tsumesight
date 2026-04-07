@@ -160,7 +160,8 @@ function playMarkPluck(value, max) {
   }
 }
 
-function pluckNote(c, freq, vol, decay) {
+function pluckNote(c, freq, vol, decay, t) {
+  t = t || c.currentTime
   let harmonics = [1, 2, 3, 4, 5]
   for (let h of harmonics) {
     let osc = c.createOscillator()
@@ -169,24 +170,24 @@ function pluckNote(c, freq, vol, decay) {
     osc.frequency.value = freq * h
     let hVol = vol / (h * h)
     let hDecay = decay / h
-    gain.gain.setValueAtTime(hVol, c.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + hDecay)
+    gain.gain.setValueAtTime(0.001, t)
+    gain.gain.linearRampToValueAtTime(hVol, t + 0.003)
+    gain.gain.exponentialRampToValueAtTime(0.001, t + hDecay)
     osc.connect(gain)
     gain.connect(c.destination)
-    osc.start()
-    osc.stop(c.currentTime + hDecay)
+    osc.start(t)
+    osc.stop(t + hDecay)
   }
 }
 
 function playMarkIntervalPluck(value, max) {
   let c = getCtx()
-  // Interval: unison to octave, rendered as plucked strings
-  let ratio = 1 + (value - 1) / (max - 1)
+  // Interval: unison to octave+fifth, rendered as staggered plucked strings
+  let ratio = 1 + (value - 1) / (max - 1) * 2
   let base = 330
-  let notes = [base, base * ratio]
-  for (let freq of notes) {
-    pluckNote(c, freq, 0.06, 0.2)
-  }
+  let t = c.currentTime
+  pluckNote(c, base, 0.05, 0.25, t)
+  pluckNote(c, base * ratio, 0.06, 0.25, t + 0.08)
 }
 
 export function playComplete() {

@@ -1,164 +1,110 @@
 <!DOCTYPE html>
 <html><body style="font-family:system-ui;padding:2em;background:#222;color:#eee">
-<h2>Current mark sounds (interval_pluck)</h2>
-<div>
-<button onclick="playMark(0)" style="font-size:1.3em;padding:.4em .8em;margin:.3em">0 (clear)</button>
-<button onclick="playMark(1)" style="font-size:1.3em;padding:.4em .8em;margin:.3em">1</button>
-<button onclick="playMark(2)" style="font-size:1.3em;padding:.4em .8em;margin:.3em">2</button>
-<button onclick="playMark(3)" style="font-size:1.3em;padding:.4em .8em;margin:.3em">3</button>
-<button onclick="playMark(4)" style="font-size:1.3em;padding:.4em .8em;margin:.3em">4</button>
-<button onclick="playMark(5)" style="font-size:1.3em;padding:.4em .8em;margin:.3em">5+</button>
-</div>
+<style>
+  button { font-size:1.3em; padding:.4em .8em; margin:.3em; cursor:pointer }
+  h2 { margin-top:1.5em }
+  p { color:#888; margin:0.2em 0 }
+</style>
 
-<h2>Unmark candidates</h2>
-<button onclick="playDescBlip()" style="font-size:1.5em;padding:.5em 1em;margin:.5em">2. Descending Blip</button>
-<button onclick="playSoftClick()" style="font-size:1.5em;padding:.5em 1em;margin:.5em">3. Soft Click</button>
-<button onclick="playDoubleDown()" style="font-size:1.5em;padding:.5em 1em;margin:.5em">4. Double Descend</button>
-<button onclick="playHollowTap()" style="font-size:1.5em;padding:.5em 1em;margin:.5em">5. Hollow Tap</button>
-<button onclick="playWhoosh()" style="font-size:1.5em;padding:.5em 1em;margin:.5em">6. Whoosh Down</button>
-<button onclick="playMutedPluck()" style="font-size:1.5em;padding:.5em 1em;margin:.5em">7. Muted Pluck</button>
-<button onclick="playBubble()" style="font-size:1.5em;padding:.5em 1em;margin:.5em">8. Bubble Pop</button>
+<h2>Current (reference)</h2>
+<div id="current"></div>
+
+<h2>Liked base: 400ms sustain, 80ms stagger, octave range</h2>
+<div id="base"></div>
+
+<h3>Stagger variations (400ms sustain, octave)</h3>
+
+<h2>40ms stagger</h2>
+<div id="s40"></div>
+
+<h2>60ms stagger</h2>
+<div id="s60"></div>
+
+<h2>80ms stagger</h2>
+<div id="s80"></div>
+
+<h2>100ms stagger</h2>
+<div id="s100"></div>
+
+<h2>120ms stagger</h2>
+<div id="s120"></div>
+
+<h3>Sustain variations (80ms stagger, octave)</h3>
+
+<h2>250ms sustain</h2>
+<div id="d250"></div>
+
+<h2>300ms sustain</h2>
+<div id="d300"></div>
+
+<h2>400ms sustain</h2>
+<div id="d400"></div>
+
+<h2>500ms sustain</h2>
+<div id="d500"></div>
+
+<h2>600ms sustain</h2>
+<div id="d600"></div>
 
 <script>
 let ctx = new AudioContext()
-let max = 5
+let max = 5, base = 330
 
-// -- Current interval_pluck mark sounds --
-function pluckNote(freq, vol, decay) {
-  let harmonics = [1, 2, 3, 4, 5]
-  for (let h of harmonics) {
+function pluckAt(freq, vol, decay, t) {
+  t = t || ctx.currentTime
+  for (let h = 1; h <= 5; h++) {
     let osc = ctx.createOscillator()
     let gain = ctx.createGain()
     osc.type = 'sine'
     osc.frequency.value = freq * h
     let hVol = vol / (h * h)
     let hDecay = decay / h
-    gain.gain.setValueAtTime(hVol, ctx.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + hDecay)
+    gain.gain.setValueAtTime(hVol, t)
+    gain.gain.exponentialRampToValueAtTime(0.001, t + hDecay)
     osc.connect(gain).connect(ctx.destination)
-    osc.start(); osc.stop(ctx.currentTime + hDecay)
+    osc.start(t); osc.stop(t + hDecay)
   }
 }
 
-function playMark(value) {
-  if (value === 0) {
-    // Current clear sound
-    let osc = ctx.createOscillator()
-    let gain = ctx.createGain()
-    osc.type = 'sine'
-    osc.frequency.value = 300
-    gain.gain.setValueAtTime(0.15, ctx.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12)
-    osc.connect(gain).connect(ctx.destination)
-    osc.start(); osc.stop(ctx.currentTime + 0.12)
-    return
-  }
-  let ratio = 1 + (value - 1) / (max - 1)
-  let base = 330
-  for (let freq of [base, base * ratio]) {
-    pluckNote(freq, 0.06, 0.2)
-  }
-}
+function r(v) { return 1 + (v - 1) / (max - 1) }
 
-// -- Unmark candidates --
-
-function playDescBlip() {
-  let o = ctx.createOscillator()
-  let g = ctx.createGain()
-  o.type = 'sine'
-  o.frequency.setValueAtTime(400, ctx.currentTime)
-  o.frequency.exponentialRampToValueAtTime(150, ctx.currentTime + 0.06)
-  g.gain.setValueAtTime(0.4, ctx.currentTime)
-  g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1)
-  o.connect(g).connect(ctx.destination)
-  o.start(); o.stop(ctx.currentTime + 0.1)
-}
-
-function playSoftClick() {
-  let buf = ctx.createBuffer(1, ctx.sampleRate * 0.02, ctx.sampleRate)
-  let data = buf.getChannelData(0)
-  for (let i = 0; i < data.length; i++)
-    data[i] = (Math.random() * 2 - 1) * (1 - i / data.length)
-  let src = ctx.createBufferSource()
-  let g = ctx.createGain()
-  src.buffer = buf
-  g.gain.value = 0.2
-  src.connect(g).connect(ctx.destination)
-  src.start()
-}
-
-function playDoubleDown() {
+function playCurrent(v) {
   let t = ctx.currentTime
-  for (let i = 0; i < 2; i++) {
-    let o = ctx.createOscillator()
-    let g = ctx.createGain()
-    o.type = 'triangle'
-    o.frequency.value = i === 0 ? 500 : 330
-    g.gain.setValueAtTime(0.3, t + i * 0.06)
-    g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.06 + 0.08)
-    o.connect(g).connect(ctx.destination)
-    o.start(t + i * 0.06); o.stop(t + i * 0.06 + 0.08)
+  pluckAt(base, 0.06, 0.2, t)
+  pluckAt(base * r(v), 0.06, 0.2, t)
+}
+
+function make(stagger, sustain) {
+  return function(v) {
+    let t = ctx.currentTime
+    pluckAt(base, 0.05, sustain, t)
+    pluckAt(base * r(v), 0.06, sustain, t + stagger)
   }
 }
 
-function playHollowTap() {
-  let buf = ctx.createBuffer(1, ctx.sampleRate * 0.05, ctx.sampleRate)
-  let data = buf.getChannelData(0)
-  for (let i = 0; i < data.length; i++)
-    data[i] = (Math.random() * 2 - 1)
-  let src = ctx.createBufferSource()
-  src.buffer = buf
-  let bp = ctx.createBiquadFilter()
-  bp.type = 'bandpass'
-  bp.frequency.value = 800
-  bp.Q.value = 5
-  let g = ctx.createGain()
-  g.gain.setValueAtTime(0.5, ctx.currentTime)
-  g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05)
-  src.connect(bp).connect(g).connect(ctx.destination)
-  src.start()
+function makeButtons(id, fn) {
+  let el = document.getElementById(id)
+  for (let v = 1; v <= 5; v++) {
+    let btn = document.createElement('button')
+    btn.textContent = v === 5 ? '5+' : v
+    btn.onclick = () => fn(v)
+    el.appendChild(btn)
+  }
 }
 
-function playWhoosh() {
-  let dur = 0.1
-  let buf = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate)
-  let data = buf.getChannelData(0)
-  for (let i = 0; i < data.length; i++)
-    data[i] = (Math.random() * 2 - 1)
-  let src = ctx.createBufferSource()
-  src.buffer = buf
-  let lp = ctx.createBiquadFilter()
-  lp.type = 'lowpass'
-  lp.frequency.setValueAtTime(3000, ctx.currentTime)
-  lp.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + dur)
-  let g = ctx.createGain()
-  g.gain.setValueAtTime(0.3, ctx.currentTime)
-  g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur)
-  src.connect(lp).connect(g).connect(ctx.destination)
-  src.start()
-}
+makeButtons('current', playCurrent)
+makeButtons('base', make(0.08, 0.4))
 
-function playMutedPluck() {
-  let o = ctx.createOscillator()
-  let g = ctx.createGain()
-  o.type = 'triangle'
-  o.frequency.value = 220
-  g.gain.setValueAtTime(0.4, ctx.currentTime)
-  g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.06)
-  o.connect(g).connect(ctx.destination)
-  o.start(); o.stop(ctx.currentTime + 0.06)
-}
+makeButtons('s40', make(0.04, 0.4))
+makeButtons('s60', make(0.06, 0.4))
+makeButtons('s80', make(0.08, 0.4))
+makeButtons('s100', make(0.10, 0.4))
+makeButtons('s120', make(0.12, 0.4))
 
-function playBubble() {
-  let o = ctx.createOscillator()
-  let g = ctx.createGain()
-  o.type = 'sine'
-  o.frequency.setValueAtTime(600, ctx.currentTime)
-  o.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.08)
-  g.gain.setValueAtTime(0.35, ctx.currentTime)
-  g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1)
-  o.connect(g).connect(ctx.destination)
-  o.start(); o.stop(ctx.currentTime + 0.1)
-}
+makeButtons('d250', make(0.08, 0.25))
+makeButtons('d300', make(0.08, 0.3))
+makeButtons('d400', make(0.08, 0.4))
+makeButtons('d500', make(0.08, 0.5))
+makeButtons('d600', make(0.08, 0.6))
 </script>
 </body></html>

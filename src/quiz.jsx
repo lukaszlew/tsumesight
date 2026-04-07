@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'preact/hooks'
 import { Goban } from '@sabaki/shudan'
 import { QuizEngine } from './engine.js'
 import { playCorrect, playWrong, playComplete, playStoneClick, playMark, resetStreak, isSoundEnabled, toggleSound } from './sounds.js'
-import { kv, kvRemove, getScores, addReplay, getReplay } from './db.js'
+import { kv, kvSet, kvRemove, getScores, addReplay, getReplay } from './db.js'
 import config from './config.js'
 
 function makeEmptyMap(size, fill = null) {
@@ -58,6 +58,9 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   let [seqIdx, setSeqIdx] = useState(0) // 0 = inactive, 1+ = showing move N
   let seqSavedRef = useRef(null)
 
+  // Swipe-to-clear: track pointer start position
+  let swipeRef = useRef(null)
+
   function setReplayModeSync(val) {
     replayModeRef.current = val
     setReplayMode(val)
@@ -69,14 +72,24 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     replayEventsRef.current.push({ ...evt, t: Math.round(performance.now() - replayStartRef.current) })
   }
 
-  // Initialize engine fresh every time, advance first move
+  // Initialize engine: restore finished state if solved, otherwise fresh
   if (!engineRef.current && !error) {
     resetStreak()
     try {
-      engineRef.current = new QuizEngine(sgf, true, maxQ)
-      if (config.autoShowFirstMove) {
-        engineRef.current.advance()
-        playStoneClick()
+      if (wasSolved) {
+        let savedResults = kv(`results:${sgfId}`)
+        if (savedResults) {
+          let history = JSON.parse(savedResults)
+          engineRef.current = QuizEngine.fromReplay(sgf, history, maxQ)
+          solvedRef.current = true
+        }
+      }
+      if (!engineRef.current) {
+        engineRef.current = new QuizEngine(sgf, true, maxQ)
+        if (config.autoShowFirstMove) {
+          engineRef.current.advance()
+          playStoneClick()
+        }
       }
     } catch (e) {
       kvRemove('quizHistory')
@@ -107,6 +120,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       let date = Date.now()
       let scoreEntry = { correct: engine.correct, total, accuracy, totalMs: Math.round(totalMs), errors: engine.errors, date }
       addReplay(sgfId, date, replayEventsRef.current)
+      kvSet(`results:${sgfId}`, JSON.stringify(engine.results))
       onSolved(engine.correct, total, scoreEntry)
       playComplete()
     }
@@ -278,6 +292,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   }, [libMarks])
 
   let onVertexClick = useCallback((evt, vertex) => {
+    if (swipedRef.current) { swipedRef.current = false; return }
     if (replayModeRef.current) { exitReplayEarly(); return }
     if (seqIdx > 0) { advanceShowSequence(); return }
     if (confirmExit) { setConfirmExit(false); return }
@@ -340,6 +355,32 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
     })
   }, [advance, libMarks, libFeedback, submitExercise])
 
+  let onVertexPointerDown = useCallback((evt, vertex) => {
+    swipeRef.current = { x: evt.clientX, y: evt.clientY, vertex }
+  }, [])
+
+  let swipedRef = useRef(false)
+
+  let onVertexPointerUp = useCallback((evt, vertex) => {
+    let start = swipeRef.current
+    swipeRef.current = null
+    if (!start) return
+    let dx = evt.clientX - start.x, dy = evt.clientY - start.y
+    let dist = Math.sqrt(dx * dx + dy * dy)
+    if (dist < 15) return // not a swipe
+    swipedRef.current = true // suppress the upcoming click
+    // Swipe detected: clear the mark on the start vertex
+    let key = `${start.vertex[0]},${start.vertex[1]}`
+    if (!libMarks.has(key)) return
+    playMark(0)
+    recordEvent({ v: start.vertex, sw: 1 })
+    setLibMarks(prev => {
+      let next = new Map(prev)
+      next.delete(key)
+      return next
+    })
+  }, [libMarks])
+
   let tryBack = useCallback(() => {
     if (confirmExit || engine.finished) { onBack(); return }
     setConfirmExit(true)
@@ -347,6 +388,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
 
   let toggleSolved = useCallback(() => {
     if (wasSolved) {
+      kvRemove(`results:${sgfId}`)
       onUnsolved()
       onBack()
     } else {
@@ -637,6 +679,12 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   let handleVertexClick = rotated
     ? (evt, [x, y]) => onVertexClick(evt, [y, x])
     : onVertexClick
+  let handlePointerDown = rotated
+    ? (evt, [x, y]) => onVertexPointerDown(evt, [y, x])
+    : onVertexPointerDown
+  let handlePointerUp = rotated
+    ? (evt, [x, y]) => onVertexPointerUp(evt, [y, x])
+    : onVertexPointerUp
 
   return (
     <div class="quiz">
@@ -650,6 +698,8 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
             ghostStoneMap={ghostStoneMap}
             paintMap={paintMap}
             onVertexClick={handleVertexClick}
+            onVertexPointerDown={handlePointerDown}
+            onVertexPointerUp={handlePointerUp}
             rangeX={displayRangeX}
             rangeY={displayRangeY}
             showCoordinates={false}
@@ -684,14 +734,14 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
                 </>
               : <>
                   {seqIdx > 0
-                    ? <div class="action-hint">Move {engine.moveIndex}/{engine.totalMoves} — tap to advance</div>
+                    ? <div class="action-hint">Move {engine.moveIndex}/{engine.totalMoves} — tap board to advance</div>
                     : engine.libertyExerciseActive
                       ? <div class="action-hint">{libFeedback
                           ? <>Tap red labels to fix, then <span class="hint-blue">Done</span></>
-                          : <>Tap stones to label liberty counts, then <span class="hint-blue">Done</span></>
+                          : <>Mark liberty counts of all groups by tapping, then <span class="hint-blue">Done</span></>
                         }</div>
                       : !engine.finished
-                        ? <div class="action-hint">Tap board for the next move{engine.showingMove ? '. Remember the sequence.' : ''}</div>
+                        ? <div class="action-hint">Tap board to advance{engine.showingMove ? '. Remember the sequence.' : ''}</div>
                         : null}
                   {engine.libertyExerciseActive && <button class="next-hero" title="Submit (Space/Enter)" onClick={submitExercise}>Done</button>}
                   {engine.finished && !replayMode && <StatsBar sgfId={sgfId} onReplay={startReplay} />}
