@@ -1,110 +1,65 @@
 <!DOCTYPE html>
 <html><body style="font-family:system-ui;padding:2em;background:#222;color:#eee">
 <style>
-  button { font-size:1.3em; padding:.4em .8em; margin:.3em; cursor:pointer }
-  h2 { margin-top:1.5em }
-  p { color:#888; margin:0.2em 0 }
+  button { font-size:1.1em; padding:.3em .6em; margin:.2em; cursor:pointer }
+  h2 { margin-top:1.2em; font-size:1.1em }
+  table { border-collapse:collapse; margin:1em 0 }
+  th { color:#aaa; padding:.3em .8em; font-size:.9em }
+  td { padding:.2em }
 </style>
 
-<h2>Current (reference)</h2>
-<div id="current"></div>
+<h1>2:N:M grid — 300ms total</h1>
+<p style="color:#888">Rows = glide (N), Columns = hold target (M), all with hold base = 2</p>
 
-<h2>Liked base: 400ms sustain, 80ms stagger, octave range</h2>
-<div id="base"></div>
-
-<h3>Stagger variations (400ms sustain, octave)</h3>
-
-<h2>40ms stagger</h2>
-<div id="s40"></div>
-
-<h2>60ms stagger</h2>
-<div id="s60"></div>
-
-<h2>80ms stagger</h2>
-<div id="s80"></div>
-
-<h2>100ms stagger</h2>
-<div id="s100"></div>
-
-<h2>120ms stagger</h2>
-<div id="s120"></div>
-
-<h3>Sustain variations (80ms stagger, octave)</h3>
-
-<h2>250ms sustain</h2>
-<div id="d250"></div>
-
-<h2>300ms sustain</h2>
-<div id="d300"></div>
-
-<h2>400ms sustain</h2>
-<div id="d400"></div>
-
-<h2>500ms sustain</h2>
-<div id="d500"></div>
-
-<h2>600ms sustain</h2>
-<div id="d600"></div>
+<table>
+<tr><th></th><th>M=1</th><th>M=2</th><th>M=4</th><th>M=6</th><th>M=8</th></tr>
+<tr><th>N=1</th><td id="r1c1"></td><td id="r1c2"></td><td id="r1c4"></td><td id="r1c6"></td><td id="r1c8"></td></tr>
+<tr><th>N=2</th><td id="r2c1"></td><td id="r2c2"></td><td id="r2c4"></td><td id="r2c6"></td><td id="r2c8"></td></tr>
+<tr><th>N=4</th><td id="r4c1"></td><td id="r4c2"></td><td id="r4c4"></td><td id="r4c6"></td><td id="r4c8"></td></tr>
+<tr><th>N=6</th><td id="r6c1"></td><td id="r6c2"></td><td id="r6c4"></td><td id="r6c6"></td><td id="r6c8"></td></tr>
+<tr><th>N=8</th><td id="r8c1"></td><td id="r8c2"></td><td id="r8c4"></td><td id="r8c6"></td><td id="r8c8"></td></tr>
+</table>
 
 <script>
 let ctx = new AudioContext()
-let max = 5, base = 330
+let max = 5, base = 330, total = 0.3
 
-function pluckAt(freq, vol, decay, t) {
-  t = t || ctx.currentTime
-  for (let h = 1; h <= 5; h++) {
-    let osc = ctx.createOscillator()
-    let gain = ctx.createGain()
-    osc.type = 'sine'
-    osc.frequency.value = freq * h
-    let hVol = vol / (h * h)
-    let hDecay = decay / h
-    gain.gain.setValueAtTime(hVol, t)
-    gain.gain.exponentialRampToValueAtTime(0.001, t + hDecay)
-    osc.connect(gain).connect(ctx.destination)
-    osc.start(t); osc.stop(t + hDecay)
-  }
+function r(v) { return 1 + (v - 1) / (max - 1) * 2 }
+
+function playGlide(v, ratios) {
+  let t = ctx.currentTime, target = base * r(v)
+  let sum = ratios[0] + ratios[1] + ratios[2]
+  let hold1 = total * ratios[0] / sum
+  let glide = total * ratios[1] / sum
+
+  let osc = ctx.createOscillator()
+  let gain = ctx.createGain()
+  osc.type = 'triangle'
+  osc.frequency.setValueAtTime(base, t)
+  if (hold1 > 0) osc.frequency.setValueAtTime(base, t + hold1)
+  osc.frequency.linearRampToValueAtTime(target, t + hold1 + glide)
+  gain.gain.setValueAtTime(0.15, t)
+  gain.gain.exponentialRampToValueAtTime(0.001, t + total)
+  osc.connect(gain).connect(ctx.destination)
+  osc.start(t); osc.stop(t + total)
 }
 
-function r(v) { return 1 + (v - 1) / (max - 1) }
-
-function playCurrent(v) {
-  let t = ctx.currentTime
-  pluckAt(base, 0.06, 0.2, t)
-  pluckAt(base * r(v), 0.06, 0.2, t)
-}
-
-function make(stagger, sustain) {
-  return function(v) {
-    let t = ctx.currentTime
-    pluckAt(base, 0.05, sustain, t)
-    pluckAt(base * r(v), 0.06, sustain, t + stagger)
-  }
-}
-
-function makeButtons(id, fn) {
+function makeButtons(id, ratios) {
   let el = document.getElementById(id)
   for (let v = 1; v <= 5; v++) {
     let btn = document.createElement('button')
     btn.textContent = v === 5 ? '5+' : v
-    btn.onclick = () => fn(v)
+    btn.onclick = () => playGlide(v, ratios)
     el.appendChild(btn)
   }
 }
 
-makeButtons('current', playCurrent)
-makeButtons('base', make(0.08, 0.4))
-
-makeButtons('s40', make(0.04, 0.4))
-makeButtons('s60', make(0.06, 0.4))
-makeButtons('s80', make(0.08, 0.4))
-makeButtons('s100', make(0.10, 0.4))
-makeButtons('s120', make(0.12, 0.4))
-
-makeButtons('d250', make(0.08, 0.25))
-makeButtons('d300', make(0.08, 0.3))
-makeButtons('d400', make(0.08, 0.4))
-makeButtons('d500', make(0.08, 0.5))
-makeButtons('d600', make(0.08, 0.6))
+let ns = [1,2,4,6,8]
+let ms = [1,2,4,6,8]
+for (let n of ns) {
+  for (let m of ms) {
+    makeButtons(`r${n}c${m}`, [2, n, m])
+  }
+}
 </script>
 </body></html>

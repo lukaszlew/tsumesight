@@ -9,7 +9,7 @@ function makeMockCtx() {
     currentTime: 0,
     destination: {},
     createOscillator: vi.fn(() => {
-      let osc = { type: '', frequency: { value: 0 }, connect: vi.fn(), start: vi.fn(), stop: vi.fn() }
+      let osc = { type: '', frequency: { value: 0, setValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() }, connect: vi.fn(), start: vi.fn(), stop: vi.fn() }
       oscillatorsCreated.push(osc)
       return osc
     }),

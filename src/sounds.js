@@ -182,12 +182,24 @@ function pluckNote(c, freq, vol, decay, t) {
 
 function playMarkIntervalPluck(value, max) {
   let c = getCtx()
-  // Interval: unison to octave+fifth, rendered as staggered plucked strings
+  // Hold base → glide to target → hold target (2:6:6 ratio, 300ms total)
   let ratio = 1 + (value - 1) / (max - 1) * 2
-  let base = 330
+  let base = 330, target = base * ratio
+  let total = 0.2, sum = 2 + 6 + 6
+  let hold1 = total * 2 / sum
+  let glide = total * 6 / sum
   let t = c.currentTime
-  pluckNote(c, base, 0.05, 0.25, t)
-  pluckNote(c, base * ratio, 0.06, 0.25, t + 0.08)
+  let osc = c.createOscillator()
+  let gain = c.createGain()
+  osc.type = 'triangle'
+  osc.frequency.setValueAtTime(base, t)
+  osc.frequency.setValueAtTime(base, t + hold1)
+  osc.frequency.linearRampToValueAtTime(target, t + hold1 + glide)
+  gain.gain.setValueAtTime(0.15, t)
+  gain.gain.exponentialRampToValueAtTime(0.001, t + total)
+  osc.connect(gain)
+  gain.connect(c.destination)
+  osc.start(t); osc.stop(t + total)
 }
 
 export function playComplete() {

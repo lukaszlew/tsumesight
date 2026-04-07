@@ -267,6 +267,19 @@ body {
   color: #4c4;
   font-weight: 700;
 }
+.tile-stars {
+  font-size: 0.7rem;
+  color: #fc0;
+  letter-spacing: .05em;
+  width: 60%;
+  text-align: center;
+  padding: 0 0.3rem;
+  border-left: 2px solid #3a3835;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 .tile-name {
   font-size: 0.85rem;
   color: #ccc;
@@ -814,9 +827,19 @@ body {
   animation: finish-fade-in .3s ease-out;
 }
 .finish-stars {
-  font-size: 2em;
+  font-size: 2.5em;
   color: #fc0;
-  letter-spacing: .1em;
+  letter-spacing: .15em;
+  text-shadow: 0 0 8px rgba(255, 200, 0, .4);
+}
+.finish-star-last {
+  display: inline-block;
+  transition: transform .3s;
+}
+.finish-perfect .finish-star-last {
+  font-size: 1.4em;
+  vertical-align: -.1em;
+  text-shadow: 0 0 16px rgba(255, 200, 0, .8);
 }
 .finish-time {
   font-size: 2.5em;
@@ -825,7 +848,7 @@ body {
 }
 .finish-detail {
   font-size: .9em;
-  color: #f88;
+  color: #aaa;
   margin-top: .3em;
 }
 .finish-close {

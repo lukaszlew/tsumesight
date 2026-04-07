@@ -15,19 +15,7 @@ function transpose(map) {
   return Array.from({ length: cols }, (_, x) => Array.from({ length: rows }, (_, y) => map[y][x]))
 }
 
-// Compute star rating from total time (with penalty) and engine parameters
-function computeStars(totalMs, mistakes, engine) {
-  let allQuestions = engine.questionsAsked.flat()
-  let groupCount = allQuestions.length
-  let libSum = allQuestions.reduce((s, q) => s + Math.min(q.libCount, config.maxLibertyLabel), 0)
-  let thresholdMs = (engine.totalMoves * 1 + libSum * 0.5 + groupCount * 1) * 1000
-  let ratio = totalMs / thresholdMs
-  if (ratio <= 1 && mistakes === 0) return 5
-  if (ratio <= 1.5) return 4
-  if (ratio <= 2.5) return 3
-  if (ratio <= 4) return 2
-  return 1
-}
+import { computeStars, computeThreshold } from './scoring.js'
 
 function libLabel(n) {
   return n >= config.maxLibertyLabel ? config.maxLibertyLabel + '+' : String(n)
@@ -138,11 +126,12 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
       let penaltyMs = mistakes * 3000
       let totalMs = elapsedMs + penaltyMs
       let date = Date.now()
-      let scoreEntry = { correct: engine.correct, total, accuracy, totalMs: Math.round(totalMs), mistakes, errors: engine.errors, date }
+      let thresholdMs = computeThreshold(engine)
+      let scoreEntry = { correct: engine.correct, total, accuracy, totalMs: Math.round(totalMs), mistakes, thresholdMs, errors: engine.errors, date }
       addReplay(sgfId, date, replayEventsRef.current)
       kvSet(`results:${sgfId}`, JSON.stringify(engine.results))
       onSolved(engine.correct, total, scoreEntry)
-      let stars = computeStars(totalMs, mistakes, engine)
+      let stars = computeStars(totalMs, mistakes, thresholdMs)
       setFinishPopup({
         elapsed: Math.round(elapsedMs / 1000),
         mistakes,
@@ -740,7 +729,11 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
           />}
         </div>
         {finishPopup && <div class="finish-popup">
-          <div class="finish-stars">{'★'.repeat(finishPopup.stars)}{'☆'.repeat(5 - finishPopup.stars)}</div>
+          <div class={`finish-stars${finishPopup.stars === 5 ? ' finish-perfect' : ''}`}>
+            {'★'.repeat(Math.min(finishPopup.stars, 4))}
+            {'☆'.repeat(Math.max(0, 4 - finishPopup.stars))}
+            <span class="finish-star-last">{finishPopup.stars >= 5 ? '★' : '☆'}</span>
+          </div>
           <div class="finish-time">{finishPopup.total}s</div>
           {finishPopup.mistakes > 0
             ? <div class="finish-detail">{finishPopup.elapsed}s + {finishPopup.mistakes * 3}s ({finishPopup.mistakes} {finishPopup.mistakes === 1 ? 'mistake' : 'mistakes'})</div>

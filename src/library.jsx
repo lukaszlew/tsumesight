@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'preact/hooks'
-import { getAllSgfs, addSgfBatch, deleteSgf, deleteSgfsByPrefix, renameSgfsByPrefix, clearAll, getBestScore, getLatestScoreDate, updateSgf, exportDb, downloadExport } from './db.js'
+import { getAllSgfs, addSgfBatch, deleteSgf, deleteSgfsByPrefix, renameSgfsByPrefix, clearAll, getBestScore, getLatestScoreDate, updateSgf, exportDb, downloadExport, getScores } from './db.js'
+import { starsFromScore } from './scoring.js'
 import { parseSgf } from './sgf-utils.js'
 import { isArchive, extractSgfs } from './archive.js'
 import { decodeSgf } from './sgf-utils.js'
@@ -452,15 +453,19 @@ export function Library({ onSelect, cwd, onCwdChange }) {
         <div class="tile-grid">
           {filesHere.map(s => {
             let best = getBestScore(s.id)
+            let stars = best ? starsFromScore(best) : 0
             let lp = useLongPress(() => handleDelete(s.id, s.filename))
             return (
               <div key={s.id} class={`tile file-tile${s.solved ? ' tile-solved' : ''}`}
                 onClick={() => onSelect({ id: s.id, content: s.content, path: s.path || '', filename: s.filename, solved: s.solved })} {...lp}>
                 <span class="tile-num" title="Number of moves">{s.moveCount || '?'}</span>
-                <span class={`tile-acc${best && best.accuracy >= 1 ? ' tile-perfect' : ''}`}
-                  title="Best score"
-                  style={best && best.accuracy < 1 ? { color: scoreColor(best.accuracy) } : undefined}
-                >{best ? Math.round(best.accuracy * 100) + '%' : ''}</span>
+                {stars > 0
+                  ? <span class="tile-stars" title={`${stars}/5 stars`}>{'★'.repeat(stars)}{'☆'.repeat(5 - stars)}</span>
+                  : <span class={`tile-acc${best && best.accuracy >= 1 ? ' tile-perfect' : ''}`}
+                      title="Best score"
+                      style={best && best.accuracy < 1 ? { color: scoreColor(best.accuracy) } : undefined}
+                    >{best ? Math.round(best.accuracy * 100) + '%' : ''}</span>
+                }
               </div>
             )
           })}
