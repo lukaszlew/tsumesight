@@ -158,8 +158,12 @@ export class QuizEngine {
     return changedGroups.map(g => {
       let target = Math.min(g.libCount, config.maxLibertyLabel)
       let userVertex = null, userVal = null
+      // Check all marks in the group — any correct mark counts
       for (let k of g.chainKeys) {
-        if (marks.has(k)) { userVertex = k; userVal = marks.get(k); break }
+        if (!marks.has(k)) continue
+        let v = marks.get(k)
+        if (v === target) { userVertex = k; userVal = v; break }
+        if (!userVertex) { userVertex = k; userVal = v }
       }
       if (userVertex === null) return { status: 'missed' }
       if (userVal === target) return { status: 'correct', userVertex, userVal }

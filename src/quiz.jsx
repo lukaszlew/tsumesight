@@ -15,11 +15,25 @@ function transpose(map) {
   return Array.from({ length: cols }, (_, x) => Array.from({ length: rows }, (_, y) => map[y][x]))
 }
 
+// Compute star rating from total time (with penalty) and engine parameters
+function computeStars(totalMs, mistakes, engine) {
+  let allQuestions = engine.questionsAsked.flat()
+  let groupCount = allQuestions.length
+  let libSum = allQuestions.reduce((s, q) => s + Math.min(q.libCount, config.maxLibertyLabel), 0)
+  let thresholdMs = (engine.totalMoves * 1 + libSum * 0.5 + groupCount * 1) * 1000
+  let ratio = totalMs / thresholdMs
+  if (ratio <= 1 && mistakes === 0) return 5
+  if (ratio <= 1.5) return 4
+  if (ratio <= 2.5) return 3
+  if (ratio <= 4) return 2
+  return 1
+}
+
 function libLabel(n) {
   return n >= config.maxLibertyLabel ? config.maxLibertyLabel + '+' : String(n)
 }
 
-export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsolved, onProgress, onLoadError, onNextUnsolved }) {
+export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolved, onUnsolved, onProgress, onLoadError, onNextUnsolved }) {
   let engineRef = useRef(null)
   let solvedRef = useRef(false)
   let [, forceRender] = useState(0)
@@ -39,6 +53,9 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   let [libMarks, setLibMarks] = useState(() => new Map())
   // Feedback after Done press: null or array per changed group: {status, group, userVertex, userVal} | null
   let [libFeedback, setLibFeedback] = useState(null)
+  // Finish popup: { elapsed, mistakes, total } or null
+  let [finishPopup, setFinishPopup] = useState(null)
+  let mistakesRef = useRef(0)
 
   // Replay recording
   let replayEventsRef = useRef([])
@@ -76,7 +93,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
   if (!engineRef.current && !error) {
     resetStreak()
     try {
-      if (wasSolved) {
+      if (wasSolved && restored) {
         let savedResults = kv(`results:${sgfId}`)
         if (savedResults) {
           let history = JSON.parse(savedResults)
@@ -116,12 +133,22 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       solvedRef.current = true
       let total = engine.results.length
       let accuracy = total > 0 ? engine.correct / total : 1
-      let totalMs = performance.now() - loadTimeRef.current
+      let elapsedMs = performance.now() - loadTimeRef.current
+      let mistakes = mistakesRef.current
+      let penaltyMs = mistakes * 3000
+      let totalMs = elapsedMs + penaltyMs
       let date = Date.now()
-      let scoreEntry = { correct: engine.correct, total, accuracy, totalMs: Math.round(totalMs), errors: engine.errors, date }
+      let scoreEntry = { correct: engine.correct, total, accuracy, totalMs: Math.round(totalMs), mistakes, errors: engine.errors, date }
       addReplay(sgfId, date, replayEventsRef.current)
       kvSet(`results:${sgfId}`, JSON.stringify(engine.results))
       onSolved(engine.correct, total, scoreEntry)
+      let stars = computeStars(totalMs, mistakes, engine)
+      setFinishPopup({
+        elapsed: Math.round(elapsedMs / 1000),
+        mistakes,
+        total: Math.round(totalMs / 1000),
+        stars,
+      })
       playComplete()
     }
   }
@@ -201,8 +228,11 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       // Full restart: discard old state, reset scoring
       seqSavedRef.current = null
       solvedRef.current = false
+      mistakesRef.current = 0
+      loadTimeRef.current = performance.now()
       replayEventsRef.current = []
       replayStartRef.current = null
+      setFinishPopup(null)
       resetStreak()
     } else {
       // Sequence replay: save state for restore
@@ -233,6 +263,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
 
   function advanceShowSequence() {
     let eng = engineRef.current
+    if (eng.libertyExerciseActive || eng.finished) { exitShowSequence(); return }
     if (eng.showingMove) {
       eng.activateQuestions()
       if (eng.libertyExerciseActive || eng.finished) { exitShowSequence(); return }
@@ -283,6 +314,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       setLibFeedback(null)
       checkFinished()
     } else {
+      mistakesRef.current += feedback.filter(f => f.status !== 'correct').length
       playWrong()
       setWrongFlash(true)
       setTimeout(() => setWrongFlash(false), 150)
@@ -353,7 +385,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
       else next.set(key, nextVal)
       return next
     })
-  }, [advance, libMarks, libFeedback, submitExercise])
+  }, [advance, libMarks, libFeedback, submitExercise, seqIdx])
 
   let onVertexPointerDown = useCallback((evt, vertex) => {
     swipeRef.current = { x: evt.clientX, y: evt.clientY, vertex }
@@ -707,6 +739,14 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, onBack, onSolved, onUnsol
             animateStonePlacement={false}
           />}
         </div>
+        {finishPopup && <div class="finish-popup">
+          <div class="finish-stars">{'★'.repeat(finishPopup.stars)}{'☆'.repeat(5 - finishPopup.stars)}</div>
+          <div class="finish-time">{finishPopup.total}s</div>
+          {finishPopup.mistakes > 0
+            ? <div class="finish-detail">{finishPopup.elapsed}s + {finishPopup.mistakes * 3}s ({finishPopup.mistakes} {finishPopup.mistakes === 1 ? 'mistake' : 'mistakes'})</div>
+            : null}
+          <button class="finish-close" onClick={() => setFinishPopup(null)}>OK</button>
+        </div>}
       </div>
 
       <div class="bottom-bar">
