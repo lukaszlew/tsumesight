@@ -70,6 +70,19 @@ export function playStoneClick() {
 // value: 0 = clear, 1..(max-1) = normal, max = capped (e.g. "5+")
 export function playMark(value) {
   if (!getEnabled()) return
+  if (value === 0) {
+    // Muted pluck: short triangle wave at 220Hz, fast decay
+    let c = getCtx()
+    let osc = c.createOscillator()
+    let gain = c.createGain()
+    osc.type = 'triangle'
+    osc.frequency.value = 220
+    gain.gain.setValueAtTime(0.4, c.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.06)
+    osc.connect(gain).connect(c.destination)
+    osc.start(); osc.stop(c.currentTime + 0.06)
+    return
+  }
   let max = config.maxLibertyLabel
   let mode = config.markSoundMode
 
@@ -81,11 +94,6 @@ export function playMark(value) {
 
 function playMarkRepeat(value, max) {
   let c = getCtx()
-  if (value === 0) {
-    // Clear: low descending tone
-    playTone(300, 0.15, 'sine', 0.12)
-    return
-  }
   let isMax = value >= max
   let count = isMax ? max : value
   let gap = 0.08
@@ -107,10 +115,6 @@ function playMarkRepeat(value, max) {
 }
 
 function playMarkInterval(value, max) {
-  if (value === 0) {
-    playTone(300, 0.15, 'sine', 0.12)
-    return
-  }
   // Spread from unison (ratio=1) to octave (ratio=2) across 1..max
   let ratio = 1 + (value - 1) / (max - 1)
   let base = 440
@@ -133,10 +137,6 @@ function playMarkInterval(value, max) {
 }
 
 function playMarkPluck(value, max) {
-  if (value === 0) {
-    playTone(300, 0.15, 'sine', 0.12)
-    return
-  }
   let c = getCtx()
   // Different timbre per value: vary frequency, filter decay, and harmonic content
   // Spread base frequency from 300 to 700 across 1..max
@@ -179,10 +179,6 @@ function pluckNote(c, freq, vol, decay) {
 }
 
 function playMarkIntervalPluck(value, max) {
-  if (value === 0) {
-    playTone(300, 0.15, 'sine', 0.12)
-    return
-  }
   let c = getCtx()
   // Interval: unison to octave, rendered as plucked strings
   let ratio = 1 + (value - 1) / (max - 1)
@@ -211,4 +207,21 @@ export function playComplete() {
     osc.start(t)
     osc.stop(t + 0.8)
   })
+}
+
+// Reserved: two quick descending triangle notes, good for "undo/step-back" events
+// eslint-disable-next-line no-unused-vars
+function playDoubleDescend() {
+  let c = getCtx()
+  let t = c.currentTime
+  for (let i = 0; i < 2; i++) {
+    let osc = c.createOscillator()
+    let gain = c.createGain()
+    osc.type = 'triangle'
+    osc.frequency.value = i === 0 ? 500 : 330
+    gain.gain.setValueAtTime(0.3, t + i * 0.06)
+    gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.06 + 0.08)
+    osc.connect(gain).connect(c.destination)
+    osc.start(t + i * 0.06); osc.stop(t + i * 0.06 + 0.08)
+  }
 }
