@@ -471,6 +471,20 @@ describe('QuizEngine', () => {
       expect(eeGroup.changed).toBe(false) // always 5+, not a useful question
     })
 
+    it('pre-marks merged 5+ group when ancestor was always 5+', () => {
+      // Setup: two separate black groups both with 5+ libs
+      // AB[ee][de][fe] = 3-stone chain (~8 libs), AB[eh] far stone
+      // Move B[ef][eg] bridges them — merged chain still 5+
+      let engine = new QuizEngine('(;SZ[9]AB[ee][de][fe][eh];B[eg];W[aa];B[ef])')
+      engine.advance()
+      engine.advance()
+      engine.advance(); engine.activateQuestions()
+      let groups = engine.libertyExercise.groups
+      let group = groups.find(g => [...g.chainKeys].includes('4,4'))
+      expect(group.libCount).toBeGreaterThanOrEqual(5)
+      expect(group.changed).toBe(false) // merged but always 5+
+    })
+
     it('marks group changed when libs went from 5+ to below 5', () => {
       // AB[ee][de][fe] = 3-stone chain with >= 5 libs. W[ed] reduces libs.
       // Then more moves to reduce further below 5.
@@ -493,6 +507,45 @@ describe('QuizEngine', () => {
       // ee has 4 libs so this should be changed (new group with <5 libs)
       expect(eeGroup.libCount).toBe(4)
       expect(eeGroup.changed).toBe(true)
+    })
+
+    it('pre-marks group with 6+ final libs when part existed on initial board', () => {
+      // Setup: black at ee (4 libs). Move: B[ef] extends group, now 6 libs.
+      // Part of group (ee) was on initial board, final libs > 5 → pre-marked
+      let engine = new QuizEngine('(;SZ[9]AB[ee];B[ef];W[aa])')
+      engine.advance()
+      engine.advance(); engine.activateQuestions()
+      let groups = engine.libertyExercise.groups
+      let group = groups.find(g => [...g.chainKeys].includes('4,4'))
+      expect(group.libCount).toBeGreaterThan(5)
+      expect(group.changed).toBe(false)
+    })
+
+    it('does not pre-mark 6+ group when no part existed on initial board', () => {
+      // No setup stones. New group placed with 6+ libs.
+      // AB[ee] gives 4 libs. Need a bigger new group.
+      // Place B[dd][de][ed] in sequence — 3-stone chain in center, many libs
+      let engine = new QuizEngine('(;SZ[9];B[dd];W[aa];B[de];W[bb];B[ed])')
+      for (let i = 0; i < 5; i++) engine.advance()
+      engine.activateQuestions()
+      let groups = engine.libertyExercise.groups
+      let group = groups.find(g => [...g.chainKeys].includes('3,3'))
+      if (group && group.libCount > 5) {
+        expect(group.changed).toBe(true) // no initial stones, still a question
+      }
+    })
+
+    it('does not pre-mark 6+ new group with no initial stones', () => {
+      // Entirely new group with 6+ libs but no stones on initial board
+      // B[dd][de][ed] placed during sequence — no setup stones
+      let engine = new QuizEngine('(;SZ[9];B[dd];W[aa];B[de];W[bb];B[ed])')
+      for (let i = 0; i < 5; i++) engine.advance()
+      engine.activateQuestions()
+      let groups = engine.libertyExercise.groups
+      let group = groups.find(g => [...g.chainKeys].includes('3,3'))
+      if (group && group.libCount > 5) {
+        expect(group.changed).toBe(true) // no initial stones, 6+ rule doesn't apply
+      }
     })
 
     it('marks group unchanged when libs never varied during sequence', () => {

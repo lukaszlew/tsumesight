@@ -367,20 +367,25 @@ export class QuizEngine {
             }
           }
         }
-        // If the group was 5+ throughout the entire sequence, it's not a useful question
+        // If the group (or its ancestor before merging) was 5+ throughout, pre-mark it
         if (changed && libCount >= config.maxLibertyLabel) {
-          let alwaysCapped = (initialLibCount === undefined || initialLibCount >= config.maxLibertyLabel)
+          let ref = chain[0]
+          let alwaysCapped = (initialLibCount === undefined
+            ? this.initialBoard.get(ref) !== 0 && this.initialBoard.getLiberties(ref).length >= config.maxLibertyLabel
+            : initialLibCount >= config.maxLibertyLabel)
           if (alwaysCapped) {
             alwaysCapped = this.boardHistory.slice(0, -1).every(board => {
-              let ref = chain[0]
               if (board.get(ref) === 0) return false
-              let midChain = board.getChain(ref)
-              let midKey = midChain.map(vertexKey).sort().join(';')
-              if (midKey !== vSetKey) return false
               return board.getLiberties(ref).length >= config.maxLibertyLabel
             })
           }
           if (alwaysCapped) changed = false
+        }
+        // 6+ libs at end and part of the group existed on initial board → pre-mark as 5+
+        if (changed && libCount > config.maxLibertyLabel) {
+          let color = this.trueBoard.get(v)
+          let hadInitialStone = chain.some(cv => this.initialBoard.get(cv) === color)
+          if (hadInitialStone) changed = false
         }
         let vertex = chain[Math.floor(this.random() * chain.length)]
         groups.push({ vertex, chainKeys, libCount, changed })
