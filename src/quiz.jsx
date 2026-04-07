@@ -730,9 +730,13 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
         </div>
         {finishPopup && <div class="finish-popup">
           <div class={`finish-stars${finishPopup.stars === 5 ? ' finish-perfect' : ''}`}>
-            {'★'.repeat(Math.min(finishPopup.stars, 4))}
-            {'☆'.repeat(Math.max(0, 4 - finishPopup.stars))}
-            <span class="finish-star-last">{finishPopup.stars >= 5 ? '★' : '☆'}</span>
+            {finishPopup.stars === 5
+              ? <span class="finish-star-big">★</span>
+              : <>
+                  <span class="star-row">{'★★★'.split('').map((c, i) => <span key={i} class={i < Math.min(finishPopup.stars, 3) ? '' : 'star-off'}>{i < Math.min(finishPopup.stars, 3) ? '★' : '☆'}</span>)}</span>
+                  <span class="star-row star-row-bottom">{'★★'.split('').map((c, i) => <span key={i} class={i + 3 < finishPopup.stars ? '' : 'star-off'}>{i + 3 < finishPopup.stars ? '★' : '☆'}</span>)}</span>
+                </>
+            }
           </div>
           <div class="finish-time">{finishPopup.total}s</div>
           {finishPopup.mistakes > 0

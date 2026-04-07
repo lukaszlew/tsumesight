@@ -540,13 +540,13 @@ body {
   gap: calc(2 * var(--s));
 }
 .bottom-bar-row .bar-btn {
-  padding: calc(1.2 * var(--s)) calc(2.5 * var(--s));
-  font-size: calc(2 * var(--s));
+  padding: calc(1.5 * var(--s)) calc(3 * var(--s));
+  font-size: calc(2.8 * var(--s));
   border-radius: calc(0.8 * var(--s));
 }
 .bottom-bar .next-hero {
-  padding: calc(1.2 * var(--s)) calc(2.5 * var(--s));
-  font-size: calc(2.2 * var(--s));
+  padding: calc(1.5 * var(--s)) calc(3 * var(--s));
+  font-size: calc(3 * var(--s));
   border-radius: calc(0.8 * var(--s));
   width: 80%;
   margin: 0 auto calc(1 * var(--s));
@@ -574,7 +574,7 @@ body {
 
 /* Board (row 1) */
 .board-row {
-  height: 100%;
+  flex: 1 1 0;
   min-height: 0;
   overflow: hidden;
   display: flex;
@@ -716,9 +716,10 @@ body {
 }
 .action-hint {
   color: #888;
-  font-size: calc(3 * var(--s));
+  font-size: calc(3.5 * var(--s));
   text-align: center;
-  margin-bottom: calc(2 * var(--s));
+  margin-bottom: calc(1.5 * var(--s));
+  line-height: 1.3;
 }
 .hint-blue {
   color: #4af;
@@ -743,7 +744,7 @@ body {
   --shudan-padding: .1em;
   box-shadow: 0 2px 12px rgba(0,0,0,.4);
   border-radius: 3px;
-  touch-action: manipulation;
+  touch-action: none;
   -webkit-touch-callout: none;
 }
 .shudan-goban-image {
@@ -843,14 +844,16 @@ body {
   color: #fc0;
   letter-spacing: .15em;
   text-shadow: 0 0 8px rgba(255, 200, 0, .4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
-.finish-star-last {
-  display: inline-block;
-  transition: transform .3s;
+.finish-stars .star-row-bottom {
+  margin-top: -.2em;
 }
-.finish-perfect .finish-star-last {
-  font-size: 1.4em;
-  vertical-align: -.1em;
+.finish-stars .star-off { color: #553; }
+.finish-star-big {
+  font-size: 1.6em;
   text-shadow: 0 0 16px rgba(255, 200, 0, .8);
 }
 .finish-time {
