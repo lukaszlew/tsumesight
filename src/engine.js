@@ -381,13 +381,14 @@ export class QuizEngine {
           }
           if (alwaysCapped) changed = false
         }
+        let color = this.trueBoard.get(chain[0])
+        let initialStones = chain.filter(cv => this.initialBoard.get(cv) === color)
         // 6+ libs at end and part of the group existed on initial board → pre-mark as 5+
-        if (changed && libCount > config.maxLibertyLabel) {
-          let color = this.trueBoard.get(v)
-          let hadInitialStone = chain.some(cv => this.initialBoard.get(cv) === color)
-          if (hadInitialStone) changed = false
-        }
-        let vertex = chain[Math.floor(this.random() * chain.length)]
+        if (changed && libCount > config.maxLibertyLabel && initialStones.length > 0)
+          changed = false
+        // Prefer pre-existing stone for representative vertex (label / ? placement)
+        let pool = initialStones.length > 0 ? initialStones : chain
+        let vertex = pool[Math.floor(this.random() * pool.length)]
         groups.push({ vertex, chainKeys, libCount, changed })
       }
 
