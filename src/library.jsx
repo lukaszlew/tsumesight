@@ -273,12 +273,13 @@ export function Library({ onSelect, cwd, onCwdChange }) {
   let filesHere = sgfs.filter(s => (s.path || '') === cwd)
     .sort((a, b) => (a.uploadedAt || 0) - (b.uploadedAt || 0) || a.filename.localeCompare(b.filename))
 
-  // Enter = next unsolved/imperfect problem
+  // Enter = next unsolved/imperfect problem (skip problems with no moves)
+  let pickable = (s) => s.moveCount > 0
   useEffect(() => {
     function onKeyDown(e) {
       if (e.key !== 'Enter') return
-      let next = filesHere.find(s => !s.solved)
-        || filesHere.find(s => { let b = getBestScore(s.id); return !b || b.accuracy < 1 })
+      let next = filesHere.find(s => pickable(s) && !s.solved)
+        || filesHere.find(s => { if (!pickable(s)) return false; let b = getBestScore(s.id); return !b || b.accuracy < 1 })
       if (!next) return
       e.preventDefault()
       onSelect({ id: next.id, content: next.content, path: next.path || '', filename: next.filename, solved: next.solved })
@@ -330,7 +331,7 @@ export function Library({ onSelect, cwd, onCwdChange }) {
 
       {filesHere.length > 0 && (() => {
         let solvedCount = filesHere.filter(s => s.solved).length
-        let unsolved = filesHere.find(s => !s.solved)
+        let unsolved = filesHere.find(s => pickable(s) && !s.solved)
         if (unsolved) {
           let select = () => onSelect({ id: unsolved.id, content: unsolved.content, path: unsolved.path || '', filename: unsolved.filename, solved: unsolved.solved })
           return <>
@@ -342,7 +343,7 @@ export function Library({ onSelect, cwd, onCwdChange }) {
             <button class="next-hero" title="First unsolved problem" onClick={select}>Next</button>
           </>
         }
-        let imperfect = filesHere.find(s => { let b = getBestScore(s.id); return !b || b.accuracy < 1 })
+        let imperfect = filesHere.find(s => { if (!pickable(s)) return false; let b = getBestScore(s.id); return !b || b.accuracy < 1 })
         if (imperfect) {
           let select = () => onSelect({ id: imperfect.id, content: imperfect.content, path: imperfect.path || '', filename: imperfect.filename, solved: imperfect.solved })
           return <>
@@ -460,9 +461,9 @@ export function Library({ onSelect, cwd, onCwdChange }) {
                 onClick={() => onSelect({ id: s.id, content: s.content, path: s.path || '', filename: s.filename, solved: s.solved })} {...lp}>
                 <span class="tile-num" title="Number of moves">{s.moveCount || '?'}</span>
                 {stars > 0
-                  ? <span class={`tile-stars${stars === 5 ? ' tile-stars-perfect' : ''}`} title={`${stars}/5 stars`}>
+                  ? <span class="tile-stars" title={`${stars}/5 stars`}>
                       {stars === 5
-                        ? <span class="star-big">★</span>
+                        ? <span class="tile-trophy">🏆</span>
                         : <>
                             <span class="star-row">{'★★★'.split('').map((c, i) => <span key={i} class={i < Math.min(stars, 3) ? 'star-on' : 'star-off'}>{i < Math.min(stars, 3) ? '★' : '☆'}</span>)}</span>
                             <span class="star-row star-row-bottom">{'★★'.split('').map((c, i) => <span key={i} class={i + 3 < stars ? 'star-on' : 'star-off'}>{i + 3 < stars ? '★' : '☆'}</span>)}</span>

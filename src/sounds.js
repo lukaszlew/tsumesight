@@ -20,7 +20,8 @@ export function toggleSound() {
 }
 
 function getCtx() {
-  if (!ctx) ctx = new AudioContext()
+  if (!ctx) ctx = new AudioContext({ latencyHint: 'interactive' })
+  if (ctx.state === 'suspended') ctx.resume()
   return ctx
 }
 
@@ -78,9 +79,9 @@ export function playMark(value) {
     osc.type = 'triangle'
     osc.frequency.value = 220
     gain.gain.setValueAtTime(0.4, c.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.06)
+    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.03)
     osc.connect(gain).connect(c.destination)
-    osc.start(); osc.stop(c.currentTime + 0.06)
+    osc.start(); osc.stop(c.currentTime + 0.03)
     return
   }
   let max = config.maxLibertyLabel
@@ -185,7 +186,7 @@ function playMarkIntervalPluck(value, max) {
   // Hold base → glide to target → hold target (2:6:6 ratio, 300ms total)
   let ratio = 1 + (value - 1) / (max - 1) * 2
   let base = 330, target = base * ratio
-  let total = 0.2, sum = 2 + 6 + 6
+  let total = 0.1, sum = 2 + 6 + 6
   let hold1 = total * 2 / sum
   let glide = total * 6 / sum
   let t = c.currentTime

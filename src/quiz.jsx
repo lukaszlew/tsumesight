@@ -729,10 +729,13 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
           />}
         </div>
         {finishPopup && <div class="finish-popup">
-          <div class={`finish-stars${finishPopup.stars === 5 ? ' finish-perfect' : ''}`}>
-            <span class="star-row">{'★★★'.split('').map((c, i) => <span key={i} class={i < Math.min(finishPopup.stars, 3) ? '' : 'star-off'}>{i < Math.min(finishPopup.stars, 3) ? '★' : '☆'}</span>)}</span>
-            <span class="star-row star-row-bottom">{'★★'.split('').map((c, i) => <span key={i} class={i + 3 < finishPopup.stars ? '' : 'star-off'}>{i + 3 < finishPopup.stars ? '★' : '☆'}</span>)}</span>
-          </div>
+          {finishPopup.stars === 5
+            ? <div class="finish-trophy">🏆</div>
+            : <div class="finish-stars">
+                <span class="star-row">{'★★★'.split('').map((c, i) => <span key={i} class={i < Math.min(finishPopup.stars, 3) ? '' : 'star-off'}>{i < Math.min(finishPopup.stars, 3) ? '★' : '☆'}</span>)}</span>
+                <span class="star-row star-row-bottom">{'★★'.split('').map((c, i) => <span key={i} class={i + 3 < finishPopup.stars ? '' : 'star-off'}>{i + 3 < finishPopup.stars ? '★' : '☆'}</span>)}</span>
+              </div>
+          }
           <div class="finish-time">{finishPopup.total}s</div>
           {finishPopup.mistakes > 0
             ? <div class="finish-detail">{finishPopup.elapsed}s + {finishPopup.mistakes * 3}s ({finishPopup.mistakes} {finishPopup.mistakes === 1 ? 'mistake' : 'mistakes'})</div>
@@ -780,8 +783,8 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
                     <button class="bar-btn" title={`Sound ${soundOn ? 'on' : 'off'}`} onClick={() => { setSoundOn(toggleSound()) }}>{soundOn ? '\uD83D\uDD0A' : '\uD83D\uDD07'}</button>
                     {preSolve && !engine.libertyExerciseActive && <button class="bar-btn mark-solved-btn" title={wasSolved ? 'Remove solved mark' : 'Skip and mark as solved (Enter)'} onClick={toggleSolved}>{wasSolved ? 'Mark as unsolved' : 'Mark as solved'}</button>}
                     {engine.finished && <button class="bar-btn eye-toggle" title={showSeqStones ? 'Hide sequence stones' : 'Show sequence stones'} onClick={() => setShowSeqStones(v => !v)}>{showSeqStones ? '\u{1F441}' : '\u{1F9E0}'}</button>}
-                    {engine.finished && <button class="next-hero" title="Next unsolved problem (Enter)" onClick={onNextUnsolved}>Next</button>}
                     <button class="bar-btn" title="Restart this problem (R)" onClick={() => startShowSequence(engine.finished)}>&#x21BB; Restart</button>
+                    <button class={engine.finished ? 'next-hero' : 'bar-btn'} title="Next problem (Enter)" onClick={onNextUnsolved}>Next &#x25B8;</button>
                   </div>
                 </>
         }

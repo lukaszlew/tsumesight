@@ -143,7 +143,7 @@ export function App() {
   }
 
   async function goNextUnsolved() {
-    let siblings = await getSiblings(active.path)
+    let siblings = (await getSiblings(active.path)).filter(s => s.moveCount > 0)
     let curIdx = siblings.findIndex(s => s.id === active.id)
     // First unsolved
     for (let i = 1; i < siblings.length; i++) {

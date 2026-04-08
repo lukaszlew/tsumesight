@@ -288,9 +288,10 @@ body {
   margin-top: -.15em;
 }
 .star-off { color: #554; }
-.star-big {
-  font-size: 2.5rem;
-  text-shadow: 0 0 8px rgba(255, 200, 0, .5);
+.tile-trophy {
+  font-size: 2.2rem;
+  line-height: 1;
+  filter: drop-shadow(0 0 6px rgba(255, 200, 0, .55));
 }
 .tile-name {
   font-size: 0.85rem;
@@ -852,11 +853,12 @@ body {
   margin-top: -.2em;
 }
 .finish-stars .star-off { color: #553; }
-.finish-perfect {
-  font-size: 5em;
-  text-shadow: 0 0 20px rgba(255, 200, 0, .6);
+.finish-trophy {
+  font-size: 6em;
+  line-height: 1;
+  filter: drop-shadow(0 0 16px rgba(255, 200, 0, .55));
 }
-.finish-perfect + .finish-time {
+.finish-trophy + .finish-time {
   font-size: 3.5em;
 }
 .finish-time {
