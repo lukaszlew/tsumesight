@@ -474,8 +474,17 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
       let zone = getWheelZone(dx, dy)
       commitMark(vertex, zone)
     } else {
-      // Show wheel with initial zone from click offset
-      let w = { vertex, cx, cy, active: getWheelZone(dx, dy) }
+      // Show wheel in the top-left quadrant of the board (HUD), unless
+      // the click itself is in the top-left quadrant — then put it in
+      // the bottom-left. Angles are still computed from the intersection.
+      let boardEl = evt.currentTarget.closest('.shudan-goban') || boardRowRef.current
+      let board = boardEl.getBoundingClientRect()
+      let mx = board.left + board.width / 2
+      let my = board.top + board.height / 2
+      let inTopLeft = cx < mx && cy < my
+      let wcx = board.left + board.width / 4
+      let wcy = inTopLeft ? board.top + board.height * 3 / 4 : board.top + board.height / 4
+      let w = { vertex, cx, cy, wcx, wcy, active: getWheelZone(dx, dy) }
       wheelRef.current = w
       setWheel(w)
     }
@@ -841,7 +850,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
             animateStonePlacement={false}
           />}
         </div>
-        {wheel && <RadialMenu cx={wheel.cx} cy={wheel.cy} activeZone={wheel.active} vertexSize={vertexSize} />}
+        {wheel && <RadialMenu cx={wheel.wcx} cy={wheel.wcy} activeZone={wheel.active} vertexSize={vertexSize} />}
         {finishPopup && <div class="finish-popup">
           {finishPopup.stars === 5
             ? <div class="finish-trophy">🏆</div>
