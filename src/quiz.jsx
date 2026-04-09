@@ -21,6 +21,90 @@ function libLabel(n) {
   return n >= config.maxLibertyLabel ? config.maxLibertyLabel + '+' : String(n)
 }
 
+// Radial marking menu — angles in screen coords (0°=right/E, clockwise)
+// Layout: S+SE+E = nomark (135°), then 1(SW) 2(W) 3(NW) 4(N) 5+(NE) at 45° each
+const WHEEL_ZONES = [
+  { value: 0, start: 337.5, end: 112.5, label: '' },
+  { value: 1, start: 112.5, end: 157.5, label: '1' },
+  { value: 2, start: 157.5, end: 202.5, label: '2' },
+  { value: 3, start: 202.5, end: 247.5, label: '3' },
+  { value: 4, start: 247.5, end: 292.5, label: '4' },
+  { value: 5, start: 292.5, end: 337.5, label: '5+' },
+]
+
+function getWheelZone(dx, dy) {
+  let angle = Math.atan2(dy, dx) * 180 / Math.PI
+  if (angle < 0) angle += 360
+  if (angle >= 112.5 && angle < 157.5) return 1
+  if (angle >= 157.5 && angle < 202.5) return 2
+  if (angle >= 202.5 && angle < 247.5) return 3
+  if (angle >= 247.5 && angle < 292.5) return 4
+  if (angle >= 292.5 && angle < 337.5) return 5
+  return 0
+}
+
+function wheelPath(startDeg, endDeg, rInner, rOuter) {
+  let toRad = Math.PI / 180
+  let span = endDeg - startDeg
+  if (span < 0) span += 360
+  let large = span > 180 ? 1 : 0
+  let s = startDeg * toRad
+  let e = (startDeg + span) * toRad
+  let x1i = rInner * Math.cos(s), y1i = rInner * Math.sin(s)
+  let x1o = rOuter * Math.cos(s), y1o = rOuter * Math.sin(s)
+  let x2i = rInner * Math.cos(e), y2i = rInner * Math.sin(e)
+  let x2o = rOuter * Math.cos(e), y2o = rOuter * Math.sin(e)
+  return [
+    `M ${x1i} ${y1i}`, `L ${x1o} ${y1o}`,
+    `A ${rOuter} ${rOuter} 0 ${large} 1 ${x2o} ${y2o}`,
+    `L ${x2i} ${y2i}`,
+    `A ${rInner} ${rInner} 0 ${large} 0 ${x1i} ${y1i}`,
+    'Z'
+  ].join(' ')
+}
+
+function RadialMenu({ cx, cy, activeZone, vertexSize }) {
+  let rOuter = vertexSize * 1.75
+  let rInner = vertexSize * 0.4
+  let rLabel = (rOuter + rInner) / 2
+  let toRad = Math.PI / 180
+  let pad = 2
+
+  return (
+    <svg style={{
+      position: 'fixed',
+      left: cx - rOuter - pad,
+      top: cy - rOuter - pad,
+      width: (rOuter + pad) * 2,
+      height: (rOuter + pad) * 2,
+      pointerEvents: 'none',
+      zIndex: 1000,
+    }} viewBox={`${-rOuter - pad} ${-rOuter - pad} ${(rOuter + pad) * 2} ${(rOuter + pad) * 2}`}>
+      {WHEEL_ZONES.map(z => {
+        let span = z.end - z.start
+        if (span < 0) span += 360
+        let midAngle = (z.start + span / 2) * toRad
+        let lx = rLabel * Math.cos(midAngle)
+        let ly = rLabel * Math.sin(midAngle)
+        let active = activeZone === z.value
+        return (
+          <g key={z.value}>
+            <path d={wheelPath(z.start, z.end, rInner, rOuter)}
+              fill={active ? 'rgba(100, 200, 255, 0.5)' : z.value === 0 ? 'rgba(40, 40, 40, 0.3)' : 'rgba(70, 70, 70, 0.5)'}
+              stroke="rgba(200, 200, 200, 0.6)"
+              stroke-width={1}
+            />
+            {z.label && <text x={lx} y={ly} fill="white" font-size={vertexSize * 0.45}
+              text-anchor="middle" dominant-baseline="central">
+              {z.label}
+            </text>}
+          </g>
+        )
+      })}
+    </svg>
+  )
+}
+
 export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolved, onUnsolved, onProgress, onLoadError, onNextUnsolved }) {
   let engineRef = useRef(null)
   let solvedRef = useRef(false)
@@ -45,6 +129,11 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
   let [finishPopup, setFinishPopup] = useState(null)
   let mistakesRef = useRef(0)
 
+  // Radial marking menu state: { vertex, cx, cy, active } or null
+  let [wheel, setWheel] = useState(null)
+  let wheelRef = useRef(null) // mirror for global listeners
+  let wheelUsedRef = useRef(false)
+
   // Replay recording
   let replayEventsRef = useRef([])
   let replayStartRef = useRef(null)
@@ -62,9 +151,6 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
   // Show sequence (step through moves during question phase)
   let [seqIdx, setSeqIdx] = useState(0) // 0 = inactive, 1+ = showing move N
   let seqSavedRef = useRef(null)
-
-  // Swipe-to-clear: track pointer start position
-  let swipeRef = useRef(null)
 
   function setReplayModeSync(val) {
     replayModeRef.current = val
@@ -312,27 +398,13 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
     rerender()
   }, [libMarks])
 
-  let onVertexClick = useCallback((evt, vertex) => {
-    if (swipedRef.current) { swipedRef.current = false; return }
-    if (replayModeRef.current) { exitReplayEarly(); return }
-    if (seqIdx > 0) { advanceShowSequence(); return }
-    if (confirmExit) { setConfirmExit(false); return }
+  // Commit a radial menu mark on a vertex
+  let commitMark = useCallback((vertex, value) => {
     let key = `${vertex[0]},${vertex[1]}`
-    // Review mode: toggle review display on tap
-    if (engine.finished) {
-      return
-    }
-    // No exercise: tap = advance
-    if (!engine.libertyExerciseActive) {
-      recordEvent({ a: 1 })
-      advance()
-      return
-    }
-    // Liberty exercise: cycle label on stone (nomark → 1 → 2 → 3 → 4 → 5 → nomark)
-    // Check if this stone belongs to a locked (unchanged) group
     let exercise = engine.libertyExercise
+    if (!exercise) return
     let lockedGroup = exercise.groups.find(g => !g.changed && g.chainKeys.has(key))
-    if (lockedGroup) return // locked, can't change
+    if (lockedGroup) return
 
     // Feedback mode: handle taps on checked groups
     if (libFeedback) {
@@ -340,18 +412,14 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
       let feedbackIdx = changedGroups.findIndex(g => g.chainKeys.has(key))
       if (feedbackIdx !== -1) {
         let fb = libFeedback[feedbackIdx]
-        if (fb?.status === 'correct') return // correct groups are locked
+        if (fb?.status === 'correct') return
         if (fb) {
-          // Wrong: cycle from displayed number. Missed: start at 1.
-          let nextVal = fb.status === 'wrong'
-            ? (fb.userVal >= config.maxLibertyLabel ? 1 : fb.userVal + 1)
-            : 1
           recordEvent({ v: vertex })
-          playMark(nextVal)
+          playMark(value)
           setLibMarks(prev => {
             let next = new Map(prev)
             for (let k of changedGroups[feedbackIdx].chainKeys) next.delete(k)
-            next.set(key, nextVal)
+            if (value > 0) next.set(key, value)
             return next
           })
           setLibFeedback(prev => {
@@ -365,42 +433,88 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
     }
 
     recordEvent({ v: vertex })
-    let current = libMarks.get(key) || 0
-    let nextVal = current >= config.maxLibertyLabel ? 0 : current + 1
-    playMark(nextVal)
+    playMark(value)
     setLibMarks(prev => {
       let next = new Map(prev)
-      if (nextVal === 0) next.delete(key)
-      else next.set(key, nextVal)
+      if (value === 0) next.delete(key)
+      else next.set(key, value)
       return next
     })
-  }, [advance, libMarks, libFeedback, submitExercise, seqIdx])
+  }, [libMarks, libFeedback])
+
+  let onVertexClick = useCallback((evt, vertex) => {
+    if (wheelUsedRef.current) { wheelUsedRef.current = false; return }
+    if (replayModeRef.current) { exitReplayEarly(); return }
+    if (seqIdx > 0) { advanceShowSequence(); return }
+    if (confirmExit) { setConfirmExit(false); return }
+    if (engine.finished) return
+    if (!engine.libertyExerciseActive) {
+      recordEvent({ a: 1 })
+      advance()
+      return
+    }
+    // During liberty exercise, marking is handled by the radial menu
+  }, [advance, seqIdx])
 
   let onVertexPointerDown = useCallback((evt, vertex) => {
-    swipeRef.current = { x: evt.clientX, y: evt.clientY, vertex }
-  }, [])
-
-  let swipedRef = useRef(false)
-
-  let onVertexPointerUp = useCallback((evt, vertex) => {
-    let start = swipeRef.current
-    swipeRef.current = null
-    if (!start) return
-    let dx = evt.clientX - start.x, dy = evt.clientY - start.y
+    if (!engine.libertyExerciseActive) return
+    // Get vertex center in screen coords
+    let rect = evt.currentTarget.getBoundingClientRect()
+    let cx = rect.left + rect.width / 2
+    let cy = rect.top + rect.height / 2
+    let dx = evt.clientX - cx
+    let dy = evt.clientY - cy
     let dist = Math.sqrt(dx * dx + dy * dy)
-    if (dist < 15) return // not a swipe
-    swipedRef.current = true // suppress the upcoming click
-    // Swipe detected: clear the mark on the start vertex
-    let key = `${start.vertex[0]},${start.vertex[1]}`
-    if (!libMarks.has(key)) return
-    playMark(0)
-    recordEvent({ v: start.vertex, sw: 1 })
-    setLibMarks(prev => {
-      let next = new Map(prev)
-      next.delete(key)
-      return next
-    })
-  }, [libMarks])
+    let vicinityThreshold = vertexSize * 0.4
+
+    wheelUsedRef.current = true
+    if (dist > vicinityThreshold) {
+      // Fast flick — instant commit without showing wheel
+      let zone = getWheelZone(dx, dy)
+      commitMark(vertex, zone)
+    } else {
+      // Show wheel with initial zone from click offset
+      let w = { vertex, cx, cy, active: getWheelZone(dx, dy) }
+      wheelRef.current = w
+      setWheel(w)
+    }
+  }, [vertexSize, commitMark])
+
+  let onVertexPointerUp = useCallback(() => {}, [])
+
+  // Global pointer listeners for wheel drag
+  useEffect(() => {
+    function onMove(evt) {
+      let w = wheelRef.current
+      if (!w) return
+      evt.preventDefault() // prevent scroll during wheel drag
+      let dx = evt.clientX - w.cx
+      let dy = evt.clientY - w.cy
+      let dist = Math.sqrt(dx * dx + dy * dy)
+      let active = getWheelZone(dx, dy)
+      if (active !== w.active) {
+        w.active = active
+        setWheel({ ...w })
+      }
+    }
+    function onUp(evt) {
+      let w = wheelRef.current
+      if (!w) return
+      wheelRef.current = null
+      let dx = evt.clientX - w.cx
+      let dy = evt.clientY - w.cy
+      let dist = Math.sqrt(dx * dx + dy * dy)
+      let zone = getWheelZone(dx, dy)
+      commitMark(w.vertex, zone)
+      setWheel(null)
+    }
+    window.addEventListener('pointermove', onMove, { passive: false })
+    window.addEventListener('pointerup', onUp)
+    return () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+  }, [vertexSize, commitMark])
 
   let tryBack = useCallback(() => {
     if (confirmExit || engine.finished) { onBack(); return }
@@ -728,6 +842,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
             animateStonePlacement={false}
           />}
         </div>
+        {wheel && <RadialMenu cx={wheel.cx} cy={wheel.cy} activeZone={wheel.active} vertexSize={vertexSize} />}
         {finishPopup && <div class="finish-popup">
           {finishPopup.stars === 5
             ? <div class="finish-trophy">🏆</div>
