@@ -779,7 +779,9 @@ body {
   font-family: system-ui, -apple-system, sans-serif;
   font-weight: 600;
   font-size: .55em;
-  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+  text-shadow:
+    -1px 0 0 #000, 1px 0 0 #000, 0 -1px 0 #000, 0 1px 0 #000,
+    -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -789,11 +791,15 @@ body {
 /* Move-sequence labels: plain contrast text on stones */
 .board-container.showing-move .shudan-vertex.shudan-marker_label.shudan-sign_1 .shudan-marker {
   color: #ddd !important;
-  text-shadow: -1px -1px 0 #111, 1px -1px 0 #111, -1px 1px 0 #111, 1px 1px 0 #111;
+  text-shadow:
+    -1px 0 0 #111, 1px 0 0 #111, 0 -1px 0 #111, 0 1px 0 #111,
+    -1px -1px 0 #111, 1px -1px 0 #111, -1px 1px 0 #111, 1px 1px 0 #111;
 }
 .board-container.showing-move .shudan-vertex.shudan-marker_label.shudan-sign_-1 .shudan-marker {
   color: #222 !important;
-  text-shadow: -1px -1px 0 #aaa, 1px -1px 0 #aaa, -1px 1px 0 #aaa, 1px 1px 0 #aaa;
+  text-shadow:
+    -1px 0 0 #eee, 1px 0 0 #eee, 0 -1px 0 #eee, 0 1px 0 #eee,
+    -1px -1px 0 #eee, 1px -1px 0 #eee, -1px 1px 0 #eee, 1px 1px 0 #eee;
 }
 
 /* Finished review / feedback: hide paint overlay, use paint class for label coloring */
@@ -805,13 +811,17 @@ body {
 .board-container.finished .shudan-vertex.shudan-paint_1 .shudan-marker,
 .board-container.lib-feedback .shudan-vertex.shudan-paint_1 .shudan-marker {
   color: #0c0 !important;
-  text-shadow: -1px -1px 0 #060, 1px -1px 0 #060, -1px 1px 0 #060, 1px 1px 0 #060;
+  text-shadow:
+    -1px 0 0 #060, 1px 0 0 #060, 0 -1px 0 #060, 0 1px 0 #060,
+    -1px -1px 0 #060, 1px -1px 0 #060, -1px 1px 0 #060, 1px 1px 0 #060;
 }
 /* Wrong marks: red */
 .board-container.finished .shudan-vertex.shudan-paint_-1 .shudan-marker,
 .board-container.lib-feedback .shudan-vertex.shudan-paint_-1 .shudan-marker {
   color: #f44 !important;
-  text-shadow: -1px -1px 0 #800, 1px -1px 0 #800, -1px 1px 0 #800, 1px 1px 0 #800;
+  text-shadow:
+    -1px 0 0 #800, 1px 0 0 #800, 0 -1px 0 #800, 0 1px 0 #800,
+    -1px -1px 0 #800, 1px -1px 0 #800, -1px 1px 0 #800, 1px 1px 0 #800;
 }
 /* Liberty exercise: circle markers (green) */
 .shudan-vertex.shudan-marker_circle .shudan-marker circle {
