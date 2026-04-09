@@ -291,7 +291,6 @@ body {
 .tile-trophy {
   font-size: 2.2rem;
   line-height: 1;
-  filter: drop-shadow(0 0 6px rgba(255, 200, 0, .55));
 }
 .tile-name {
   font-size: 0.85rem;
@@ -856,7 +855,6 @@ body {
 .finish-trophy {
   font-size: 6em;
   line-height: 1;
-  filter: drop-shadow(0 0 16px rgba(255, 200, 0, .55));
 }
 .finish-trophy + .finish-time {
   font-size: 3.5em;
