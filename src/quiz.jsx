@@ -75,19 +75,19 @@ function RadialMenu({ cx, cy, activeZone, vertexSize }) {
       pointerEvents: 'none',
       zIndex: 1000,
     }} viewBox={`${-size} ${-size} ${size * 2} ${size * 2}`}>
-      <circle cx={0} cy={0} r={rLabel + vertexSize * 0.5} fill="rgba(0, 0, 0, 0.4)" />
+      <circle cx={0} cy={0} r={rLabel + vertexSize * 0.5} fill="rgba(255, 255, 255, 0.65)" />
       {WHEEL_ZONES.map(z => {
         let rad = z.angle * toRad
         let lx = Math.cos(rad) * rLabel
         let ly = Math.sin(rad) * rLabel
         let active = activeZone === z.value
-        let fill = active ? '#6cf' : 'rgba(220, 220, 220, 0.85)'
+        let fill = active ? '#4bf' : '#fff'
         return (
           <g key={z.value}>
             <polygon points={arrowPoints} fill={fill}
               stroke="#000" stroke-width={strokeW} stroke-linejoin="round"
               transform={`rotate(${z.angle})`} />
-            {z.label && <text x={lx} y={ly} fill="#fff"
+            {z.label && <text x={lx} y={ly} fill={fill}
               font-size={vertexSize * 0.75} font-weight="800"
               text-anchor="middle" dominant-baseline="central"
               style={{ paintOrder: 'stroke' }}
