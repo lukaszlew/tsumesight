@@ -22,25 +22,26 @@ function libLabel(n) {
 }
 
 // Radial marking menu — angles in screen coords (0°=right/E, clockwise)
-// Layout: S+SE+E = nomark (135°), then 1(SW) 2(W) 3(NW) 4(N) 5+(NE) at 45° each
+// 6 equal 60° slices. Going clockwise from just above west:
+// 1(NW) 2(N) 3(NE) 4(SE) 5+(S) nomark(SW). 1 and nomark border west.
 const WHEEL_ZONES = [
-  { value: 0, start: 337.5, end: 112.5, label: '' },
-  { value: 1, start: 112.5, end: 157.5, label: '1' },
-  { value: 2, start: 157.5, end: 202.5, label: '2' },
-  { value: 3, start: 202.5, end: 247.5, label: '3' },
-  { value: 4, start: 247.5, end: 292.5, label: '4' },
-  { value: 5, start: 292.5, end: 337.5, label: '5+' },
+  { value: 0, start: 120, end: 180, label: '' },
+  { value: 1, start: 180, end: 240, label: '1' },
+  { value: 2, start: 240, end: 300, label: '2' },
+  { value: 3, start: 300, end: 360, label: '3' },
+  { value: 4, start: 0, end: 60, label: '4' },
+  { value: 5, start: 60, end: 120, label: '5+' },
 ]
 
 function getWheelZone(dx, dy) {
   let angle = Math.atan2(dy, dx) * 180 / Math.PI
   if (angle < 0) angle += 360
-  if (angle >= 112.5 && angle < 157.5) return 1
-  if (angle >= 157.5 && angle < 202.5) return 2
-  if (angle >= 202.5 && angle < 247.5) return 3
-  if (angle >= 247.5 && angle < 292.5) return 4
-  if (angle >= 292.5 && angle < 337.5) return 5
-  return 0
+  if (angle < 60) return 4
+  if (angle < 120) return 5
+  if (angle < 180) return 0
+  if (angle < 240) return 1
+  if (angle < 300) return 2
+  return 3
 }
 
 function wheelPath(startDeg, endDeg, rInner, rOuter) {
