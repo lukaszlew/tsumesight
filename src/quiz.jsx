@@ -21,6 +21,15 @@ function libLabel(n) {
   return n >= config.maxLibertyLabel ? config.maxLibertyLabel + '+' : String(n)
 }
 
+// Decide board orientation and vertex size that fit a puzzle of cols x rows
+// in an availW x availH rectangle. Pure function — exported for testing.
+export function pickBoardLayout(availW, availH, cols, rows) {
+  let normalSize = Math.floor(Math.min(availW / (cols + 0.5), availH / (rows + 0.5)))
+  let rotatedSize = Math.floor(Math.min(availW / (rows + 0.5), availH / (cols + 0.5)))
+  let rotated = rotatedSize > normalSize * 1.1
+  return { rotated, vertexSize: Math.max(1, rotated ? rotatedSize : normalSize) }
+}
+
 // Radial marking menu — angles in screen coords (0°=right/E, clockwise)
 // 6 arrows at 60° intervals. Going clockwise from straight up:
 // nomark(N), 1(NNE), 2(ESE), 3(S), 4(SSW), 5+(WNW). 3 points straight down.
@@ -680,11 +689,10 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
       let pt = parseFloat(qStyle.paddingTop) || 0
       let availW = quiz.clientWidth - pl - pr
       let availH = quiz.clientHeight - pt - (bb ? bb.getBoundingClientRect().height : 0)
+      // Cap board at 3/4 of viewport height so tip and buttons keep room
+      availH = Math.min(availH, window.innerHeight * 0.75)
       if (availW <= 0 || availH <= 0) return
-      let normalSize = Math.floor(Math.min(availW / (cols + 0.5), availH / (rows + 0.5)))
-      let rotatedSize = Math.floor(Math.min(availW / (rows + 0.5), availH / (cols + 0.5)))
-      let useRotated = rotatedSize > normalSize * 1.1
-      let vs = Math.max(1, useRotated ? rotatedSize : normalSize)
+      let { rotated: useRotated, vertexSize: vs } = pickBoardLayout(availW, availH, cols, rows)
       let displayCols = useRotated ? rows : cols
       let displayRows = useRotated ? cols : rows
       el.style.width = (displayCols + 0.5) * vs + 'px'
