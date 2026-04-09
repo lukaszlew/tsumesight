@@ -544,6 +544,12 @@ body {
   font-size: calc(2.8 * var(--s));
   border-radius: calc(0.8 * var(--s));
 }
+.bottom-bar-row .nav-btn {
+  padding: calc(1.5 * var(--s)) 0;
+  width: calc(8 * var(--s));
+  font-size: calc(3.5 * var(--s));
+  text-align: center;
+}
 .bottom-bar .next-hero {
   padding: calc(1.5 * var(--s)) calc(3 * var(--s));
   font-size: calc(3 * var(--s));
