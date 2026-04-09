@@ -472,19 +472,18 @@ body {
 }
 
 
-/* Quiz — 2-row grid: board / bottom-bar */
+/* Quiz — pure JS layout. The .quiz container fills the visual viewport;
+   .board-row and .bottom-bar are absolutely positioned by computeLayout
+   in src/layout.js. CSS here owns typography/colour only, never sizing. */
 
 .quiz {
   --s: min(1dvh, 1dvw);
-  --tip-pad: calc(clamp(1.35rem, 3.8vw, 2.3rem) * 0.7);
+  position: relative;
   height: 100dvh;
-  width: min(100dvw, 100dvh);
-  margin: 0 auto;
-  padding: var(--tip-pad) var(--tip-pad) 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
+  width: 100dvw;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
   box-sizing: border-box;
   background:
     linear-gradient(180deg,
@@ -600,26 +599,26 @@ body {
   overflow: hidden;
 }
 
-/* Board (row 1) */
+/* Board zone — position/size set inline from layout.boardZone.
+   Inner .board-container is sized inline to layout.board (the exact
+   Shudan render box) and centred via flex. */
 .board-row {
-  flex: 0 0 auto;
-  /* width and height set by JS to actual Goban dimensions */
-  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
+  overflow: hidden;
 }
 
+/* Bottom zone — position/size set inline from layout.bottom.
+   Always the same height, so the board never moves when buttons toggle. */
 .bottom-bar {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 100%;
-  align-self: stretch;
   overflow: visible;
   gap: clamp(0.4rem, 1vw, 1rem);
   padding: clamp(0.4rem, 1vw, 1rem) 0;
+  box-sizing: border-box;
 }
 
 /* High score table */

@@ -1,12 +1,24 @@
 import { useState, useEffect, useCallback, useRef } from 'preact/hooks'
 import { Goban } from '@sabaki/shudan'
 import { QuizEngine } from './engine.js'
+import { computeLayout } from './layout.js'
 import { playCorrect, playWrong, playComplete, playStoneClick, playMark, resetStreak, isSoundEnabled, toggleSound } from './sounds.js'
 import { kv, kvSet, kvRemove, getScores, addReplay, getReplay } from './db.js'
 import config from './config.js'
 
 function makeEmptyMap(size, fill = null) {
   return Array.from({ length: size }, () => Array(size).fill(fill))
+}
+
+// Read the visual viewport. Uses visualViewport.height when available so
+// the layout reacts correctly to the iOS URL bar collapsing/expanding,
+// which window.innerHeight does not reflect.
+function getViewport() {
+  let vv = typeof window !== 'undefined' ? window.visualViewport : null
+  return {
+    viewportW: typeof window !== 'undefined' ? window.innerWidth : 400,
+    viewportH: vv?.height ?? (typeof window !== 'undefined' ? window.innerHeight : 800),
+  }
 }
 
 function transpose(map) {
@@ -19,15 +31,6 @@ import { computeStars, computeThreshold, nextStarGap } from './scoring.js'
 
 function libLabel(n) {
   return n >= config.maxLibertyLabel ? config.maxLibertyLabel + '+' : String(n)
-}
-
-// Decide board orientation and vertex size that fit a puzzle of cols x rows
-// in an availW x availH rectangle. Pure function — exported for testing.
-export function pickBoardLayout(availW, availH, cols, rows) {
-  let normalSize = Math.floor(Math.min(availW / (cols + 0.5), availH / (rows + 0.5)))
-  let rotatedSize = Math.floor(Math.min(availW / (rows + 0.5), availH / (cols + 0.5)))
-  let rotated = rotatedSize > normalSize * 1.1
-  return { rotated, vertexSize: Math.max(1, rotated ? rotatedSize : normalSize) }
 }
 
 // Radial marking menu — angles in screen coords (0°=right/E, clockwise)
@@ -117,10 +120,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
   let solvedRef = useRef(false)
   let [, forceRender] = useState(0)
   let rerender = () => forceRender(n => n + 1)
-  let [vertexSize, setVertexSize] = useState(0)
-  let [rotated, setRotated] = useState(false)
   let boardRowRef = useRef(null)
-  let bottomBarRef = useRef(null)
   let [maxQ] = useState(() => parseInt(kv('quizMaxQ', '2')))
   let [error, setError] = useState(null)
   let loadTimeRef = useRef(performance.now())
@@ -196,6 +196,31 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
     }
   }
   let engine = engineRef.current
+
+  // Layout: pure JS, single source of truth. computeLayout takes the visual
+  // viewport and the puzzle's cropped dimensions and returns rectangles for
+  // every zone. To debug a layout issue: console.log(layout) and reproduce
+  // in src/layout.test.js with the same viewport+cols+rows numbers.
+  let rangeX = engine?.boardRange ? [engine.boardRange[0], engine.boardRange[2]] : undefined
+  let rangeY = engine?.boardRange ? [engine.boardRange[1], engine.boardRange[3]] : undefined
+  let cols = rangeX ? rangeX[1] - rangeX[0] + 1 : (engine?.boardSize ?? 19)
+  let rows = rangeY ? rangeY[1] - rangeY[0] + 1 : (engine?.boardSize ?? 19)
+  let [viewport, setViewport] = useState(getViewport)
+  let layout = computeLayout({ ...viewport, cols, rows })
+  let { vertexSize, rotated } = layout.board
+
+  useEffect(() => {
+    let onResize = () => setViewport(getViewport())
+    let vv = window.visualViewport
+    vv?.addEventListener('resize', onResize)
+    window.addEventListener('resize', onResize)
+    window.addEventListener('orientationchange', onResize)
+    return () => {
+      vv?.removeEventListener('resize', onResize)
+      window.removeEventListener('resize', onResize)
+      window.removeEventListener('orientationchange', onResize)
+    }
+  }, [])
 
   if (error) {
     return (
@@ -672,40 +697,6 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
     return () => { cancelled = true }
   }, [replayMode, replayAttempt])
 
-  // Compute vertex size from container
-  let rangeX = engine.boardRange ? [engine.boardRange[0], engine.boardRange[2]] : undefined
-  let rangeY = engine.boardRange ? [engine.boardRange[1], engine.boardRange[3]] : undefined
-  let cols = rangeX ? rangeX[1] - rangeX[0] + 1 : engine.boardSize
-  let rows = rangeY ? rangeY[1] - rangeY[0] + 1 : engine.boardSize
-  useEffect(() => {
-    let el = boardRowRef.current
-    let bb = bottomBarRef.current
-    let quiz = el?.parentElement
-    if (!el || !quiz) return
-    let recompute = () => {
-      let qStyle = getComputedStyle(quiz)
-      let pl = parseFloat(qStyle.paddingLeft) || 0
-      let pr = parseFloat(qStyle.paddingRight) || 0
-      let pt = parseFloat(qStyle.paddingTop) || 0
-      let availW = quiz.clientWidth - pl - pr
-      let availH = quiz.clientHeight - pt - (bb ? bb.getBoundingClientRect().height : 0)
-      // Cap board at 70% of viewport height so tip and buttons keep room
-      availH = Math.min(availH, window.innerHeight * 0.7)
-      if (availW <= 0 || availH <= 0) return
-      let { rotated: useRotated, vertexSize: vs } = pickBoardLayout(availW, availH, cols, rows)
-      let displayCols = useRotated ? rows : cols
-      let displayRows = useRotated ? cols : rows
-      el.style.width = (displayCols + 0.5) * vs + 'px'
-      el.style.height = (displayRows + 0.5) * vs + 'px'
-      setRotated(useRotated)
-      setVertexSize(vs)
-    }
-    let ro = new ResizeObserver(recompute)
-    ro.observe(quiz)
-    if (bb) ro.observe(bb)
-    return () => ro.disconnect()
-  }, [cols, rows])
-
   // Build display maps
   let size = engine.boardSize
   let signMap, markerMap, ghostStoneMap, paintMap
@@ -845,11 +836,33 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
     ? (evt, [x, y]) => onVertexPointerUp(evt, [y, x])
     : onVertexPointerUp
 
+  let boardRowStyle = {
+    position: 'absolute',
+    left: layout.boardZone.x + 'px',
+    top: layout.boardZone.y + 'px',
+    width: layout.boardZone.w + 'px',
+    height: layout.boardZone.h + 'px',
+  }
+  let boardContainerStyle = {
+    width: layout.board.w + 'px',
+    height: layout.board.h + 'px',
+  }
+  let bottomBarStyle = {
+    position: 'absolute',
+    left: layout.bottom.x + 'px',
+    top: layout.bottom.y + 'px',
+    width: layout.bottom.w + 'px',
+    height: layout.bottom.h + 'px',
+  }
+
   return (
     <div class="quiz">
-      <div class="board-row" ref={boardRowRef}>
+      <div class="board-row" ref={boardRowRef} style={boardRowStyle}>
         {replayMode && <div class="replay-indicator">REPLAY</div>}
-        <div class={`board-container${wrongFlash ? ' wrong-flash' : ''}${engine.finished && !replayMode ? ' finished' : ''}${libFeedback ? ' lib-feedback' : ''}${engine.showingMove ? ' showing-move' : ''}`}>
+        <div
+          class={`board-container${wrongFlash ? ' wrong-flash' : ''}${engine.finished && !replayMode ? ' finished' : ''}${libFeedback ? ' lib-feedback' : ''}${engine.showingMove ? ' showing-move' : ''}`}
+          style={boardContainerStyle}
+        >
           {vertexSize > 0 && <Goban
             vertexSize={vertexSize}
             signMap={signMap}
@@ -884,7 +897,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
         </div>}
       </div>
 
-      <div class="bottom-bar" ref={bottomBarRef}>
+      <div class="bottom-bar" style={bottomBarStyle}>
         {replayMode
           ? <>
               <div class="replay-progress-wrap">
