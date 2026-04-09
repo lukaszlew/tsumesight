@@ -42,15 +42,15 @@ function getWheelZone(dx, dy) {
 }
 
 function RadialMenu({ cx, cy, activeZone, vertexSize }) {
-  let rInner = vertexSize * 0.4
-  let rOuter = vertexSize * 1.85
-  let rLabel = rOuter + vertexSize * 0.5
-  let shaftW = vertexSize * 0.2
-  let headW = vertexSize * 0.5
-  let headLen = vertexSize * 0.6
+  let rInner = vertexSize * 0.3
+  let rOuter = vertexSize * 1.4
+  let rLabel = rOuter + vertexSize * 0.4
+  let shaftW = vertexSize * 0.18
+  let headW = vertexSize * 0.42
+  let headLen = vertexSize * 0.5
   let strokeW = vertexSize * 0.03
   let toRad = Math.PI / 180
-  let size = rLabel + vertexSize * 0.7
+  let size = rLabel + vertexSize * 0.6
 
   // Arrow polygon pointing right (east), centered on y=0.
   // Extends from x=rInner to x=rOuter, with a shaft then an arrowhead.
