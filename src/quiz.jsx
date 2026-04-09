@@ -454,7 +454,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
       return
     }
     // During liberty exercise, marking is handled by the radial menu
-  }, [advance, seqIdx])
+  }, [advance, seqIdx, confirmExit])
 
   let onVertexPointerDown = useCallback((evt, vertex) => {
     if (!engine.libertyExerciseActive) return
@@ -490,7 +490,6 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
       evt.preventDefault() // prevent scroll during wheel drag
       let dx = evt.clientX - w.cx
       let dy = evt.clientY - w.cy
-      let dist = Math.sqrt(dx * dx + dy * dy)
       let active = getWheelZone(dx, dy)
       if (active !== w.active) {
         w.active = active
@@ -503,7 +502,6 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
       wheelRef.current = null
       let dx = evt.clientX - w.cx
       let dy = evt.clientY - w.cy
-      let dist = Math.sqrt(dx * dx + dy * dy)
       let zone = getWheelZone(dx, dy)
       commitMark(w.vertex, zone)
       setWheel(null)
