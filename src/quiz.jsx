@@ -689,8 +689,8 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
       let pt = parseFloat(qStyle.paddingTop) || 0
       let availW = quiz.clientWidth - pl - pr
       let availH = quiz.clientHeight - pt - (bb ? bb.getBoundingClientRect().height : 0)
-      // Cap board at 60% of viewport height so tip and buttons keep room
-      availH = Math.min(availH, window.innerHeight * 0.6)
+      // Cap board at 70% of viewport height so tip and buttons keep room
+      availH = Math.min(availH, window.innerHeight * 0.7)
       if (availW <= 0 || availH <= 0) return
       let { rotated: useRotated, vertexSize: vs } = pickBoardLayout(availW, availH, cols, rows)
       let displayCols = useRotated ? rows : cols
