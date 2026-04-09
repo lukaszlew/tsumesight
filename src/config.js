@@ -4,7 +4,7 @@
 export default {
   // Show the first move immediately when a new problem loads,
   // instead of requiring the user to tap/press space.
-  autoShowFirstMove: true,
+  autoShowFirstMove: false,
 
   // Liberty labels cap: groups with more liberties show "N+".
   // e.g. 5 means labels are 1, 2, 3, 4, 5+.
