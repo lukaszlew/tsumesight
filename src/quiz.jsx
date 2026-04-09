@@ -904,13 +904,31 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
                   {engine.libertyExerciseActive && <button class="next-hero" title="Submit (Space/Enter)" onClick={submitExercise}>Done</button>}
                   {engine.finished && !replayMode && <StatsBar sgfId={sgfId} onReplay={startReplay} />}
                   <div class="bottom-bar-row">
-                    <button class="bar-btn nav-btn" title={`Sound ${soundOn ? 'on' : 'off'}`} onClick={() => { setSoundOn(toggleSound()) }}>{soundOn ? '\uD83D\uDD0A' : '\uD83D\uDD07'}</button>
+                    <button class="bar-btn nav-btn" title={`Sound ${soundOn ? 'on' : 'off'}`} onClick={() => { setSoundOn(toggleSound()) }}>
+                      <span class="nav-icon">{soundOn ? '\uD83D\uDD0A' : '\uD83D\uDD07'}</span>
+                      <span class="nav-label">Sound</span>
+                    </button>
                     {preSolve && !engine.libertyExerciseActive && <button class="bar-btn mark-solved-btn" title={wasSolved ? 'Remove solved mark' : 'Skip and mark as solved (Enter)'} onClick={toggleSolved}>{wasSolved ? 'Mark as unsolved' : 'Mark as solved'}</button>}
-                    {engine.finished && <button class="bar-btn nav-btn eye-toggle" title={showSeqStones ? 'Hide sequence stones' : 'Show sequence stones'} onClick={() => setShowSeqStones(v => !v)}>{showSeqStones ? '\u{1F441}' : '\u{1F9E0}'}</button>}
-                    <button class="bar-btn nav-btn" title="Previous problem" onClick={onPrev}>&#x25C2;</button>
-                    <button class="bar-btn nav-btn" title="Back to library (Esc)" onClick={tryBack}>&#x25B4;</button>
-                    <button class="bar-btn nav-btn" title="Next problem" onClick={onNext}>&#x25B8;</button>
-                    <button class="bar-btn nav-btn" title="Restart this problem (R)" onClick={() => startShowSequence(engine.finished)}>&#x21BB;</button>
+                    {engine.finished && <button class="bar-btn nav-btn eye-toggle" title={showSeqStones ? 'Hide sequence stones' : 'Show sequence stones'} onClick={() => setShowSeqStones(v => !v)}>
+                      <span class="nav-icon">{showSeqStones ? '\uD83D\uDCAD' : '\uD83D\uDC41'}</span>
+                      <span class="nav-label">{showSeqStones ? 'Hide' : 'Show'}</span>
+                    </button>}
+                    <button class="bar-btn nav-btn" title="Previous problem" onClick={onPrev}>
+                      <span class="nav-icon">&#x25C2;</span>
+                      <span class="nav-label">Prev</span>
+                    </button>
+                    <button class="bar-btn nav-btn" title="Back to library (Esc)" onClick={tryBack}>
+                      <span class="nav-icon">&#x25B4;</span>
+                      <span class="nav-label">Back</span>
+                    </button>
+                    <button class="bar-btn nav-btn" title="Next problem" onClick={onNext}>
+                      <span class="nav-icon">&#x25B8;</span>
+                      <span class="nav-label">Next</span>
+                    </button>
+                    <button class="bar-btn nav-btn" title="Restart this problem (R)" onClick={() => startShowSequence(engine.finished)}>
+                      <span class="nav-icon">&#x21BB;</span>
+                      <span class="nav-label">Restart</span>
+                    </button>
                   </div>
                 </>
         }
