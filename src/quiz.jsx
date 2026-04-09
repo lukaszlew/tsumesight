@@ -42,15 +42,17 @@ function getWheelZone(dx, dy) {
 }
 
 function RadialMenu({ cx, cy, activeZone, vertexSize }) {
-  let rInner = vertexSize * 0.3
-  let rOuter = vertexSize * 1.4
-  let rLabel = rOuter + vertexSize * 0.4
-  let shaftW = vertexSize * 0.18
-  let headW = vertexSize * 0.42
-  let headLen = vertexSize * 0.5
-  let strokeW = vertexSize * 0.03
+  // Wheel sized to ~45% of viewport width (diameter), regardless of vertexSize
+  let unit = window.innerWidth * 0.45 / 4 // ≈ rOuter target = 0.45*vw / 2 (radius), then /2 again for unit scale
+  let rInner = unit * 0.6
+  let rOuter = unit * 2
+  let rLabel = rOuter + unit * 0.55
+  let shaftW = unit * 0.25
+  let headW = unit * 0.6
+  let headLen = unit * 0.7
+  let strokeW = unit * 0.04
   let toRad = Math.PI / 180
-  let size = rLabel + vertexSize * 0.6
+  let size = rLabel + unit * 0.8
 
   // Arrow polygon pointing right (east), centered on y=0.
   // Extends from x=rInner to x=rOuter, with a shaft then an arrowhead.
@@ -88,7 +90,7 @@ function RadialMenu({ cx, cy, activeZone, vertexSize }) {
               stroke="#000" stroke-width={strokeW} stroke-linejoin="round"
               transform={`rotate(${z.angle})`} />
             {z.label && <text x={lx} y={ly} fill={fill}
-              font-size={vertexSize * 0.75} font-weight="800"
+              font-size={unit * 0.95} font-weight="800"
               text-anchor="middle" dominant-baseline="central"
               style={{ paintOrder: 'stroke' }}
               stroke="#000" stroke-width={strokeW}>
@@ -470,15 +472,13 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
       let zone = getWheelZone(dx, dy)
       commitMark(vertex, zone)
     } else {
-      // Show wheel on the left side of the board, a bit above the middle
-      // (HUD). If the click lands in the top-left, flip to the right.
-      // Angles are still computed from the intersection.
+      // Show wheel opposite the clicked side so the finger doesn't cover
+      // it. Angles are still computed from the intersection.
       let boardEl = evt.currentTarget.closest('.shudan-goban') || boardRowRef.current
       let board = boardEl.getBoundingClientRect()
       let mx = board.left + board.width / 2
-      let my = board.top + board.height / 2
-      let inTopLeft = cx < mx && cy < my
-      let wcx = inTopLeft ? board.left + board.width * 3 / 4 : board.left + board.width / 4
+      let clickedLeft = cx < mx
+      let wcx = clickedLeft ? board.left + board.width * 3 / 4 : board.left + board.width / 4
       let wcy = board.top + board.height * 0.4
       let w = { vertex, cx, cy, wcx, wcy, active: getWheelZone(dx, dy) }
       wheelRef.current = w

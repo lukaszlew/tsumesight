@@ -476,12 +476,16 @@ body {
 
 .quiz {
   --s: min(1dvh, 1dvw);
+  --tip-pad: calc(clamp(1.35rem, 3.8vw, 2.3rem) * 0.7);
   height: 100dvh;
   width: min(100dvw, 100dvh);
   margin: 0 auto;
-  display: grid;
-  grid-template-rows: 73% 1fr;
-  justify-items: center;
+  padding: var(--tip-pad) var(--tip-pad) 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  box-sizing: border-box;
   background:
     linear-gradient(180deg,
       rgba(140,110,50,.06) 0%,
@@ -544,6 +548,15 @@ body {
   font-size: clamp(1.4rem, 3vw, 2rem);
   border-radius: calc(0.8 * var(--s));
 }
+.bottom-bar-row .mark-solved-btn {
+  flex: 1;
+  min-width: 0;
+  padding: clamp(0.6rem, 1.5vw, 1.2rem) clamp(0.4rem, 1vw, 1rem);
+  font-size: clamp(1.05rem, 2.2vw, 1.5rem);
+  line-height: 1.15;
+  white-space: normal;
+  text-wrap: balance;
+}
 .bottom-bar-row .nav-btn {
   flex: 1;
   min-width: 0;
@@ -589,26 +602,25 @@ body {
 
 /* Board (row 1) */
 .board-row {
-  flex: 1 1 0;
-  min-height: 0;
+  flex: 0 0 auto;
+  width: min(100%, calc(100dvh - 15rem));
+  aspect-ratio: 1;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
-  width: 100%;
 }
 
 .bottom-bar {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-between;
   width: 100%;
-  height: 90%;
-  align-self: center;
+  align-self: stretch;
   overflow: visible;
-  padding-top: calc(0.5 * var(--s));
+  gap: clamp(0.4rem, 1vw, 1rem);
+  padding: clamp(0.4rem, 1vw, 1rem) 0;
 }
 
 /* High score table */
@@ -736,8 +748,9 @@ body {
   text-align: center;
   text-wrap: balance;
   max-width: 95%;
-  margin-bottom: calc(1.5 * var(--s));
-  line-height: 1.3;
+  margin: 0;
+  padding: var(--tip-pad) 0;
+  line-height: 1.25;
 }
 .hint-blue {
   color: #4af;
