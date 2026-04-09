@@ -568,10 +568,6 @@ body {
 
 
 .eye-toggle {
-  font-size: calc(3 * var(--s)) !important;
-  padding: 0 !important;
-  width: calc(7 * var(--s));
-  height: calc(5 * var(--s));
   display: inline-flex;
   align-items: center;
   justify-content: center;
