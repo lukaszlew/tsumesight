@@ -117,14 +117,22 @@ export function App() {
     if (active.id) {
       updateSgf(active.id, { solved: true, correct, done })
       if (scoreEntry) addScore(active.id, scoreEntry)
-      setActive(prev => ({ ...prev, solved: true }))
+      setActive(prev => {
+        let next = { ...prev, solved: true }
+        kvSet('activeSgf', JSON.stringify(next))
+        return next
+      })
     }
   }
 
   function markUnsolved() {
     if (active.id) {
       updateSgf(active.id, { solved: false })
-      setActive(prev => ({ ...prev, solved: false }))
+      setActive(prev => {
+        let next = { ...prev, solved: false }
+        kvSet('activeSgf', JSON.stringify(next))
+        return next
+      })
     }
   }
 
