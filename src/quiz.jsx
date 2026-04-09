@@ -111,6 +111,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
   let [vertexSize, setVertexSize] = useState(0)
   let [rotated, setRotated] = useState(false)
   let boardRowRef = useRef(null)
+  let bottomBarRef = useRef(null)
   let [maxQ] = useState(() => parseInt(kv('quizMaxQ', '2')))
   let [error, setError] = useState(null)
   let loadTimeRef = useRef(performance.now())
@@ -669,20 +670,31 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
   let rows = rangeY ? rangeY[1] - rangeY[0] + 1 : engine.boardSize
   useEffect(() => {
     let el = boardRowRef.current
-    if (!el) return
-    let ro = new ResizeObserver(entries => {
-      let { width, height } = entries[0].contentRect
-      let normalSize = Math.floor(Math.min(width / (cols + 0.5), height / (rows + 0.5)))
-      let rotatedSize = Math.floor(Math.min(width / (rows + 0.5), height / (cols + 0.5)))
-      if (rotatedSize > normalSize * 1.1) {
-        setRotated(true)
-        setVertexSize(Math.max(1, rotatedSize))
-      } else {
-        setRotated(false)
-        setVertexSize(Math.max(1, normalSize))
-      }
-    })
-    ro.observe(el)
+    let bb = bottomBarRef.current
+    let quiz = el?.parentElement
+    if (!el || !quiz) return
+    let recompute = () => {
+      let qStyle = getComputedStyle(quiz)
+      let pl = parseFloat(qStyle.paddingLeft) || 0
+      let pr = parseFloat(qStyle.paddingRight) || 0
+      let pt = parseFloat(qStyle.paddingTop) || 0
+      let availW = quiz.clientWidth - pl - pr
+      let availH = quiz.clientHeight - pt - (bb ? bb.getBoundingClientRect().height : 0)
+      if (availW <= 0 || availH <= 0) return
+      let normalSize = Math.floor(Math.min(availW / (cols + 0.5), availH / (rows + 0.5)))
+      let rotatedSize = Math.floor(Math.min(availW / (rows + 0.5), availH / (cols + 0.5)))
+      let useRotated = rotatedSize > normalSize * 1.1
+      let vs = Math.max(1, useRotated ? rotatedSize : normalSize)
+      let displayCols = useRotated ? rows : cols
+      let displayRows = useRotated ? cols : rows
+      el.style.width = (displayCols + 0.5) * vs + 'px'
+      el.style.height = (displayRows + 0.5) * vs + 'px'
+      setRotated(useRotated)
+      setVertexSize(vs)
+    }
+    let ro = new ResizeObserver(recompute)
+    ro.observe(quiz)
+    if (bb) ro.observe(bb)
     return () => ro.disconnect()
   }, [cols, rows])
 
@@ -864,7 +876,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
         </div>}
       </div>
 
-      <div class="bottom-bar">
+      <div class="bottom-bar" ref={bottomBarRef}>
         {replayMode
           ? <>
               <div class="replay-progress-wrap">

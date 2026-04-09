@@ -603,8 +603,7 @@ body {
 /* Board (row 1) */
 .board-row {
   flex: 0 0 auto;
-  width: min(100%, calc(100dvh - 15rem));
-  aspect-ratio: 1;
+  /* width and height set by JS to actual Goban dimensions */
   overflow: hidden;
   display: flex;
   align-items: center;
