@@ -15,7 +15,7 @@ function transpose(map) {
   return Array.from({ length: cols }, (_, x) => Array.from({ length: rows }, (_, y) => map[y][x]))
 }
 
-import { computeStars, computeThreshold } from './scoring.js'
+import { computeStars, computeThreshold, nextStarGap } from './scoring.js'
 
 function libLabel(n) {
   return n >= config.maxLibertyLabel ? config.maxLibertyLabel + '+' : String(n)
@@ -223,6 +223,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
         mistakes,
         total: Math.round(totalMs / 1000),
         stars,
+        gap: nextStarGap(totalMs, mistakes, thresholdMs),
       })
       playComplete()
     }
@@ -853,6 +854,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
           {finishPopup.mistakes > 0
             ? <div class="finish-detail">{finishPopup.elapsed}s + {finishPopup.mistakes * 3}s ({finishPopup.mistakes} {finishPopup.mistakes === 1 ? 'mistake' : 'mistakes'})</div>
             : null}
+          {finishPopup.gap && <div class="finish-gap">{formatGap(finishPopup.gap)}</div>}
           <button class="finish-close" onClick={() => setFinishPopup(null)}>OK</button>
         </div>}
       </div>
@@ -904,6 +906,12 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
       </div>
     </div>
   )
+}
+
+function formatGap(gap) {
+  let totalSec = (gap.deltaMs + gap.mistakesToRemove * 3000) / 1000
+  let star = gap.nextStars === 5 ? '🏆' : `${gap.nextStars}★`
+  return `${totalSec.toFixed(1)}s from ${star}`
 }
 
 function formatDate(ts) {

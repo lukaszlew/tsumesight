@@ -869,6 +869,11 @@ body {
   color: #aaa;
   margin-top: .3em;
 }
+.finish-gap {
+  font-size: .95em;
+  color: #c8a060;
+  margin-top: .4em;
+}
 .finish-close {
   margin-top: .8em;
   padding: .4em 1.5em;
