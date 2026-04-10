@@ -22,11 +22,6 @@ function vertexKey([x, y]) {
   return `${x},${y}`
 }
 
-function libertySetKey(libs) {
-  return libs.map(vertexKey).sort().join(';')
-}
-
-
 export class QuizEngine {
   constructor(sgfString, _precompute = true, maxQuestions = 3) {
     this.maxQuestions = maxQuestions
@@ -52,12 +47,6 @@ export class QuizEngine {
 
     // Tracking
     this.invisibleStones = new Map() // vertexKey → {sign, vertex, moveNumber}
-    this.staleness = new Map() // vertexKey → number (turns since last questioned, cap 4)
-    for (let y = 0; y < this.boardSize; y++)
-      for (let x = 0; x < this.boardSize; x++)
-        if (this.trueBoard.get([x, y]) !== 0)
-          this.staleness.set(vertexKey([x, y]), 0)
-    this.prevLibs = new Map() // vertexKey → liberty set key before current move
     this.moveIndex = 0
     this.currentMove = null
     this.libertyExercise = null // { groups: [{ vertex, chainKeys, libCount, changed }...] }
@@ -97,19 +86,6 @@ export class QuizEngine {
     this.moveIndex++
     this.currentMove = move
 
-    // Age all tracked stones (before adding the new one)
-    for (let [key, val] of this.staleness) {
-      this.staleness.set(key, Math.min(val + 1, 4))
-    }
-
-    // Snapshot liberty sets before the move (to detect changed libs)
-    this.prevLibs = new Map()
-    for (let [key] of this.staleness) {
-      let [x, y] = key.split(',').map(Number)
-      if (this.trueBoard.get([x, y]) !== 0)
-        this.prevLibs.set(key, libertySetKey(this.trueBoard.getLiberties([x, y])))
-    }
-
     // Play on true board (captures processed for correct liberty answers)
     try {
       this.trueBoard = this.trueBoard.makeMove(move.sign, move.vertex)
@@ -127,7 +103,6 @@ export class QuizEngine {
     // Track as invisible (not shown on base display)
     let key = vertexKey(move.vertex)
     this.invisibleStones.set(key, { sign: move.sign, vertex: move.vertex, moveNumber: this.moveIndex })
-    this.staleness.set(key, 0)
 
     this._advanceLiberty(move)
 
@@ -211,7 +186,6 @@ export class QuizEngine {
     // Present the true board as-is (captures removed, all stones shown)
     this.baseSignMap = this.trueBoard.signMap.map(row => [...row])
     this.invisibleStones.clear()
-    this.staleness.clear()
   }
 
   getDisplaySignMap() {
@@ -227,46 +201,6 @@ export class QuizEngine {
       .sort((a, b) => b.moveNumber - a.moveNumber)
       .slice(0, this.showWindow - 1)
     return extras
-  }
-
-  // Returns all groups on the board with their properties
-  // Each group: { vertices: [[x,y]...], liberties, libsChanged }
-  getGroupScores() {
-    let visited = new Set()
-    let groups = []
-    let currentMoveKey = this.currentMove ? vertexKey(this.currentMove.vertex) : null
-
-    for (let y = 0; y < this.boardSize; y++) {
-      for (let x = 0; x < this.boardSize; x++) {
-        let vertex = [x, y]
-        let k = vertexKey(vertex)
-        if (visited.has(k)) continue
-        if (this.trueBoard.get(vertex) === 0) continue
-
-        let chain = this.trueBoard.getChain(vertex)
-        for (let v of chain) visited.add(vertexKey(v))
-
-        let libs = this.trueBoard.getLiberties(vertex).length
-        let containsCurrentMove = chain.some(v => vertexKey(v) === currentMoveKey)
-
-        // Did this group's liberty set change after the current move?
-        // Current move's group always counts as "changed"
-        let currentLibsKey = libertySetKey(this.trueBoard.getLiberties(vertex))
-        let libsChanged = containsCurrentMove
-        if (!libsChanged) {
-          for (let v of chain) {
-            let prev = this.prevLibs.get(vertexKey(v))
-            if (prev !== undefined && prev !== currentLibsKey) {
-              libsChanged = true
-              break
-            }
-          }
-        }
-
-        groups.push({ vertices: chain, liberties: libs, libsChanged })
-      }
-    }
-    return groups
   }
 
   recomputeQuestions() {

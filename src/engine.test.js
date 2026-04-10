@@ -327,49 +327,6 @@ describe('QuizEngine', () => {
   })
 
   describe('group scoring', () => {
-    it('questioned stone staleness tracks age', () => {
-      let engine = new QuizEngine(simpleSgf)
-      engine.advance() // B[ee] — only stone, staleness 0
-      expect(engine.staleness.get('4,4')).toBe(0)
-    })
-
-    it('staleness increments each turn for unchosen groups', () => {
-      // 4 moves, all separate groups
-      let sgf = '(;SZ[9];B[aa];W[ii];B[ai];W[ia])'
-      let engine = new QuizEngine(sgf)
-      engine.advance()
-      engine.advance()
-      engine.advance()
-      engine.advance()
-      // All staleness values should be <= 4
-      for (let [, val] of engine.staleness) {
-        expect(val).toBeLessThanOrEqual(4)
-      }
-    })
-
-    it('staleness caps at 4', () => {
-      // Many moves to age a stone
-      let sgf = '(;SZ[9];B[aa];W[ii];B[bb];W[hh];B[cc];W[gg];B[dd];W[ff])'
-      let engine = new QuizEngine(sgf)
-      for (let i = 0; i < 8; i++) engine.advance()
-      for (let [, val] of engine.staleness) {
-        expect(val).toBeLessThanOrEqual(4)
-      }
-    })
-
-    it('getGroupScores returns liberties and libsChanged', () => {
-      let engine = new QuizEngine('(;SZ[9];B[aa];W[ii])')
-      engine.advance() // B[aa]
-      engine.advance() // W[ii]
-      let groups = engine.getGroupScores()
-      let blackGroup = groups.find(g => g.vertices.some(v => v[0] === 0 && v[1] === 0))
-      expect(blackGroup.liberties).toBe(2)
-      expect(blackGroup.libsChanged).toBe(false) // W[ii] is far away
-      let whiteGroup = groups.find(g => g.vertices.some(v => v[0] === 8 && v[1] === 8))
-      expect(whiteGroup.liberties).toBe(2)
-      expect(whiteGroup.libsChanged).toBe(true) // just-played
-    })
-
     it('exercise selects groups that changed from initial position', () => {
       // B[ba] then W[aa]: both new stones, both differ from empty initial board
       let engine = new QuizEngine('(;SZ[9];B[ba];W[aa])')
@@ -378,46 +335,6 @@ describe('QuizEngine', () => {
       engine.advance(); engine.activateQuestions() // W[aa] — last, both groups changed
       let changedGroups = engine.libertyExercise.groups.filter(g => g.changed)
       expect(changedGroups.length).toBe(2)
-    })
-
-    it('libsChanged true when move affects adjacent group', () => {
-      // B[ee] center, then W[de] adjacent — reduces B[ee] libs from 4 to 3
-      let engine = new QuizEngine('(;SZ[9];B[ee];W[de])')
-      engine.advance() // B[ee]
-      engine.advance() // W[de] — B[ee] libs: 4→3
-      let groups = engine.getGroupScores()
-      let blackGroup = groups.find(g => g.vertices.some(v => v[0] === 4 && v[1] === 4))
-      expect(blackGroup.libsChanged).toBe(true)
-    })
-
-    it('libsChanged true for current move single stone', () => {
-      let engine = new QuizEngine('(;SZ[9];B[ee];W[aa])')
-      engine.advance() // B[ee]
-      engine.advance() // W[aa]
-      let groups = engine.getGroupScores()
-      let whiteGroup = groups.find(g => g.vertices.some(v => v[0] === 0 && v[1] === 0))
-      expect(whiteGroup.libsChanged).toBe(true)
-    })
-
-    it('libsChanged false for non-adjacent group', () => {
-      // B[aa] corner, then W[ii] far corner — B[aa] libs unchanged
-      let engine = new QuizEngine('(;SZ[9];B[aa];W[ii])')
-      engine.advance() // B[aa]
-      engine.advance() // W[ii]
-      let groups = engine.getGroupScores()
-      let blackGroup = groups.find(g => g.vertices.some(v => v[0] === 0 && v[1] === 0))
-      expect(blackGroup.libsChanged).toBe(false)
-    })
-
-    it('libsChanged true when current move joins existing chain', () => {
-      // B[ee], W[aa], B[fe] — B[fe] joins B[ee], chain libs change 4→6
-      let engine = new QuizEngine('(;SZ[9];B[ee];W[aa];B[fe])')
-      engine.advance() // B[ee]
-      engine.advance() // W[aa]
-      engine.advance() // B[fe] joins B[ee]
-      let groups = engine.getGroupScores()
-      let bigGroup = groups.find(g => g.liberties === 6)
-      expect(bigGroup.libsChanged).toBe(true)
     })
 
     it('exercise skips groups unchanged from initial position', () => {
@@ -558,14 +475,6 @@ describe('QuizEngine', () => {
       expect(aaGroup.changed).toBe(false)
     })
 
-    it('clears staleness on materialize', () => {
-      let engine = new QuizEngine(simpleSgf)
-      engine.advance()
-      engine.advance()
-      expect(engine.staleness.size).toBe(2)
-      engine.materialize()
-      expect(engine.staleness.size).toBe(0)
-    })
   })
 
   describe('checkLibertyExercise', () => {
@@ -779,13 +688,6 @@ describe('QuizEngine', () => {
       expect(changedGroups.length).toBe(2)
     })
 
-    it('staleness tracks stone age', () => {
-      let engine = new QuizEngine('(;SZ[9];B[ba];W[aa])')
-      engine.advance() // B[ba] — staleness 0
-      engine.advance() // W[aa] — B[ba] aged to 1, W[aa] staleness 0
-      expect(engine.staleness.get('1,0')).toBe(1) // B[ba] aged
-      expect(engine.staleness.get('0,0')).toBe(0) // W[aa] just placed
-    })
   })
 
   describe('show window', () => {

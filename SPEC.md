@@ -54,7 +54,7 @@ Quiz progress (answer history) saved to IndexedDB kv store keyed by `quizKey` (s
 - Seeded PRNG (mulberry32, seed = hash of SGF string) for deterministic question selection
 - Immutable board updates via `@sabaki/go-board`
 - Precomputes question counts per move via simulation (for progress tracking)
-- Tracks invisible stones, staleness, previous liberty sets
+- Tracks invisible stones
 - `fromReplay()` static method reconstructs engine state from answer history
 
 ## Tech Stack
