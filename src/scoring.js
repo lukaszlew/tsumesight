@@ -1,11 +1,7 @@
-import config from './config.js'
-
 // Compute the 5-star threshold in ms from engine state
 export function computeThreshold(engine) {
-  let allQuestions = engine.questionsAsked.flat()
-  let groupCount = allQuestions.length
-  let libSum = allQuestions.reduce((s, q) => s + Math.min(q.libCount, config.maxLibertyLabel), 0)
-  return (engine.totalMoves * 1 + libSum * 0.5 + groupCount * 1) * 1000
+  let groupCount = engine.questionsAsked.flat().length
+  return (3 + engine.totalMoves * 1.5 + groupCount * 1.5) * 1000
 }
 
 // Compute star rating from score entry data
@@ -41,7 +37,7 @@ export function nextStarGap(totalMs, mistakes, thresholdMs) {
   let deltaMs, mistakesToRemove = 0
   if (nextStars === 5) {
     // Need ratio ≤ 1 AND mistakes == 0; the time check is on elapsedMs (no penalty)
-    let elapsedMs = totalMs - mistakes * 3000
+    let elapsedMs = totalMs - mistakes * 5000
     deltaMs = Math.max(0, elapsedMs - thresholdMs)
     mistakesToRemove = mistakes
   } else {

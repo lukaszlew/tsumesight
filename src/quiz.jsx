@@ -21,82 +21,88 @@ function libLabel(n) {
   return n >= config.maxLibertyLabel ? config.maxLibertyLabel + '+' : String(n)
 }
 
+// Decide board orientation and vertex size that fit a puzzle of cols x rows
+// in an availW x availH rectangle. Pure function — exported for testing.
+export function pickBoardLayout(availW, availH, cols, rows) {
+  let normalSize = Math.floor(Math.min(availW / (cols + 0.5), availH / (rows + 0.5)))
+  let rotatedSize = Math.floor(Math.min(availW / (rows + 0.5), availH / (cols + 0.5)))
+  let rotated = rotatedSize > normalSize * 1.1
+  return { rotated, vertexSize: Math.max(1, rotated ? rotatedSize : normalSize) }
+}
+
 // Radial marking menu — angles in screen coords (0°=right/E, clockwise)
-// 6 equal 60° slices. Going clockwise from just above west:
-// 1(NW) 2(N) 3(NE) 4(SE) 5+(S) nomark(SW). 1 and nomark border west.
+// 6 arrows at 60° intervals. Going clockwise from straight up:
+// nomark(N), 1(NNE), 2(ESE), 3(S), 4(SSW), 5+(WNW). 3 points straight down.
 const WHEEL_ZONES = [
-  { value: 0, start: 120, end: 180, label: '' },
-  { value: 1, start: 180, end: 240, label: '1' },
-  { value: 2, start: 240, end: 300, label: '2' },
-  { value: 3, start: 300, end: 360, label: '3' },
-  { value: 4, start: 0, end: 60, label: '4' },
-  { value: 5, start: 60, end: 120, label: '5+' },
+  { value: 0, angle: 270, label: '' },
+  { value: 1, angle: 330, label: '1' },
+  { value: 2, angle: 30,  label: '2' },
+  { value: 3, angle: 90,  label: '3' },
+  { value: 4, angle: 150, label: '4' },
+  { value: 5, angle: 210, label: '5+' },
 ]
 
 function getWheelZone(dx, dy) {
   let angle = Math.atan2(dy, dx) * 180 / Math.PI
   if (angle < 0) angle += 360
-  if (angle < 60) return 4
-  if (angle < 120) return 5
-  if (angle < 180) return 0
-  if (angle < 240) return 1
-  if (angle < 300) return 2
-  return 3
-}
-
-function wheelPath(startDeg, endDeg, rInner, rOuter) {
-  let toRad = Math.PI / 180
-  let span = endDeg - startDeg
-  if (span < 0) span += 360
-  let large = span > 180 ? 1 : 0
-  let s = startDeg * toRad
-  let e = (startDeg + span) * toRad
-  let x1i = rInner * Math.cos(s), y1i = rInner * Math.sin(s)
-  let x1o = rOuter * Math.cos(s), y1o = rOuter * Math.sin(s)
-  let x2i = rInner * Math.cos(e), y2i = rInner * Math.sin(e)
-  let x2o = rOuter * Math.cos(e), y2o = rOuter * Math.sin(e)
-  return [
-    `M ${x1i} ${y1i}`, `L ${x1o} ${y1o}`,
-    `A ${rOuter} ${rOuter} 0 ${large} 1 ${x2o} ${y2o}`,
-    `L ${x2i} ${y2i}`,
-    `A ${rInner} ${rInner} 0 ${large} 0 ${x1i} ${y1i}`,
-    'Z'
-  ].join(' ')
+  // Shift so the N sector (nomark, centered on 270°) starts at 0
+  let shifted = (angle - 240 + 360) % 360
+  return Math.floor(shifted / 60)
 }
 
 function RadialMenu({ cx, cy, activeZone, vertexSize }) {
-  let rOuter = vertexSize * 1.75
-  let rInner = vertexSize * 0.4
-  let rLabel = (rOuter + rInner) / 2
+  // Wheel sized to ~45% of viewport width (diameter), regardless of vertexSize
+  let unit = window.innerWidth * 0.45 / 4 // ≈ rOuter target = 0.45*vw / 2 (radius), then /2 again for unit scale
+  let rInner = unit * 0.6
+  let rOuter = unit * 2
+  let rLabel = rOuter + unit * 0.55
+  let shaftW = unit * 0.25
+  let headW = unit * 0.6
+  let headLen = unit * 0.7
+  let strokeW = unit * 0.04
   let toRad = Math.PI / 180
-  let pad = 2
+  let size = rLabel + unit * 0.8
+
+  // Arrow polygon pointing right (east), centered on y=0.
+  // Extends from x=rInner to x=rOuter, with a shaft then an arrowhead.
+  let shaftEnd = rOuter - headLen
+  let arrowPoints = [
+    `${rInner},${-shaftW / 2}`,
+    `${shaftEnd},${-shaftW / 2}`,
+    `${shaftEnd},${-headW / 2}`,
+    `${rOuter},0`,
+    `${shaftEnd},${headW / 2}`,
+    `${shaftEnd},${shaftW / 2}`,
+    `${rInner},${shaftW / 2}`,
+  ].join(' ')
 
   return (
     <svg style={{
       position: 'fixed',
-      left: cx - rOuter - pad,
-      top: cy - rOuter - pad,
-      width: (rOuter + pad) * 2,
-      height: (rOuter + pad) * 2,
+      left: cx - size,
+      top: cy - size,
+      width: size * 2,
+      height: size * 2,
       pointerEvents: 'none',
       zIndex: 1000,
-    }} viewBox={`${-rOuter - pad} ${-rOuter - pad} ${(rOuter + pad) * 2} ${(rOuter + pad) * 2}`}>
+    }} viewBox={`${-size} ${-size} ${size * 2} ${size * 2}`}>
+      <circle cx={0} cy={0} r={rLabel + vertexSize * 0.5} fill="rgba(255, 255, 255, 0.65)" />
       {WHEEL_ZONES.map(z => {
-        let span = z.end - z.start
-        if (span < 0) span += 360
-        let midAngle = (z.start + span / 2) * toRad
-        let lx = rLabel * Math.cos(midAngle)
-        let ly = rLabel * Math.sin(midAngle)
+        let rad = z.angle * toRad
+        let lx = Math.cos(rad) * rLabel
+        let ly = Math.sin(rad) * rLabel
         let active = activeZone === z.value
+        let fill = active ? '#4bf' : '#fff'
         return (
           <g key={z.value}>
-            <path d={wheelPath(z.start, z.end, rInner, rOuter)}
-              fill={active ? 'rgba(100, 200, 255, 0.5)' : z.value === 0 ? 'rgba(40, 40, 40, 0.3)' : 'rgba(70, 70, 70, 0.5)'}
-              stroke="rgba(200, 200, 200, 0.6)"
-              stroke-width={1}
-            />
-            {z.label && <text x={lx} y={ly} fill="white" font-size={vertexSize * 0.45}
-              text-anchor="middle" dominant-baseline="central">
+            <polygon points={arrowPoints} fill={fill}
+              stroke="#000" stroke-width={strokeW} stroke-linejoin="round"
+              transform={`rotate(${z.angle})`} />
+            {z.label && <text x={lx} y={ly} fill={fill}
+              font-size={unit * 0.95} font-weight="800"
+              text-anchor="middle" dominant-baseline="central"
+              style={{ paintOrder: 'stroke' }}
+              stroke="#000" stroke-width={strokeW}>
               {z.label}
             </text>}
           </g>
@@ -114,6 +120,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
   let [vertexSize, setVertexSize] = useState(0)
   let [rotated, setRotated] = useState(false)
   let boardRowRef = useRef(null)
+  let bottomBarRef = useRef(null)
   let [maxQ] = useState(() => parseInt(kv('quizMaxQ', '2')))
   let [error, setError] = useState(null)
   let loadTimeRef = useRef(performance.now())
@@ -210,7 +217,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
       let accuracy = total > 0 ? engine.correct / total : 1
       let elapsedMs = performance.now() - loadTimeRef.current
       let mistakes = mistakesRef.current
-      let penaltyMs = mistakes * 3000
+      let penaltyMs = mistakes * 5000
       let totalMs = elapsedMs + penaltyMs
       let date = Date.now()
       let thresholdMs = computeThreshold(engine)
@@ -475,16 +482,14 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
       let zone = getWheelZone(dx, dy)
       commitMark(vertex, zone)
     } else {
-      // Show wheel in the top-left quadrant of the board (HUD), unless
-      // the click itself is in the top-left quadrant — then put it in
-      // the bottom-left. Angles are still computed from the intersection.
+      // Show wheel opposite the clicked side so the finger doesn't cover
+      // it. Angles are still computed from the intersection.
       let boardEl = evt.currentTarget.closest('.shudan-goban') || boardRowRef.current
       let board = boardEl.getBoundingClientRect()
       let mx = board.left + board.width / 2
-      let my = board.top + board.height / 2
-      let inTopLeft = cx < mx && cy < my
-      let wcx = board.left + board.width / 4
-      let wcy = inTopLeft ? board.top + board.height * 3 / 4 : board.top + board.height / 4
+      let clickedLeft = cx < mx
+      let wcx = clickedLeft ? board.left + board.width * 3 / 4 : board.left + board.width / 4
+      let wcy = board.top + board.height * 0.4
       let w = { vertex, cx, cy, wcx, wcy, active: getWheelZone(dx, dy) }
       wheelRef.current = w
       setWheel(w)
@@ -674,20 +679,30 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
   let rows = rangeY ? rangeY[1] - rangeY[0] + 1 : engine.boardSize
   useEffect(() => {
     let el = boardRowRef.current
-    if (!el) return
-    let ro = new ResizeObserver(entries => {
-      let { width, height } = entries[0].contentRect
-      let normalSize = Math.floor(Math.min(width / (cols + 0.5), height / (rows + 0.5)))
-      let rotatedSize = Math.floor(Math.min(width / (rows + 0.5), height / (cols + 0.5)))
-      if (rotatedSize > normalSize * 1.1) {
-        setRotated(true)
-        setVertexSize(Math.max(1, rotatedSize))
-      } else {
-        setRotated(false)
-        setVertexSize(Math.max(1, normalSize))
-      }
-    })
-    ro.observe(el)
+    let bb = bottomBarRef.current
+    let quiz = el?.parentElement
+    if (!el || !quiz) return
+    let recompute = () => {
+      let qStyle = getComputedStyle(quiz)
+      let pl = parseFloat(qStyle.paddingLeft) || 0
+      let pr = parseFloat(qStyle.paddingRight) || 0
+      let pt = parseFloat(qStyle.paddingTop) || 0
+      let availW = quiz.clientWidth - pl - pr
+      let availH = quiz.clientHeight - pt - (bb ? bb.getBoundingClientRect().height : 0)
+      // Cap board at 70% of viewport height so tip and buttons keep room
+      availH = Math.min(availH, window.innerHeight * 0.7)
+      if (availW <= 0 || availH <= 0) return
+      let { rotated: useRotated, vertexSize: vs } = pickBoardLayout(availW, availH, cols, rows)
+      let displayCols = useRotated ? rows : cols
+      let displayRows = useRotated ? cols : rows
+      el.style.width = (displayCols + 0.5) * vs + 'px'
+      el.style.height = (displayRows + 0.5) * vs + 'px'
+      setRotated(useRotated)
+      setVertexSize(vs)
+    }
+    let ro = new ResizeObserver(recompute)
+    ro.observe(quiz)
+    if (bb) ro.observe(bb)
     return () => ro.disconnect()
   }, [cols, rows])
 
@@ -862,14 +877,14 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
           }
           <div class="finish-time">{finishPopup.total}s</div>
           {finishPopup.mistakes > 0
-            ? <div class="finish-detail">{finishPopup.elapsed}s + {finishPopup.mistakes * 3}s ({finishPopup.mistakes} {finishPopup.mistakes === 1 ? 'mistake' : 'mistakes'})</div>
+            ? <div class="finish-detail">{finishPopup.elapsed}s + {finishPopup.mistakes * 5}s ({finishPopup.mistakes} {finishPopup.mistakes === 1 ? 'mistake' : 'mistakes'})</div>
             : null}
           {finishPopup.gap && <div class="finish-gap">{formatGap(finishPopup.gap)}</div>}
           <button class="finish-close" onClick={() => setFinishPopup(null)}>OK</button>
         </div>}
       </div>
 
-      <div class="bottom-bar">
+      <div class="bottom-bar" ref={bottomBarRef}>
         {replayMode
           ? <>
               <div class="replay-progress-wrap">
@@ -895,8 +910,8 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
               : <>
                   {engine.libertyExerciseActive
                     ? <div class="action-hint">{libFeedback
-                        ? <>Tap red labels to fix, then <span class="hint-blue">Done</span></>
-                        : <>Visualize hidden variation and tap groups to set liberty counts, then <span class="hint-blue">Done</span></>
+                        ? <>Press and swipe red labels to fix, then <span class="hint-blue">Done</span></>
+                        : <>Visualize the variation, then <span class="hint-blue">press and swipe</span> each group to set its liberty count</>
                       }</div>
                     : !engine.finished
                       ? <div class="action-hint"><span class="hint-blue">Tap</span> board to advance. <span class="hint-blue">Remember</span> the variation. Move {engine.moveIndex}/{engine.totalMoves}.</div>
@@ -938,9 +953,10 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
 }
 
 function formatGap(gap) {
-  let totalSec = (gap.deltaMs + gap.mistakesToRemove * 3000) / 1000
+  let totalSec = (gap.deltaMs + gap.mistakesToRemove * 5000) / 1000
   let star = gap.nextStars === 5 ? '🏆' : `${gap.nextStars}★`
-  return `${totalSec.toFixed(1)}s from ${star}`
+  let label = totalSec <= 1 ? `${totalSec.toFixed(1)}s` : `${Math.ceil(totalSec)}s`
+  return `${label} from ${star}`
 }
 
 function formatDate(ts) {
