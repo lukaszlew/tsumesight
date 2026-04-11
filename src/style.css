@@ -879,9 +879,6 @@ body {
   flex-direction: column;
   align-items: center;
 }
-.finish-stars .star-row-bottom {
-  margin-top: -.2em;
-}
 .finish-stars .star-off { color: #553; }
 .finish-trophy {
   font-size: 6em;

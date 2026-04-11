@@ -462,12 +462,11 @@ export function Library({ onSelect, cwd, onCwdChange }) {
                 <span class="tile-num" title="Number of moves">{s.moveCount || '?'}</span>
                 {stars > 0
                   ? <span class="tile-stars" title={`${stars}/5 stars`}>
-                      {stars === 5
+                      {stars >= 5
                         ? <span class="tile-trophy">🏆</span>
-                        : <>
-                            <span class="star-row">{'★★★'.split('').map((c, i) => <span key={i} class={i < Math.min(stars, 3) ? 'star-on' : 'star-off'}>{i < Math.min(stars, 3) ? '★' : '☆'}</span>)}</span>
-                            <span class="star-row star-row-bottom">{'★★'.split('').map((c, i) => <span key={i} class={i + 3 < stars ? 'star-on' : 'star-off'}>{i + 3 < stars ? '★' : '☆'}</span>)}</span>
-                          </>
+                        : stars === 4
+                          ? <span class="tile-trophy">🏅</span>
+                          : [0, 1, 2].map(i => <span key={i} class={i < stars ? 'star-on' : 'star-off'}>{i < stars ? '★' : '☆'}</span>)
                       }
                     </span>
                   : <span class={`tile-acc${best && best.accuracy >= 1 ? ' tile-perfect' : ''}`}

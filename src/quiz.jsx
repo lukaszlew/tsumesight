@@ -220,7 +220,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
       let accuracy = total > 0 ? engine.correct / total : 1
       let elapsedMs = performance.now() - loadTimeRef.current
       let mistakes = mistakesRef.current
-      let penaltyMs = mistakes * 5000
+      let penaltyMs = mistakes * 4000
       let totalMs = elapsedMs + penaltyMs
       let date = Date.now()
       let thresholdMs = computeThreshold(engine)
@@ -870,16 +870,20 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
           />}
         </div>
         {finishPopup && <div class="finish-popup">
-          {finishPopup.stars === 5
+          {finishPopup.stars >= 5
             ? <div class="finish-trophy">🏆</div>
-            : <div class="finish-stars">
-                <span class="star-row">{'★★★'.split('').map((c, i) => <span key={i} class={i < Math.min(finishPopup.stars, 3) ? '' : 'star-off'}>{i < Math.min(finishPopup.stars, 3) ? '★' : '☆'}</span>)}</span>
-                <span class="star-row star-row-bottom">{'★★'.split('').map((c, i) => <span key={i} class={i + 3 < finishPopup.stars ? '' : 'star-off'}>{i + 3 < finishPopup.stars ? '★' : '☆'}</span>)}</span>
-              </div>
+            : finishPopup.stars === 4
+              ? <div class="finish-trophy">🏅</div>
+              : <div class="finish-stars">
+                  {[0, 1, 2].map(i => <span key={i} class={i < finishPopup.stars ? '' : 'star-off'}>{i < finishPopup.stars ? '★' : '☆'}</span>)}
+                </div>
           }
           <div class="finish-time">{finishPopup.total}s</div>
           {finishPopup.mistakes > 0
-            ? <div class="finish-detail">{finishPopup.elapsed}s + {finishPopup.mistakes * 5}s ({finishPopup.mistakes} {finishPopup.mistakes === 1 ? 'mistake' : 'mistakes'})</div>
+            ? <>
+                <div class="finish-detail">{finishPopup.elapsed}s + {finishPopup.mistakes * 4}s</div>
+                <div class="finish-detail">{finishPopup.mistakes} {finishPopup.mistakes === 1 ? 'mistake' : 'mistakes'}</div>
+              </>
             : null}
           {finishPopup.gap && <div class="finish-gap">{formatGap(finishPopup.gap)}</div>}
           <button class="finish-close" onClick={() => setFinishPopup(null)}>OK</button>
@@ -956,7 +960,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
 }
 
 function formatGap(gap) {
-  let totalSec = (gap.deltaMs + gap.mistakesToRemove * 5000) / 1000
+  let totalSec = (gap.deltaMs + gap.mistakesToRemove * 4000) / 1000
   let star = gap.nextStars === 5 ? '🏆' : `${gap.nextStars}★`
   let label = totalSec <= 1 ? `${totalSec.toFixed(1)}s` : `${Math.ceil(totalSec)}s`
   return `${label} from ${star}`
