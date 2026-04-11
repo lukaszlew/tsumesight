@@ -292,6 +292,10 @@ body {
   font-size: 2.2rem;
   line-height: 1;
 }
+.tile-medal {
+  font-size: 1.4rem;
+  line-height: 1;
+}
 .tile-name {
   font-size: 0.85rem;
   color: #ccc;
@@ -883,12 +887,16 @@ body {
   letter-spacing: .15em;
   text-shadow: 0 0 8px rgba(255, 200, 0, .4);
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
 }
 .finish-stars .star-off { color: #553; }
 .finish-trophy {
   font-size: 6em;
+  line-height: 1;
+}
+.finish-medal {
+  font-size: 3.5em;
   line-height: 1;
 }
 .finish-trophy + .finish-time {

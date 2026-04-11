@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'preact/hooks'
 import { getAllSgfs, addSgfBatch, deleteSgf, deleteSgfsByPrefix, renameSgfsByPrefix, clearAll, getBestScore, getLatestScoreDate, updateSgf, exportDb, downloadExport, getScores } from './db.js'
-import { starsFromScore } from './scoring.js'
+import { starsFromScore, StarsDisplay } from './scoring.js'
 import { parseSgf } from './sgf-utils.js'
 import { isArchive, extractSgfs } from './archive.js'
 import { decodeSgf } from './sgf-utils.js'
@@ -462,12 +462,7 @@ export function Library({ onSelect, cwd, onCwdChange }) {
                 <span class="tile-num" title="Number of moves">{s.moveCount || '?'}</span>
                 {stars > 0
                   ? <span class="tile-stars" title={`${stars}/5 stars`}>
-                      {stars >= 5
-                        ? <span class="tile-trophy">🏆</span>
-                        : stars === 4
-                          ? <span class="tile-trophy">🏅</span>
-                          : [0, 1, 2].map(i => <span key={i} class={i < stars ? 'star-on' : 'star-off'}>{i < stars ? '★' : '☆'}</span>)
-                      }
+                      <StarsDisplay stars={stars} wrapClass="" trophyClass="tile-trophy" medalClass="tile-medal" offClass="star-off" onClass="star-on" />
                     </span>
                   : <span class={`tile-acc${best && best.accuracy >= 1 ? ' tile-perfect' : ''}`}
                       title="Best score"

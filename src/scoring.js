@@ -1,3 +1,17 @@
+import { h } from 'preact'
+
+// Render star display: trophy for 5, medal for 4, filled/empty stars for 0-3
+// wrapClass: CSS class for the container (e.g. 'finish-stars', 'tile-stars')
+// offClass: CSS class for empty stars (e.g. 'star-off')
+// onClass: CSS class for filled stars (e.g. 'star-on'), or '' for no class
+export function StarsDisplay({ stars, wrapClass, trophyClass, medalClass, offClass, onClass }) {
+  if (stars >= 5) return h('span', { class: trophyClass }, starLabel(stars))
+  if (stars === 4) return h('span', { class: medalClass || trophyClass }, starLabel(stars))
+  return h('span', { class: wrapClass },
+    [0, 1, 2].map(i => h('span', { key: i, class: i < stars ? onClass || '' : offClass }, i < stars ? '★' : '☆'))
+  )
+}
+
 // Compute the 5-star threshold in ms from engine state
 export function computeThreshold(engine) {
   let groupCount = engine.questionsAsked.flat().length
@@ -22,6 +36,13 @@ export function starsFromScore(score) {
   return computeStars(score.totalMs, score.mistakes || 0, score.thresholdMs)
 }
 
+// Text label for a star count: trophy for 5, medal for 4, ★★☆ for 0-3
+export function starLabel(stars) {
+  if (stars >= 5) return '🏆'
+  if (stars === 4) return '🏅'
+  return [0, 1, 2].map(i => i < stars ? '★' : '☆').join('')
+}
+
 // How far the player was from the next-better star rating.
 // Returns null if already at 5 stars, otherwise:
 //   { nextStars, deltaMs, mistakesToRemove }
@@ -37,7 +58,7 @@ export function nextStarGap(totalMs, mistakes, thresholdMs) {
   let deltaMs, mistakesToRemove = 0
   if (nextStars === 5) {
     // Need ratio ≤ 1 AND mistakes == 0; the time check is on elapsedMs (no penalty)
-    let elapsedMs = totalMs - mistakes * 5000
+    let elapsedMs = totalMs - mistakes * 4000
     deltaMs = Math.max(0, elapsedMs - thresholdMs)
     mistakesToRemove = mistakes
   } else {
