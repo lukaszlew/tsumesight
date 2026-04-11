@@ -583,6 +583,13 @@ body {
   width: 80%;
   margin: 0 auto calc(1 * var(--s));
 }
+.next-hero-hidden {
+  background: transparent;
+  color: #888;
+  box-shadow: none;
+  border: none;
+  pointer-events: none;
+}
 .bottom-bar-row .next-hero {
   width: auto;
   flex: 1;

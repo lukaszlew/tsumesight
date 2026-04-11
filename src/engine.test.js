@@ -838,6 +838,92 @@ describe('QuizEngine', () => {
     })
   })
 
+  describe('lastWrong tracking on exercise', () => {
+    // Simulates the quiz.jsx flow: check → record wrong → set lastWrong → submit
+    function simulateSubmitWithRetry(engine, wrongMarks, correctMarksMap) {
+      let feedback = engine.checkLibertyExercise(wrongMarks)
+      let changedGroups = engine.libertyExercise.groups.filter(g => g.changed)
+      let lastWrong = new Map()
+      for (let i = 0; i < feedback.length; i++) {
+        if (feedback[i].status !== 'correct') {
+          lastWrong.set(changedGroups[i].vertex.toString(), feedback[i])
+        }
+      }
+      engine.libertyExercise.lastWrong = lastWrong
+      engine.submitLibertyExercise(correctMarksMap)
+      return lastWrong
+    }
+
+    it('records wrong answers for groups with mistakes', () => {
+      let engine = new QuizEngine('(;SZ[9];B[ee])')
+      engine.advance(); engine.activateQuestions()
+      let wrongMarks = new Map([['4,4', 1]]) // B[ee] has 4 libs, marking 1
+      let correct = correctMarks(engine)
+      simulateSubmitWithRetry(engine, wrongMarks, correct)
+
+      let lw = engine.libertyExercise.lastWrong
+      expect(lw.size).toBe(1)
+      let entry = [...lw.values()][0]
+      expect(entry.status).toBe('wrong')
+      expect(entry.userVal).toBe(1)
+    })
+
+    it('does not record groups answered correctly', () => {
+      let engine = new QuizEngine('(;SZ[9];B[ba];W[aa])')
+      engine.advance()
+      engine.advance(); engine.activateQuestions()
+      let changedGroups = engine.libertyExercise.groups.filter(g => g.changed)
+      // Mark first group correctly, second wrong
+      let g0 = changedGroups[0]
+      let g1 = changedGroups[1]
+      let wrongMarks = new Map([
+        [[...g0.chainKeys][0], Math.min(g0.libCount, config.maxLibertyLabel)],
+        [[...g1.chainKeys][0], 99],
+      ])
+      let correct = correctMarks(engine)
+      simulateSubmitWithRetry(engine, wrongMarks, correct)
+
+      let lw = engine.libertyExercise.lastWrong
+      expect(lw.size).toBe(1)
+      expect(lw.has(g1.vertex.toString())).toBe(true)
+    })
+
+    it('records missed groups', () => {
+      let engine = new QuizEngine('(;SZ[9];B[ee])')
+      engine.advance(); engine.activateQuestions()
+      let correct = correctMarks(engine)
+      simulateSubmitWithRetry(engine, new Map(), correct)
+
+      let lw = engine.libertyExercise.lastWrong
+      expect(lw.size).toBe(1)
+      let entry = [...lw.values()][0]
+      expect(entry.status).toBe('missed')
+    })
+
+    it('empty lastWrong when no mistakes made', () => {
+      let engine = new QuizEngine('(;SZ[9];B[ee])')
+      engine.advance(); engine.activateQuestions()
+      let correct = correctMarks(engine)
+      // Submit correct on first try — no wrong feedback to record
+      engine.libertyExercise.lastWrong = new Map()
+      engine.submitLibertyExercise(correct)
+
+      expect(engine.libertyExercise.lastWrong.size).toBe(0)
+    })
+
+    it('preserves lastWrong through submitLibertyExercise', () => {
+      let engine = new QuizEngine('(;SZ[9];B[ee])')
+      engine.advance(); engine.activateQuestions()
+      let wrongMarks = new Map([['4,4', 2]])
+      let correct = correctMarks(engine)
+      simulateSubmitWithRetry(engine, wrongMarks, correct)
+
+      // exercise still accessible after submit
+      expect(engine.libertyExercise).not.toBe(null)
+      expect(engine.libertyExercise.lastWrong.size).toBe(1)
+    })
+  })
+
 })
 
 function assert(condition, msg) {

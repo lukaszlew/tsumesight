@@ -136,6 +136,8 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
   let [libMarks, setLibMarks] = useState(() => new Map())
   // Feedback after Done press: null or array per changed group: {status, group, userVertex, userVal} | null
   let [libFeedback, setLibFeedback] = useState(null)
+  // Last wrong answer per group index (for finished board display)
+  let lastWrongRef = useRef(new Map())
   // Finish popup: { elapsed, mistakes, total } or null
   let [finishPopup, setFinishPopup] = useState(null)
   let mistakesRef = useRef(0)
@@ -393,7 +395,9 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
 
     if (feedback.every(f => f.status === 'correct')) {
       recordEvent({ ex: Object.fromEntries(libMarks) })
+      engine.libertyExercise.lastWrong = lastWrongRef.current
       engine.submitLibertyExercise(libMarks)
+      lastWrongRef.current = new Map()
       playCorrect()
       engine.advance()
       let total = engine.questionsPerMove.reduce((a, b) => a + b, 0)
@@ -401,6 +405,13 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
       setLibFeedback(null)
       checkFinished()
     } else {
+      let changedGroups = engine.libertyExercise.groups.filter(g => g.changed)
+      for (let i = 0; i < feedback.length; i++) {
+        let fb = feedback[i]
+        if (fb.status !== 'correct') {
+          lastWrongRef.current.set(changedGroups[i].vertex.toString(), fb)
+        }
+      }
       mistakesRef.current += feedback.filter(f => f.status !== 'correct').length
       playWrong()
       setWrongFlash(true)
@@ -722,37 +733,29 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
     // Show lib count labels on all groups with correct/wrong coloring
     let exercise = engine.libertyExercise
     if (exercise) {
-      let userMarks = exercise.userMarks || new Map()
-      let moveIdx = engine.moveProgress.length - 1
-      let asked = engine.questionsAsked[moveIdx] || []
-      let changedIdx = 0
+      let lastWrong = exercise.lastWrong || new Map()
 
       for (let g of exercise.groups) {
+        let [x, y] = g.vertex
         if (!g.changed) {
           // Pre-marked: show on representative vertex, neutral color
-          let [x, y] = g.vertex
           markerMap[y][x] = { type: 'label', label: libLabel(g.libCount) }
         } else {
-          let correct = asked[changedIdx]?.markedCorrectly
-          changedIdx++
-
-          // Find which vertex the user marked in this group
-          let userVertex = null
-          let userVal = null
-          for (let k of g.chainKeys) {
-            if (userMarks.has(k)) { userVertex = k; userVal = userMarks.get(k); break }
-          }
-
-          if (userVertex !== null) {
-            // User marked: show their label, green if correct, red if wrong
-            let [mx, my] = userVertex.split(',').map(Number)
-            markerMap[my][mx] = { type: 'label', label: libLabel(userVal) }
-            paintMap[my][mx] = correct ? 1 : -1
+          let wrong = lastWrong.get(g.vertex.toString())
+          if (wrong) {
+            // Had mistakes: show last wrong answer in red
+            if (wrong.userVertex) {
+              let [mx, my] = wrong.userVertex.split(',').map(Number)
+              markerMap[my][mx] = { type: 'label', label: libLabel(wrong.userVal) }
+              paintMap[my][mx] = -1
+            } else {
+              markerMap[y][x] = { type: 'label', label: '?' }
+              paintMap[y][x] = -1
+            }
           } else {
-            // Missed: show red "?" on representative vertex
-            let [x, y] = g.vertex
-            markerMap[y][x] = { type: 'label', label: '?' }
-            paintMap[y][x] = -1
+            // Never made a mistake: show correct answer in green
+            markerMap[y][x] = { type: 'label', label: libLabel(g.libCount) }
+            paintMap[y][x] = 1
           }
         }
       }
@@ -916,14 +919,14 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
                 </>
               : <>
                   {engine.libertyExerciseActive
-                    ? <div class="action-hint">{libFeedback
-                        ? <>Press and swipe red labels to fix, then <span class="hint-blue">Done</span></>
-                        : <>Visualize the variation, then <span class="hint-blue">press and swipe</span> each group to set its liberty count</>
-                      }</div>
+                    ? <button class={`next-hero${libMarks.size > 0 || libFeedback ? '' : ' next-hero-hidden'}`} title="Submit (Space/Enter)" onClick={submitExercise}>
+                        {libMarks.size > 0 || libFeedback ? 'Done' : 'Press and swipe each group to set its liberty count'}
+                      </button>
                     : !engine.finished
                       ? <div class="action-hint"><span class="hint-blue">Tap</span> board to advance. <span class="hint-blue">Remember</span> the variation. Move {engine.moveIndex}/{engine.totalMoves}.</div>
-                      : null}
-                  {engine.libertyExerciseActive && <button class="next-hero" title="Submit (Space/Enter)" onClick={submitExercise}>Done</button>}
+                      : engine.libertyExercise?.lastWrong?.size > 0
+                        ? <div class="action-hint">Red labels show your last wrong answer</div>
+                        : null}
                   {engine.finished && !replayMode && <StatsBar sgfId={sgfId} onReplay={startReplay} />}
                   <div class="bottom-bar-row">
                     <button class="bar-btn nav-btn" title={`Sound ${soundOn ? 'on' : 'off'}`} onClick={() => { setSoundOn(toggleSound()) }}>
