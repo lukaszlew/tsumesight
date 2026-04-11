@@ -50,9 +50,11 @@ function getWheelZone(dx, dy) {
   return Math.floor(shifted / 60)
 }
 
-function RadialMenu({ cx, cy, activeZone, vertexSize }) {
-  // Wheel sized to ~45% of viewport width (diameter), regardless of vertexSize
-  let unit = window.innerWidth * 0.45 / 4 // ≈ rOuter target = 0.45*vw / 2 (radius), then /2 again for unit scale
+function RadialMenu({ cx, cy, activeZone, vertexSize, boardHeight }) {
+  // Wheel visual diameter (2 * size) = min(50% screen width, 50% board height)
+  // size = unit * 3.35 (from rOuter + unit*1.35), so diameter = unit * 6.7
+  let maxDiameter = Math.min(window.innerWidth * 0.5, boardHeight * 0.5)
+  let unit = maxDiameter / 6.7
   let rInner = unit * 0.6
   let rOuter = unit * 2
   let rLabel = rOuter + unit * 0.55
@@ -85,6 +87,7 @@ function RadialMenu({ cx, cy, activeZone, vertexSize }) {
       height: size * 2,
       pointerEvents: 'none',
       zIndex: 1000,
+      overflow: 'visible',
     }} viewBox={`${-size} ${-size} ${size * 2} ${size * 2}`}>
       <circle cx={0} cy={0} r={rLabel + vertexSize * 0.5} fill="rgba(255, 255, 255, 0.65)" />
       {WHEEL_ZONES.map(z => {
@@ -482,15 +485,15 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
       let zone = getWheelZone(dx, dy)
       commitMark(vertex, zone)
     } else {
-      // Show wheel opposite the clicked side so the finger doesn't cover
+      // Show wheel opposite vertically so the finger doesn't cover
       // it. Angles are still computed from the intersection.
       let boardEl = evt.currentTarget.closest('.shudan-goban') || boardRowRef.current
       let board = boardEl.getBoundingClientRect()
-      let mx = board.left + board.width / 2
-      let clickedLeft = cx < mx
-      let wcx = clickedLeft ? board.left + board.width * 3 / 4 : board.left + board.width / 4
-      let wcy = board.top + board.height * 0.4
-      let w = { vertex, cx, cy, wcx, wcy, active: getWheelZone(dx, dy) }
+      let my = board.top + board.height / 2
+      let clickedTop = cy < my
+      let wcx = board.left + board.width / 2
+      let wcy = clickedTop ? board.top + board.height * 3 / 4 : board.top + board.height / 4
+      let w = { vertex, cx, cy, wcx, wcy, boardHeight: board.height, active: getWheelZone(dx, dy) }
       wheelRef.current = w
       setWheel(w)
     }
@@ -866,7 +869,6 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
             animateStonePlacement={false}
           />}
         </div>
-        {wheel && <RadialMenu cx={wheel.wcx} cy={wheel.wcy} activeZone={wheel.active} vertexSize={vertexSize} />}
         {finishPopup && <div class="finish-popup">
           {finishPopup.stars === 5
             ? <div class="finish-trophy">🏆</div>
@@ -883,6 +885,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
           <button class="finish-close" onClick={() => setFinishPopup(null)}>OK</button>
         </div>}
       </div>
+      {wheel && <RadialMenu cx={wheel.wcx} cy={wheel.wcy} activeZone={wheel.active} vertexSize={vertexSize} boardHeight={wheel.boardHeight} />}
 
       <div class="bottom-bar" ref={bottomBarRef}>
         {replayMode
