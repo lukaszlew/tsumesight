@@ -481,6 +481,9 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
 
   let onVertexPointerDown = useCallback((evt, vertex) => {
     if (!engine.libertyExerciseActive) return
+    // Claim the pointer so Android suppresses its long-press gesture
+    // (otherwise holding still on a vertex triggers a haptic buzz).
+    try { evt.currentTarget.setPointerCapture(evt.pointerId) } catch {}
     // Get vertex center in screen coords
     let rect = evt.currentTarget.getBoundingClientRect()
     let cx = rect.left + rect.width / 2
