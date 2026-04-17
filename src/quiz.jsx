@@ -15,7 +15,7 @@ function transpose(map) {
   return Array.from({ length: cols }, (_, x) => Array.from({ length: rows }, (_, y) => map[y][x]))
 }
 
-import { computeStars, computeThreshold, nextStarGap, starLabel, StarsDisplay } from './scoring.js'
+import { computeStars, computeCup, computeParScore, computeAccPoints, computeSpeedPoints, starLabel, StarsDisplay } from './scoring.js'
 
 function libLabel(n) {
   return n >= config.maxLibertyLabel ? config.maxLibertyLabel + '+' : String(n)
@@ -141,6 +141,8 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
   // Finish popup: { elapsed, mistakes, total } or null
   let [finishPopup, setFinishPopup] = useState(null)
   let mistakesRef = useRef(0)
+  let submitAttemptsRef = useRef(0)
+  let mistakesByGroupRef = useRef([])
 
   // Radial marking menu state: { vertex, cx, cy, active } or null
   let [wheel, setWheel] = useState(null)
@@ -220,23 +222,39 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
       solvedRef.current = true
       let total = engine.results.length
       let accuracy = total > 0 ? engine.correct / total : 1
-      let elapsedMs = performance.now() - loadTimeRef.current
+      let elapsedMs = Math.round(performance.now() - loadTimeRef.current)
       let mistakes = mistakesRef.current
-      let penaltyMs = mistakes * 4000
-      let totalMs = elapsedMs + penaltyMs
+      let cupMs = computeCup(engine)
+      let groupCount = engine.questionsAsked.flat().length
+      let parScore = computeParScore(groupCount, cupMs)
+      let accPoints = computeAccPoints(mistakes, groupCount)
+      let speedPoints = computeSpeedPoints(elapsedMs, cupMs)
+      let stars = computeStars(accPoints, speedPoints, mistakes, parScore)
+      let mistakesByGroup = [...mistakesByGroupRef.current]
+      while (mistakesByGroup.length < groupCount) mistakesByGroup.push(0)
+      let changedGroups = engine.libertyExercise?.groups.filter(g => g.changed) || []
+      // Order by displayed board: left-to-right, top-to-bottom (transpose when rotated).
+      let displayIdx = changedGroups.map((g, i) => i).sort((a, b) => {
+        let va = changedGroups[a].vertex, vb = changedGroups[b].vertex
+        let ax = rotated ? va[1] : va[0], ay = rotated ? va[0] : va[1]
+        let bx = rotated ? vb[1] : vb[0], by = rotated ? vb[0] : vb[1]
+        return ax - bx || ay - by
+      })
+      let pointsByGroup = displayIdx.map(i => [10, 5, 0][Math.min(mistakesByGroup[i] || 0, 2)])
       let date = Date.now()
-      let thresholdMs = computeThreshold(engine)
-      let scoreEntry = { correct: engine.correct, total, accuracy, totalMs: Math.round(totalMs), mistakes, thresholdMs, errors: engine.errors, date }
+      let scoreEntry = {
+        correct: engine.correct, total, accuracy,
+        totalMs: elapsedMs, mistakes, errors: engine.errors, date,
+        thresholdMs: cupMs, cupMs, parScore, accPoints, speedPoints, groupCount, mistakesByGroup,
+      }
       addReplay(sgfId, date, replayEventsRef.current)
       kvSet(`results:${sgfId}`, JSON.stringify(engine.results))
       onSolved(engine.correct, total, scoreEntry)
-      let stars = computeStars(totalMs, mistakes, thresholdMs)
       setFinishPopup({
-        elapsed: Math.round(elapsedMs / 1000),
-        mistakes,
-        total: Math.round(totalMs / 1000),
-        stars,
-        gap: nextStarGap(totalMs, mistakes, thresholdMs),
+        elapsedSec: Math.round(elapsedMs / 1000),
+        mistakes, accPoints, speedPoints, stars, parScore, pointsByGroup,
+        maxGroups: 10 * groupCount,
+        maxSpeed: Math.round(2 * (cupMs / 1000)),
       })
       playComplete(stars)
     }
@@ -318,6 +336,8 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
       seqSavedRef.current = null
       solvedRef.current = false
       mistakesRef.current = 0
+      submitAttemptsRef.current = 0
+      mistakesByGroupRef.current = []
       loadTimeRef.current = performance.now()
       replayEventsRef.current = []
       replayStartRef.current = null
@@ -392,27 +412,45 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
     if (!engine.libertyExerciseActive) return
 
     let feedback = engine.checkLibertyExercise(libMarks)
+    let allCorrect = feedback.every(f => f.status === 'correct')
+    let changedGroups = engine.libertyExercise.groups.filter(g => g.changed)
+    let wrongCount = feedback.filter(f => f.status !== 'correct').length
 
-    if (feedback.every(f => f.status === 'correct')) {
+    if (mistakesByGroupRef.current.length !== changedGroups.length) {
+      mistakesByGroupRef.current = Array(changedGroups.length).fill(0)
+    }
+
+    submitAttemptsRef.current++
+    let forceCommit = submitAttemptsRef.current >= 2
+
+    if (allCorrect || forceCommit) {
+      if (!allCorrect) {
+        mistakesRef.current += wrongCount
+        for (let i = 0; i < feedback.length; i++) {
+          if (feedback[i].status !== 'correct') {
+            mistakesByGroupRef.current[i]++
+            lastWrongRef.current.set(changedGroups[i].vertex.toString(), feedback[i])
+          }
+        }
+      }
       recordEvent({ ex: Object.fromEntries(libMarks) })
       engine.libertyExercise.lastWrong = lastWrongRef.current
       engine.submitLibertyExercise(libMarks)
       lastWrongRef.current = new Map()
-      playCorrect()
+      if (allCorrect) playCorrect(); else playWrong()
       engine.advance()
       let total = engine.questionsPerMove.reduce((a, b) => a + b, 0)
       onProgress({ correct: engine.correct, done: engine.results.length, total })
       setLibFeedback(null)
       checkFinished()
     } else {
-      let changedGroups = engine.libertyExercise.groups.filter(g => g.changed)
       for (let i = 0; i < feedback.length; i++) {
-        let fb = feedback[i]
-        if (fb.status !== 'correct') {
-          lastWrongRef.current.set(changedGroups[i].vertex.toString(), fb)
+        if (feedback[i].status !== 'correct') {
+          mistakesByGroupRef.current[i]++
+          lastWrongRef.current.set(changedGroups[i].vertex.toString(), feedback[i])
         }
       }
-      mistakesRef.current += feedback.filter(f => f.status !== 'correct').length
+      mistakesRef.current += wrongCount
       playWrong()
       setWrongFlash(true)
       setTimeout(() => setWrongFlash(false), 150)
@@ -877,14 +915,26 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
         </div>
         {finishPopup && <div class="finish-popup">
           <StarsDisplay stars={finishPopup.stars} wrapClass="finish-stars" trophyClass="finish-trophy" medalClass="finish-medal" offClass="star-off" />
-          <div class="finish-time">{finishPopup.total}s</div>
-          {finishPopup.mistakes > 0
-            ? <>
-                <div class="finish-detail">{finishPopup.elapsed}s + {finishPopup.mistakes * 4}s</div>
-                <div class="finish-detail">{finishPopup.mistakes} {finishPopup.mistakes === 1 ? 'mistake' : 'mistakes'}</div>
-              </>
-            : null}
-          {finishPopup.gap && <div class="finish-gap">{formatGap(finishPopup.gap)}</div>}
+          <div class="finish-total">{finishPopup.accPoints + finishPopup.speedPoints} points</div>
+          <table class="finish-breakdown"><tbody>
+            <tr>
+              <td class="b-label">groups:</td>
+              <td class="b-sum">{finishPopup.pointsByGroup.map((p, i) => <span key={i}>
+                {i > 0 && <span class="b-plus"> + </span>}
+                <span class={p === 0 ? 'b-zero' : 'b-num'}>{p}</span>
+              </span>)}</td>
+              <td class="b-max">(max {finishPopup.maxGroups})</td>
+            </tr>
+            <tr>
+              <td class="b-label">time:</td>
+              <td class="b-sum"><span class="b-num">{finishPopup.speedPoints}</span></td>
+              <td class="b-max">(max {finishPopup.maxSpeed}, took {finishPopup.elapsedSec}s)</td>
+            </tr>
+          </tbody></table>
+          <table class="finish-thresholds"><tbody>
+            <tr class="thresh-points">{[1.0, 0.75, 0.50, 0.25, 0].map((f, i) => <td key={i} class={finishPopup.stars === 5 - i ? 'reached' : ''}>{Math.ceil(f * finishPopup.parScore)}</td>)}</tr>
+            <tr class="thresh-reward">{['🏆', '🏅', '★★★', '★★', '★'].map((label, i) => <td key={i} class={finishPopup.stars === 5 - i ? 'reached' : ''}>{label}</td>)}</tr>
+          </tbody></table>
           <button class="finish-close" onClick={() => setFinishPopup(null)}>OK</button>
         </div>}
       </div>
@@ -956,12 +1006,6 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
       </div>
     </div>
   )
-}
-
-function formatGap(gap) {
-  let totalSec = (gap.deltaMs + gap.mistakesToRemove * 4000) / 1000
-  let label = totalSec <= 1 ? `${totalSec.toFixed(1)}s` : `${Math.ceil(totalSec)}s`
-  return `${label} from ${starLabel(gap.nextStars)}`
 }
 
 function formatDate(ts) {

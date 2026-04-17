@@ -1,9 +1,68 @@
 import { h } from 'preact'
 
-// Render star display: trophy for 5, medal for 4, filled/empty stars for 0-3
-// wrapClass: CSS class for the container (e.g. 'finish-stars', 'tile-stars')
-// offClass: CSS class for empty stars (e.g. 'star-off')
-// onClass: CSS class for filled stars (e.g. 'star-on'), or '' for no class
+// Cup time (par): base 3s + 1.5s per move + 1.5s per group.
+export function computeCup(engine) {
+  let groupCount = engine.questionsAsked.flat().length
+  return (3 + engine.totalMoves * 1.5 + groupCount * 1.5) * 1000
+}
+// Back-compat alias for call sites still using the old name.
+export const computeThreshold = computeCup
+
+// Per-problem target score: perfect accuracy + finishing at cup time.
+export function computeParScore(groupCount, cupMs) {
+  return 10 * groupCount + (cupMs / 1000)
+}
+
+// Accuracy points: 10 per group, −5 per mistake (max 2 mistakes per group under 2-try cap).
+export function computeAccPoints(mistakes, groupCount) {
+  return Math.max(0, 10 * groupCount - 5 * mistakes)
+}
+
+// Speed points: 1 per second of headroom under 2×cup, 0 if slower.
+export function computeSpeedPoints(elapsedMs, cupMs) {
+  return Math.max(0, Math.round(2 * (cupMs / 1000) - elapsedMs / 1000))
+}
+
+// Stars from points: fractions of par score, with 5★ requiring 0 mistakes.
+export function computeStars(accPoints, speedPoints, mistakes, parScore) {
+  if (!parScore || parScore <= 0) return 0
+  let ratio = (accPoints + speedPoints) / parScore
+  if (ratio >= 1 && mistakes === 0) return 5
+  if (ratio >= 0.75) return 4
+  if (ratio >= 0.50) return 3
+  if (ratio >= 0.25) return 2
+  return 1
+}
+
+// Stars from a stored score entry. Handles both new and legacy formats.
+export function starsFromScore(score) {
+  if (!score) return 0
+  if (score.accPoints != null && score.speedPoints != null && score.parScore != null) {
+    return computeStars(score.accPoints, score.speedPoints, score.mistakes || 0, score.parScore)
+  }
+  // Legacy fallback: old ratio-based stars
+  if (!score.thresholdMs) return 0
+  let ratio = score.totalMs / score.thresholdMs
+  if (ratio <= 1 && (score.mistakes || 0) === 0) return 5
+  if (ratio <= 1.5) return 4
+  if (ratio <= 2.5) return 3
+  if (ratio <= 4) return 2
+  return 1
+}
+
+// Gap to next star tier, in points and (for 4→5) mistakes to remove.
+export function nextStarGap(accPoints, speedPoints, mistakes, parScore) {
+  let stars = computeStars(accPoints, speedPoints, mistakes, parScore)
+  if (stars === 5) return null
+  let nextStars = stars + 1
+  let minRatio = { 2: 0.25, 3: 0.50, 4: 0.75, 5: 1.0 }[nextStars]
+  let need = minRatio * parScore
+  let deltaPoints = Math.max(0, need - (accPoints + speedPoints))
+  let mistakesToRemove = nextStars === 5 ? mistakes : 0
+  return { nextStars, deltaPoints, mistakesToRemove }
+}
+
+// Render stars: trophy for 5, medal for 4, filled/empty stars for 0–3.
 export function StarsDisplay({ stars, wrapClass, trophyClass, medalClass, offClass, onClass }) {
   if (stars >= 5) return h('span', { class: trophyClass }, starLabel(stars))
   if (stars === 4) return h('span', { class: medalClass || trophyClass }, starLabel(stars))
@@ -12,57 +71,9 @@ export function StarsDisplay({ stars, wrapClass, trophyClass, medalClass, offCla
   )
 }
 
-// Compute the 5-star threshold in ms from engine state
-export function computeThreshold(engine) {
-  let groupCount = engine.questionsAsked.flat().length
-  return (3 + engine.totalMoves * 1.5 + groupCount * 1.5) * 1000
-}
-
-// Compute star rating from score entry data
-// scoreEntry must have: totalMs, mistakes, thresholdMs
-export function computeStars(totalMs, mistakes, thresholdMs) {
-  if (!thresholdMs || thresholdMs <= 0) return 0
-  let ratio = totalMs / thresholdMs
-  if (ratio <= 1 && mistakes === 0) return 5
-  if (ratio <= 1.5) return 4
-  if (ratio <= 2.5) return 3
-  if (ratio <= 4) return 2
-  return 1
-}
-
-// Compute stars directly from a score entry
-export function starsFromScore(score) {
-  if (!score || !score.thresholdMs) return 0
-  return computeStars(score.totalMs, score.mistakes || 0, score.thresholdMs)
-}
-
-// Text label for a star count: trophy for 5, medal for 4, ★★☆ for 0-3
+// Text label for a star count: trophy for 5, medal for 4, ★★☆ for 0–3.
 export function starLabel(stars) {
   if (stars >= 5) return '🏆'
   if (stars === 4) return '🏅'
   return [0, 1, 2].map(i => i < stars ? '★' : '☆').join('')
-}
-
-// How far the player was from the next-better star rating.
-// Returns null if already at 5 stars, otherwise:
-//   { nextStars, deltaMs, mistakesToRemove }
-// nextStars is the better tier, deltaMs is the time needed to save (ms),
-// mistakesToRemove is how many mistakes must be eliminated (only nonzero
-// for the 4→5 jump, which additionally requires zero mistakes).
-export function nextStarGap(totalMs, mistakes, thresholdMs) {
-  let stars = computeStars(totalMs, mistakes, thresholdMs)
-  if (stars === 5) return null
-  let nextStars = stars + 1
-  // Max ratio for each tier (totalMs / thresholdMs must be ≤ this for `tier` stars)
-  let maxRatio = { 2: 4, 3: 2.5, 4: 1.5, 5: 1 }[nextStars]
-  let deltaMs, mistakesToRemove = 0
-  if (nextStars === 5) {
-    // Need ratio ≤ 1 AND mistakes == 0; the time check is on elapsedMs (no penalty)
-    let elapsedMs = totalMs - mistakes * 4000
-    deltaMs = Math.max(0, elapsedMs - thresholdMs)
-    mistakesToRemove = mistakes
-  } else {
-    deltaMs = Math.max(0, totalMs - thresholdMs * maxRatio)
-  }
-  return { nextStars, deltaMs, mistakesToRemove }
 }
