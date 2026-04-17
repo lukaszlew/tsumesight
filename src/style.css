@@ -943,7 +943,7 @@ body {
   font-size: .85em;
 }
 .finish-breakdown .b-num {
-  color: #fc0;
+  color: #888;
   font-weight: bold;
 }
 .finish-breakdown .b-zero {
@@ -951,7 +951,7 @@ body {
   font-weight: bold;
 }
 .finish-breakdown .b-count {
-  color: #ccc;
+  color: #888;
   font-weight: bold;
 }
 .finish-breakdown .b-count-good {
