@@ -919,16 +919,32 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
           <table class="finish-breakdown"><tbody>
             <tr>
               <td class="b-label">groups:</td>
-              <td class="b-sum">{finishPopup.pointsByGroup.map((p, i) => <span key={i}>
-                {i > 0 && <span class="b-plus"> + </span>}
-                <span class={p === 0 ? 'b-zero' : 'b-num'}>{p}</span>
-              </span>)}</td>
-              <td class="b-max">(max {finishPopup.maxGroups})</td>
+              <td class="b-total-col"><span class="b-total">{finishPopup.accPoints}</span></td>
+              <td class="b-eq">=</td>
+              <td class="b-sum">
+                {(() => {
+                  let counts = [
+                    { n: finishPopup.pointsByGroup.filter(p => p === 10).length, v: 10, cls: 'b-num', cntCls: 'b-count-good' },
+                    { n: finishPopup.pointsByGroup.filter(p => p === 5).length, v: 5, cls: 'b-num', cntCls: 'b-count-bad' },
+                    { n: finishPopup.pointsByGroup.filter(p => p === 0).length, v: 0, cls: 'b-zero', cntCls: 'b-count-bad' },
+                  ].filter(c => c.n > 0)
+                  return counts.map((c, i) => <span key={i}>
+                    {i > 0 && <span class="b-plus"> + </span>}
+                    <span class={c.cls}>{c.v}</span><span class="b-times">×</span><span class={c.cntCls}>{c.n}</span>
+                  </span>)
+                })()}
+                <span class="b-unit"> (max {finishPopup.maxGroups})</span>
+              </td>
             </tr>
             <tr>
               <td class="b-label">time:</td>
-              <td class="b-sum"><span class="b-num">{finishPopup.speedPoints}</span></td>
-              <td class="b-max">(max {finishPopup.maxSpeed}, took {finishPopup.elapsedSec}s)</td>
+              <td class="b-total-col"><span class="b-total">{finishPopup.speedPoints}</span></td>
+              <td class="b-eq">=</td>
+              <td class="b-sum">
+                <span class="b-num">{finishPopup.maxSpeed}</span><span class="b-unit"> (max)</span>
+                <span class="b-eq"> − </span>
+                <span class="b-count">{finishPopup.elapsedSec}</span><span class="b-unit">s</span>
+              </td>
             </tr>
           </tbody></table>
           <table class="finish-thresholds"><tbody>

@@ -930,6 +930,10 @@ body {
   text-align: right;
   color: #aaa;
 }
+.finish-breakdown .b-total-col {
+  text-align: right;
+  padding: .1em 0;
+}
 .finish-breakdown .b-sum {
   text-align: left;
 }
@@ -946,8 +950,31 @@ body {
   color: #666;
   font-weight: bold;
 }
-.finish-breakdown .b-plus {
-  color: #666;
+.finish-breakdown .b-count {
+  color: #ccc;
+  font-weight: bold;
+}
+.finish-breakdown .b-count-good {
+  color: #5c5;
+  font-weight: bold;
+}
+.finish-breakdown .b-count-bad {
+  color: #c55;
+  font-weight: bold;
+}
+.finish-breakdown .b-total {
+  color: #fc0;
+  font-weight: bold;
+}
+.finish-breakdown .b-eq,
+.finish-breakdown .b-unit {
+  color: #888;
+}
+.finish-breakdown .b-plus,
+.finish-breakdown .b-times {
+  color: #888;
+  font-weight: normal;
+  margin: 0 .1em;
 }
 .finish-thresholds {
   margin: .6em auto 0;
