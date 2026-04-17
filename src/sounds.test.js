@@ -9,14 +9,15 @@ function makeMockCtx() {
     currentTime: 0,
     destination: {},
     createOscillator: vi.fn(() => {
-      let osc = { type: '', frequency: { value: 0, setValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() }, connect: vi.fn(), start: vi.fn(), stop: vi.fn() }
+      let osc = { type: '', frequency: { value: 0, setValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() }, connect: vi.fn(function() { return this }), start: vi.fn(), stop: vi.fn() }
       oscillatorsCreated.push(osc)
       return osc
     }),
-    createGain: vi.fn(() => ({
-      gain: { setValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
-      connect: vi.fn(),
-    })),
+    createGain: vi.fn(() => {
+      let g = { gain: { setValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() }, connect: vi.fn() }
+      g.connect = vi.fn(() => g)
+      return g
+    }),
   }
 }
 
@@ -86,10 +87,10 @@ describe('sounds', () => {
     expect(oscillatorsCreated.length).toBe(1)
   })
 
-  it('playComplete creates 4 oscillators for the chord', async () => {
+  it('playComplete creates 12 oscillators for 3 plucked notes', async () => {
     let { playComplete } = await import('./sounds.js')
     playComplete()
-    expect(oscillatorsCreated.length).toBe(4)
+    expect(oscillatorsCreated.length).toBe(12)
   })
 
   it('playComplete does not create oscillators when disabled', async () => {

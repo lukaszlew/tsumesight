@@ -1,65 +1,222 @@
 <!DOCTYPE html>
 <html><body style="font-family:system-ui;padding:2em;background:#222;color:#eee">
 <style>
-  button { font-size:1.1em; padding:.3em .6em; margin:.2em; cursor:pointer }
-  h2 { margin-top:1.2em; font-size:1.1em }
-  table { border-collapse:collapse; margin:1em 0 }
-  th { color:#aaa; padding:.3em .8em; font-size:.9em }
-  td { padding:.2em }
+  button { font-size:1.1em; padding:.5em 1em; margin:.25em; cursor:pointer; min-width: 16em; text-align:left }
+  h2 { margin-top:1.4em; font-size:1.15em; color:#ffd }
+  .row { margin:.3em 0 }
+  p.hint { color:#888; font-size:.9em; margin:.2em 0 }
+  .tier { border-left: 3px solid #444; padding-left: 1em; margin-bottom: 1.2em }
+  .chosen { background:#2a4; color:#fff; border:none }
 </style>
 
-<h1>2:N:M grid — 300ms total</h1>
-<p style="color:#888">Rows = glide (N), Columns = hold target (M), all with hold base = 2</p>
+<h1>Completion sound candidates</h1>
 
-<table>
-<tr><th></th><th>M=1</th><th>M=2</th><th>M=4</th><th>M=6</th><th>M=8</th></tr>
-<tr><th>N=1</th><td id="r1c1"></td><td id="r1c2"></td><td id="r1c4"></td><td id="r1c6"></td><td id="r1c8"></td></tr>
-<tr><th>N=2</th><td id="r2c1"></td><td id="r2c2"></td><td id="r2c4"></td><td id="r2c6"></td><td id="r2c8"></td></tr>
-<tr><th>N=4</th><td id="r4c1"></td><td id="r4c2"></td><td id="r4c4"></td><td id="r4c6"></td><td id="r4c8"></td></tr>
-<tr><th>N=6</th><td id="r6c1"></td><td id="r6c2"></td><td id="r6c4"></td><td id="r6c6"></td><td id="r6c8"></td></tr>
-<tr><th>N=8</th><td id="r8c1"></td><td id="r8c2"></td><td id="r8c4"></td><td id="r8c6"></td><td id="r8c8"></td></tr>
-</table>
+<div class="tier">
+<h2>Basic (0–3 ★) — chosen</h2>
+<div class="row"><button class="chosen" onclick="basicC()">Quick plucked triad C E G</button></div>
+</div>
 
-<script>
-let ctx = new AudioContext()
-let max = 5, base = 330, total = 0.3
+<div class="tier">
+<h2>Medal 🏅 (4 ★) — variations on plucked triad</h2>
+<div class="row"><button onclick="medalA()">A — Pluck C E G → octave-up pluck C E G</button></div>
+<div class="row"><button onclick="medalB()">B — Pluck C E G → pluck G B D (double arp)</button></div>
+<div class="row"><button onclick="medalC()">C — Pluck triad + held pluck chord</button></div>
+<div class="row"><button onclick="medalD()">D — Fast double arp pluck (C maj → G maj)</button></div>
+<div class="row"><button onclick="medalE()">E — Pluck triad + sparkle plucks on top</button></div>
+<div class="row"><button onclick="medalF()">F — Pluck triad → single high pluck ring</button></div>
+</div>
 
-function r(v) { return 1 + (v - 1) / (max - 1) * 2 }
+<div class="tier">
+<h2>Trophy 🏆 (5 ★)</h2>
+<div class="row"><button onclick="trophyA()">A — Plucked cascade + big pluck chord</button></div>
+<div class="row"><button onclick="trophyB()">B — Long brass ascending fanfare</button></div>
+<div class="row"><button onclick="trophyC()">C — Sparkly pluck cascade + chord</button></div>
+<div class="row"><button onclick="trophyD()">D — Triple burst (plucked)</button></div>
+<div class="row"><button onclick="trophyE()">E — Triple fanfare burst (triangle)</button></div>
+<div class="row"><button onclick="trophyF()">F — Double arp cascade + shimmer</button></div>
+</div>
 
-function playGlide(v, ratios) {
-  let t = ctx.currentTime, target = base * r(v)
-  let sum = ratios[0] + ratios[1] + ratios[2]
-  let hold1 = total * ratios[0] / sum
-  let glide = total * ratios[1] / sum
-
-  let osc = ctx.createOscillator()
-  let gain = ctx.createGain()
-  osc.type = 'triangle'
-  osc.frequency.setValueAtTime(base, t)
-  if (hold1 > 0) osc.frequency.setValueAtTime(base, t + hold1)
-  osc.frequency.linearRampToValueAtTime(target, t + hold1 + glide)
-  gain.gain.setValueAtTime(0.15, t)
-  gain.gain.exponentialRampToValueAtTime(0.001, t + total)
-  osc.connect(gain).connect(ctx.destination)
-  osc.start(t); osc.stop(t + total)
+<script type="module">
+let ctx = null
+function getCtx() {
+  if (!ctx) ctx = new AudioContext({ latencyHint: 'interactive' })
+  if (ctx.state === 'suspended') ctx.resume()
+  return ctx
 }
 
-function makeButtons(id, ratios) {
-  let el = document.getElementById(id)
-  for (let v = 1; v <= 5; v++) {
-    let btn = document.createElement('button')
-    btn.textContent = v === 5 ? '5+' : v
-    btn.onclick = () => playGlide(v, ratios)
-    el.appendChild(btn)
+function note(c, freq, t, dur, vol, type = 'triangle') {
+  let osc = c.createOscillator()
+  let gain = c.createGain()
+  osc.type = type
+  osc.frequency.value = freq
+  gain.gain.setValueAtTime(0.001, t)
+  gain.gain.linearRampToValueAtTime(vol, t + 0.02)
+  gain.gain.exponentialRampToValueAtTime(0.001, t + dur)
+  osc.connect(gain).connect(c.destination)
+  osc.start(t); osc.stop(t + dur)
+}
+
+function pluck(c, freq, t, vol, decay) {
+  for (let h of [1, 2, 3, 4]) {
+    let osc = c.createOscillator()
+    let gain = c.createGain()
+    osc.type = 'sine'
+    osc.frequency.value = freq * h
+    let v = vol / (h * h)
+    let d = decay / h
+    gain.gain.setValueAtTime(0.001, t)
+    gain.gain.linearRampToValueAtTime(v, t + 0.003)
+    gain.gain.exponentialRampToValueAtTime(0.001, t + d)
+    osc.connect(gain).connect(c.destination)
+    osc.start(t); osc.stop(t + d)
   }
 }
 
-let ns = [1,2,4,6,8]
-let ms = [1,2,4,6,8]
-for (let n of ns) {
-  for (let m of ms) {
-    makeButtons(`r${n}c${m}`, [2, n, m])
-  }
+// ---------- BASIC ----------
+window.basicC = function () {
+  let c = getCtx(), t0 = c.currentTime
+  pluck(c, 523, t0, 0.18, 0.3)
+  pluck(c, 659, t0 + 0.07, 0.18, 0.3)
+  pluck(c, 784, t0 + 0.14, 0.18, 0.5)
+}
+
+// ---------- MEDAL — pluck-based variations ----------
+
+// A: Pluck C E G, then octave up C E G
+window.medalA = function () {
+  let c = getCtx(), t0 = c.currentTime
+  pluck(c, 523, t0, 0.16, 0.25)
+  pluck(c, 659, t0 + 0.07, 0.16, 0.25)
+  pluck(c, 784, t0 + 0.14, 0.16, 0.25)
+  pluck(c, 1047, t0 + 0.25, 0.18, 0.35)
+  pluck(c, 1319, t0 + 0.32, 0.18, 0.35)
+  pluck(c, 1568, t0 + 0.39, 0.18, 0.55)
+}
+
+// B: Pluck C E G, then pluck G B D (double arpeggio, two chords)
+window.medalB = function () {
+  let c = getCtx(), t0 = c.currentTime
+  pluck(c, 523, t0, 0.16, 0.25)
+  pluck(c, 659, t0 + 0.07, 0.16, 0.25)
+  pluck(c, 784, t0 + 0.14, 0.16, 0.3)
+  pluck(c, 784, t0 + 0.28, 0.18, 0.3)
+  pluck(c, 988, t0 + 0.35, 0.18, 0.3)
+  pluck(c, 1175, t0 + 0.42, 0.18, 0.55)
+}
+
+// C: Pluck triad then all three ring together as a held chord
+window.medalC = function () {
+  let c = getCtx(), t0 = c.currentTime
+  pluck(c, 523, t0, 0.16, 0.25)
+  pluck(c, 659, t0 + 0.07, 0.16, 0.25)
+  pluck(c, 784, t0 + 0.14, 0.16, 0.25)
+  // Held chord — longer decay
+  pluck(c, 1047, t0 + 0.26, 0.14, 0.8)
+  pluck(c, 1319, t0 + 0.26, 0.14, 0.8)
+  pluck(c, 1568, t0 + 0.26, 0.14, 0.8)
+}
+
+// D: Fast double arpeggio — C maj then G maj, tighter spacing
+window.medalD = function () {
+  let c = getCtx(), t0 = c.currentTime
+  let arp1 = [523, 659, 784, 1047]
+  let arp2 = [784, 988, 1175, 1568]
+  arp1.forEach((f, i) => pluck(c, f, t0 + i * 0.05, 0.14, 0.2))
+  arp2.forEach((f, i) => pluck(c, f, t0 + 0.24 + i * 0.05, 0.16, 0.3))
+  // Final note rings
+  pluck(c, 1568, t0 + 0.44, 0.16, 0.7)
+}
+
+// E: Pluck triad + sparkle plucks cascading high
+window.medalE = function () {
+  let c = getCtx(), t0 = c.currentTime
+  pluck(c, 523, t0, 0.16, 0.25)
+  pluck(c, 659, t0 + 0.07, 0.16, 0.25)
+  pluck(c, 784, t0 + 0.14, 0.16, 0.3)
+  // High sparkle plucks
+  pluck(c, 1568, t0 + 0.25, 0.1, 0.2)
+  pluck(c, 2093, t0 + 0.30, 0.1, 0.2)
+  pluck(c, 2637, t0 + 0.35, 0.1, 0.25)
+  pluck(c, 3136, t0 + 0.40, 0.08, 0.3)
+}
+
+// F: Pluck triad, then single high pluck that rings long
+window.medalF = function () {
+  let c = getCtx(), t0 = c.currentTime
+  pluck(c, 523, t0, 0.16, 0.25)
+  pluck(c, 659, t0 + 0.07, 0.16, 0.25)
+  pluck(c, 784, t0 + 0.14, 0.16, 0.3)
+  pluck(c, 1568, t0 + 0.28, 0.2, 1.0)
+}
+
+// ---------- TROPHY ----------
+
+// A: Plucked cascade up then big pluck chord
+window.trophyA = function () {
+  let c = getCtx(), t0 = c.currentTime
+  let cascade = [523, 659, 784, 988, 1175, 1319, 1568, 2093]
+  cascade.forEach((f, i) => pluck(c, f, t0 + i * 0.045, 0.14, 0.3))
+  let chordT = t0 + 0.45
+  for (let f of [523, 784, 1047, 1319, 1568, 2093]) pluck(c, f, chordT, 0.12, 1.0)
+}
+
+// B: Long brass ascending fanfare (sawtooth → triangle chord)
+window.trophyB = function () {
+  let c = getCtx(), t0 = c.currentTime
+  let seq = [392, 523, 659, 784, 1047, 1319, 1568]
+  seq.forEach((f, i) => note(c, f, t0 + i * 0.12, 0.22, 0.12, 'sawtooth'))
+  let chordT = t0 + seq.length * 0.12 + 0.05
+  for (let f of [784, 1047, 1319, 1568]) note(c, f, chordT, 1.4, 0.08, 'triangle')
+  note(c, 2093, chordT, 1.4, 0.05, 'sine')
+}
+
+// C: Sparkly pluck cascade + triumphant chord
+window.trophyC = function () {
+  let c = getCtx(), t0 = c.currentTime
+  let cascade = [523, 659, 784, 988, 1175, 1319, 1568, 1976, 2093]
+  cascade.forEach((f, i) => pluck(c, f, t0 + i * 0.04, 0.15, 0.4))
+  let chordT = t0 + 0.45
+  for (let f of [523, 659, 784, 1047, 1319, 1568, 2093]) note(c, f, chordT, 1.3, 0.06)
+}
+
+// D: Triple plucked bursts ascending
+window.trophyD = function () {
+  let c = getCtx(), t0 = c.currentTime
+  let bursts = [[523, 659, 784], [659, 784, 988], [784, 988, 1175]]
+  bursts.forEach((burst, bi) => {
+    burst.forEach((f, i) => pluck(c, f, t0 + bi * 0.22 + i * 0.05, 0.14, 0.25))
+  })
+  let chordT = t0 + 0.78
+  for (let f of [1047, 1319, 1568, 2093]) pluck(c, f, chordT, 0.14, 1.2)
+}
+
+// E: Triple fanfare burst (triangle, original)
+window.trophyE = function () {
+  let c = getCtx(), t0 = c.currentTime
+  let bursts = [[523, 659, 784], [659, 784, 988], [784, 988, 1175]]
+  bursts.forEach((burst, bi) => {
+    burst.forEach((f, i) => note(c, f, t0 + bi * 0.25 + i * 0.05, 0.12, 0.11))
+  })
+  let chordT = t0 + 0.85
+  for (let f of [1047, 1319, 1568, 2093]) note(c, f, chordT, 1.4, 0.09)
+  note(c, 2637, chordT + 0.1, 1.0, 0.05, 'sine')
+}
+
+// F: Double pluck arp cascade + high shimmer
+window.trophyF = function () {
+  let c = getCtx(), t0 = c.currentTime
+  // C major cascade
+  let arp1 = [523, 659, 784, 1047]
+  arp1.forEach((f, i) => pluck(c, f, t0 + i * 0.05, 0.14, 0.25))
+  // G major cascade, higher
+  let arp2 = [784, 988, 1175, 1568]
+  arp2.forEach((f, i) => pluck(c, f, t0 + 0.25 + i * 0.05, 0.15, 0.3))
+  // Big pluck chord
+  let chordT = t0 + 0.55
+  for (let f of [1047, 1319, 1568, 2093]) pluck(c, f, chordT, 0.14, 1.0)
+  // Shimmer
+  pluck(c, 2637, chordT + 0.08, 0.08, 0.7)
+  pluck(c, 3136, chordT + 0.14, 0.06, 0.6)
 }
 </script>
 </body></html>

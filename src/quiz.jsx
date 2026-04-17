@@ -238,7 +238,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
         stars,
         gap: nextStarGap(totalMs, mistakes, thresholdMs),
       })
-      playComplete()
+      playComplete(stars)
     }
   }
 

@@ -203,24 +203,59 @@ function playMarkIntervalPluck(value, max) {
   osc.start(t); osc.stop(t + total)
 }
 
-export function playComplete() {
+export function playComplete(stars = 0) {
   if (!getEnabled()) return
-  let c = getCtx()
-  // Ascending major chord with sustain: C5 → E5 → G5 → C6
-  let freqs = [523, 659, 784, 1047]
-  freqs.forEach((freq, i) => {
+  if (stars >= 5) return playTrophy()
+  if (stars >= 4) return playMedal()
+  playBasicComplete()
+}
+
+// Pluck with harmonics
+function schedulePluck(c, freq, t, vol, decay) {
+  for (let h of [1, 2, 3, 4]) {
     let osc = c.createOscillator()
     let gain = c.createGain()
-    let t = c.currentTime + i * 0.12
-    osc.frequency.value = freq
+    osc.type = 'sine'
+    osc.frequency.value = freq * h
+    let v = vol / (h * h)
+    let d = decay / h
     gain.gain.setValueAtTime(0.001, t)
-    gain.gain.linearRampToValueAtTime(0.06, t + 0.04)
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.8)
-    osc.connect(gain)
-    gain.connect(c.destination)
-    osc.start(t)
-    osc.stop(t + 0.8)
+    gain.gain.linearRampToValueAtTime(v, t + 0.003)
+    gain.gain.exponentialRampToValueAtTime(0.001, t + d)
+    osc.connect(gain).connect(c.destination)
+    osc.start(t); osc.stop(t + d)
+  }
+}
+
+// Basic (0-3 stars): quick plucked triad C E G
+function playBasicComplete() {
+  let c = getCtx()
+  let t0 = c.currentTime
+  schedulePluck(c, 523, t0, 0.18, 0.3)
+  schedulePluck(c, 659, t0 + 0.07, 0.18, 0.3)
+  schedulePluck(c, 784, t0 + 0.14, 0.18, 0.5)
+}
+
+// Medal (4 stars): pluck triad → single high pluck that rings long
+export function playMedal() {
+  let c = getCtx()
+  let t0 = c.currentTime
+  schedulePluck(c, 523, t0, 0.16, 0.25)
+  schedulePluck(c, 659, t0 + 0.07, 0.16, 0.25)
+  schedulePluck(c, 784, t0 + 0.14, 0.16, 0.3)
+  schedulePluck(c, 1568, t0 + 0.28, 0.2, 1.0)
+}
+
+// Trophy (5 stars): triple plucked bursts ascending + big pluck chord
+export function playTrophy() {
+  let c = getCtx()
+  let t0 = c.currentTime
+  let bursts = [[523, 659, 784], [659, 784, 988], [784, 988, 1175]]
+  bursts.forEach((burst, bi) => {
+    burst.forEach((f, i) => schedulePluck(c, f, t0 + bi * 0.22 + i * 0.05, 0.14, 0.25))
   })
+  let chordT = t0 + 0.78
+  for (let f of [1047, 1319, 1568, 2093]) schedulePluck(c, f, chordT, 0.14, 1.2)
 }
 
 // Reserved: two quick descending triangle notes, good for "undo/step-back" events
