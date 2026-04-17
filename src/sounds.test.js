@@ -81,10 +81,10 @@ describe('sounds', () => {
     expect(oscillatorsCreated.length).toBe(0)
   })
 
-  it('playWrong creates oscillator when enabled', async () => {
+  it('playWrong creates oscillators when enabled', async () => {
     let { playWrong } = await import('./sounds.js')
     playWrong()
-    expect(oscillatorsCreated.length).toBe(1)
+    expect(oscillatorsCreated.length).toBe(2)
   })
 
   it('playComplete creates 12 oscillators for 3 plucked notes', async () => {
@@ -155,9 +155,9 @@ describe('sounds', () => {
     playCorrect()
     playCorrect()
     let highFreq = oscillatorsCreated[1].frequency.value
-    playWrong() // resets streak
+    playWrong() // resets streak (creates 2 oscs at indices 2,3)
     playCorrect()
-    let afterWrongFreq = oscillatorsCreated[3].frequency.value // index 3: correct, correct, wrong, correct
+    let afterWrongFreq = oscillatorsCreated[4].frequency.value // index 4: correct, correct, wrong×2, correct
     expect(afterWrongFreq).toBe(220)
     expect(afterWrongFreq).toBeLessThan(highFreq)
   })

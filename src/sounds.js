@@ -50,7 +50,19 @@ export function playCorrect() {
 
 export function playWrong() {
   streak = 0
-  playTone(130, 0.45, 'triangle')
+  if (!getEnabled()) return
+  let c = getCtx()
+  let t = c.currentTime
+  for (let i = 0; i < 2; i++) {
+    let osc = c.createOscillator()
+    let gain = c.createGain()
+    osc.type = 'triangle'
+    osc.frequency.value = i === 0 ? 500 : 330
+    gain.gain.setValueAtTime(0.3, t + i * 0.06)
+    gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.06 + 0.08)
+    osc.connect(gain).connect(c.destination)
+    osc.start(t + i * 0.06); osc.stop(t + i * 0.06 + 0.08)
+  }
 }
 
 export function playStoneClick() {
@@ -258,19 +270,3 @@ export function playTrophy() {
   for (let f of [1047, 1319, 1568, 2093]) schedulePluck(c, f, chordT, 0.14, 1.2)
 }
 
-// Reserved: two quick descending triangle notes, good for "undo/step-back" events
-// eslint-disable-next-line no-unused-vars
-function playDoubleDescend() {
-  let c = getCtx()
-  let t = c.currentTime
-  for (let i = 0; i < 2; i++) {
-    let osc = c.createOscillator()
-    let gain = c.createGain()
-    osc.type = 'triangle'
-    osc.frequency.value = i === 0 ? 500 : 330
-    gain.gain.setValueAtTime(0.3, t + i * 0.06)
-    gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.06 + 0.08)
-    osc.connect(gain).connect(c.destination)
-    osc.start(t + i * 0.06); osc.stop(t + i * 0.06 + 0.08)
-  }
-}
