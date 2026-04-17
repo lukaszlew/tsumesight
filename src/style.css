@@ -953,7 +953,7 @@ body {
   margin: .6em auto 0;
   border-collapse: collapse;
   font-size: .9em;
-  color: rgba(255, 200, 0, .55);
+  color: #fc0;
 }
 .finish-thresholds td {
   padding: .2em .5em;
@@ -962,16 +962,9 @@ body {
 }
 .finish-thresholds .thresh-reward td {
   font-size: 1.3em;
-  color: rgba(255, 200, 0, .75);
 }
 .finish-thresholds .thresh-reward td:first-child {
   font-size: 1.8em;
-}
-.finish-thresholds td.reached {
-  color: #fc0;
-  font-weight: bold;
-  background: rgba(255, 200, 0, .18);
-  border-radius: 4px;
 }
 .finish-time-sub {
   font-size: .9em;
