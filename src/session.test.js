@@ -272,6 +272,67 @@ describe('QuizSession — mistake counting (fold over submits)', () => {
   })
 })
 
+describe('QuizSession — fold event log reconstructs state', () => {
+  // Restore-on-reopen replays the stored event log through a fresh session.
+  // The result must match the original: same marks (value + color), same
+  // submitResults, same mistake counts, same phase.
+  function expectSameState(a, b) {
+    expect(b.cursor).toBe(a.cursor)
+    expect(b.phase).toBe(a.phase)
+    expect(b.submitCount).toBe(a.submitCount)
+    expect(b.finalized).toBe(a.finalized)
+    expect(b.submitResults).toEqual(a.submitResults)
+    expect(b.mistakesByGroup()).toEqual(a.mistakesByGroup())
+    expect([...b.marks.entries()]).toEqual([...a.marks.entries()])
+  }
+
+  it('wrong-then-correct session', () => {
+    let s1 = new QuizSession('(;SZ[9];B[ba];W[aa])', { maxSubmits: 2 })
+    while (s1.phase === 'showing') s1.applyEvent({ kind: 'advance' })
+    s1.applyEvent({ kind: 'setMark', vertex: [0, 0], value: 1 })  // W[aa]: wrong
+    s1.applyEvent({ kind: 'submit' })
+    s1.applyEvent({ kind: 'setMark', vertex: [0, 0], value: 2 })  // correct
+    s1.applyEvent({ kind: 'setMark', vertex: [1, 0], value: 3 })  // B[ba] correct
+    s1.applyEvent({ kind: 'submit' })
+
+    let s2 = new QuizSession('(;SZ[9];B[ba];W[aa])', { maxSubmits: 2 })
+    for (let evt of s1.events) s2.applyEvent(evt)
+    expectSameState(s1, s2)
+  })
+
+  it('force-commit session (two wrong submits)', () => {
+    let s1 = new QuizSession('(;SZ[9];B[ee])', { maxSubmits: 2 })
+    while (s1.phase === 'showing') s1.applyEvent({ kind: 'advance' })
+    s1.applyEvent({ kind: 'setMark', vertex: [4, 4], value: 2 })
+    s1.applyEvent({ kind: 'submit' })
+    s1.applyEvent({ kind: 'submit' })   // force-commit
+
+    let s2 = new QuizSession('(;SZ[9];B[ee])', { maxSubmits: 2 })
+    for (let evt of s1.events) s2.applyEvent(evt)
+    expectSameState(s1, s2)
+    expect(s2.mistakesByGroup()).toEqual([2])
+  })
+
+  it('rewind then completion', () => {
+    let s1 = new QuizSession('(;SZ[9];B[ee];W[aa])')
+    s1.applyEvent({ kind: 'advance' })
+    s1.applyEvent({ kind: 'rewind' })
+    while (s1.phase === 'showing') s1.applyEvent({ kind: 'advance' })
+    // first group: correct if 3 libs (B[ee] becomes 4-1 liberties, W[aa] is 2)
+    let groups = s1.changedGroups
+    for (let g of groups) {
+      let vkey = [...g.chainKeys][0]
+      let [x, y] = vkey.split(',').map(Number)
+      s1.applyEvent({ kind: 'setMark', vertex: [x, y], value: Math.min(g.libCount, 5) })
+    }
+    s1.applyEvent({ kind: 'submit' })
+
+    let s2 = new QuizSession('(;SZ[9];B[ee];W[aa])')
+    for (let evt of s1.events) s2.applyEvent(evt)
+    expectSameState(s1, s2)
+  })
+})
+
 describe('QuizSession — event log', () => {
   it('records every event with timestamps', () => {
     let s = new QuizSession('(;SZ[9];B[ee])')

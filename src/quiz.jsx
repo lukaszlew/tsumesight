@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'preact/hooks'
 import { Goban } from '@sabaki/shudan'
 import { QuizSession, pointsByGroup } from './session.js'
 import { playCorrect, playWrong, playComplete, playStoneClick, playMark, resetStreak, isSoundEnabled, toggleSound } from './sounds.js'
-import { kv, kvSet, kvRemove, getScores, addReplay } from './db.js'
+import { kv, kvRemove, getScores, addReplay, getLatestReplay } from './db.js'
 import config from './config.js'
 import { computeStars, computeParScore, computeAccPoints, computeSpeedPoints, StarsDisplay } from './scoring.js'
 
@@ -109,29 +109,12 @@ function RadialMenu({ cx, cy, activeZone, vertexSize, boardHeight }) {
   )
 }
 
-// Drive a fresh session through advance/setMark/submit to reach FINISHED,
-// reconstructing state from a stored boolean history (one entry per changed
-// group, true = user answered correctly). Used when reopening a solved SGF.
-function restoreFinishedFromHistory(session, history) {
-  while (session.phase === 'showing') {
-    session.applyEvent({ kind: 'advance' })
-  }
-  if (!session.hasExercise) return
-  let groups = session.changedGroups
-  for (let i = 0; i < groups.length; i++) {
-    let correct = i < history.length ? history[i] : false
-    if (correct) {
-      let vkey = [...groups[i].chainKeys][0]
-      let [x, y] = vkey.split(',').map(Number)
-      session.applyEvent({
-        kind: 'setMark',
-        vertex: [x, y],
-        value: Math.min(groups[i].libCount, config.maxLibertyLabel),
-      })
-    }
-  }
-  session.applyEvent({ kind: 'submit' })
-  if (!session.finalized) session.applyEvent({ kind: 'submit' })
+// Reconstruct a finished session by folding the stored event log. The log
+// is the complete record of what the user did; every piece of derived state
+// (marks overlay, submitResults, feedback colors, phase) comes out of the
+// fold exactly as it was at finish time.
+function restoreFromEventLog(session, events) {
+  for (let evt of events) session.applyEvent(evt)
 }
 
 export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolved, onUnsolved, onProgress, onLoadError, onNextUnsolved, onPrev, onNext }) {
@@ -165,11 +148,13 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
     try {
       sessionRef.current = new QuizSession(sgf, { maxSubmits: config.maxSubmits, maxQuestions: maxQ })
       if (wasSolved && restored) {
-        let savedResults = kv(`results:${sgfId}`)
-        if (savedResults) {
-          restoreFinishedFromHistory(sessionRef.current, JSON.parse(savedResults))
+        let events = getLatestReplay(sgfId)
+        if (events && events.length > 0) {
+          restoreFromEventLog(sessionRef.current, events)
           solvedRef.current = true
         }
+        // If no replay exists (legacy solve), fall through to a fresh
+        // session. Q7's minimal "solved (no record)" review is a follow-up.
       }
       if (!solvedRef.current && config.autoShowFirstMove) {
         sessionRef.current.applyEvent({ kind: 'advance' })
@@ -231,10 +216,9 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
       thresholdMs: cupMs, cupMs, parScore, accPoints, speedPoints, groupCount, mistakesByGroup,
     }
     addReplay(sgfId, date, session.events)
-    // Per-group boolean history for restore on reopen.
-    let lastResult = session.submitResults.at(-1) || []
-    let history = lastResult.map(r => r.status === 'correct')
-    kvSet(`results:${sgfId}`, JSON.stringify(history))
+    // The event log is the full record of the session; restore on reopen
+    // folds it through a fresh session rather than reconstructing from
+    // derived data.
     onSolved(correct, total, scoreEntry)
     setFinishPopup({
       elapsedSec: Math.round(elapsedMs / 1000),

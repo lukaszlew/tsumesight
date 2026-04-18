@@ -168,6 +168,15 @@ export function getLatestScoreDate(sgfId) {
   return Math.max(...scores.map(s => s.date || 0))
 }
 
+// Latest replay events for this sgf, or null if none stored in the current
+// format (v2). Used to restore a solved puzzle by folding the events back
+// through a fresh session.
+export function getLatestReplay(sgfId) {
+  let date = getLatestScoreDate(sgfId)
+  if (!date) return null
+  return getReplay(sgfId, date)
+}
+
 export async function exportDb() {
   let db = await openDb()
   let sgfs = await promisify(tx(db, 'readonly').getAll())
