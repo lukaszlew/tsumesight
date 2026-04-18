@@ -106,6 +106,8 @@ export class QuizSession {
     let key = vertexKey(vertex)
     if (value === 0) this.marks.delete(key)
     else this.marks.set(key, value)
+    // Any mark change invalidates the displayed feedback; next submit refreshes it.
+    this.feedback = null
   }
 
   _doSubmit() {

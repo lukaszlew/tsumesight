@@ -10,6 +10,10 @@ export default {
   // e.g. 5 means labels are 1, 2, 3, 4, 5+.
   maxLibertyLabel: 5,
 
+  // Maximum number of Done presses per exercise. After this many submits,
+  // the current marks are force-committed regardless of correctness.
+  maxSubmits: 2,
+
   // Mark sound mode: how tapping a stone to cycle its liberty label sounds.
   //   'repeat'   — N short beeps for N, longer tone for max+
   //   'interval' — rising musical interval: 1=unison, max+=octave
