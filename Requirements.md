@@ -98,13 +98,13 @@ On app reload, the last-opened SGF is restored.
 
 - **Solved, event log exists**: open in a minimal "solved" review — board
   shows the final eval state. No finish popup, no scoring recomputation.
-- **Solved, no event log** (legacy or skipped-via-button): open in a minimal
-  "solved (no record)" review. Do not silently reset the solved flag or reset
-  progress.
-- **Solved via the Mark-as-solved skip button**: writes a sentinel event log
-  that marks the puzzle solved without an attempt. Reopen shows "solved
-  (skipped)".
+- **Solved, no event log** (legacy): opens as a fresh session. A "solved
+  (no record)" review is a deferred polish item.
 - **Not solved**: open fresh at cursor 0.
+
+There is no in-quiz "mark as solved" / skip action. If the user wants to
+hide uninteresting or incorrect puzzles from navigation, that's a data-side
+operation on the library record, not a quiz UI feature.
 
 ## UI features that must stay
 
@@ -113,9 +113,9 @@ On app reload, the last-opened SGF is restored.
 - **Sound toggle** button persists user preference.
 - **Eye toggle** on the finished screen switches between "final board (with
   played stones)" and "initial position."
-- **Keyboard shortcuts**: Space advances / submits, Enter submits / skips /
-  advances-to-next-problem, Esc exits, R restarts or rewinds depending on
-  phase. Tooltips include the keyboard shortcut in parentheses.
+- **Keyboard shortcuts**: Space advances / submits, Enter submits or
+  advances-to-next-problem when finished, Esc exits, R restarts or rewinds
+  depending on phase. Tooltips include the keyboard shortcut in parentheses.
 - **Radial marking wheel**: press-and-drag gesture for picking a liberty
   count; fast flick without seeing the wheel also commits. Unchanged from
   before the refactor.

@@ -125,17 +125,6 @@ export function App() {
     }
   }
 
-  function markUnsolved() {
-    if (active.id) {
-      updateSgf(active.id, { solved: false })
-      setActive(prev => {
-        let next = { ...prev, solved: false }
-        kvSet('activeSgf', JSON.stringify(next))
-        return next
-      })
-    }
-  }
-
   async function getSiblings(path) {
     let all = await getAllSgfs()
     return all
@@ -190,7 +179,7 @@ export function App() {
         <Quiz key={`${active.id}-${selectCount}`} quizKey={active.id} sgf={active.content}
           sgfId={active.id}
           wasSolved={active.solved} restored={!!active.restored}
-          onBack={clearSgf} onSolved={markSolved} onUnsolved={markUnsolved} onProgress={saveProgress} onLoadError={handleLoadError}
+          onBack={clearSgf} onSolved={markSolved} onProgress={saveProgress} onLoadError={handleLoadError}
           onPrev={() => goStep(-1)} onNext={() => goStep(1)}
           onNextUnsolved={goNextUnsolved}
           fileIndex={position?.index} fileTotal={position?.total} />

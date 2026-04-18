@@ -552,15 +552,6 @@ body {
   font-size: clamp(1.4rem, 3vw, 2rem);
   border-radius: calc(0.8 * var(--s));
 }
-.bottom-bar-row .mark-solved-btn {
-  flex: 1;
-  min-width: 0;
-  padding: clamp(0.6rem, 1.5vw, 1.2rem) clamp(0.4rem, 1vw, 1rem);
-  font-size: clamp(1.05rem, 2.2vw, 1.5rem);
-  line-height: 1.15;
-  white-space: normal;
-  text-wrap: balance;
-}
 .bottom-bar-row .nav-btn {
   flex: 1;
   min-width: 0;

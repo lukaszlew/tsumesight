@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'preact/hooks'
 import { Goban } from '@sabaki/shudan'
 import { QuizSession, pointsByGroup } from './session.js'
 import { playCorrect, playWrong, playComplete, playStoneClick, playMark, resetStreak, isSoundEnabled, toggleSound } from './sounds.js'
-import { kv, kvRemove, getScores, addReplay, getLatestReplay } from './db.js'
+import { kv, getScores, addReplay, getLatestReplay } from './db.js'
 import config from './config.js'
 import { computeStars, computeParScore, computeAccPoints, computeSpeedPoints, StarsDisplay } from './scoring.js'
 
@@ -117,7 +117,7 @@ function restoreFromEventLog(session, events) {
   for (let evt of events) session.applyEvent(evt)
 }
 
-export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolved, onUnsolved, onProgress, onLoadError, onNextUnsolved, onPrev, onNext }) {
+export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolved, onProgress, onLoadError, onNextUnsolved, onPrev, onNext }) {
   let sessionRef = useRef(null)
   let solvedRef = useRef(false)
   let loadTimeRef = useRef(performance.now())
@@ -365,30 +365,17 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
     setConfirmExit(true)
   }, [confirmExit, isFinished])
 
-  let toggleSolved = useCallback(() => {
-    if (wasSolved) {
-      kvRemove(`results:${sgfId}`)
-      onUnsolved()
-      onBack()
-    } else {
-      onSolved(0, 0, null)
-      onNextUnsolved()
-    }
-  }, [wasSolved])
-
   // Keyboard shortcuts
   useEffect(() => {
     function onKeyDown(e) {
       if (e.repeat) return
       if (e.key !== 'Escape') setConfirmExit(false)
-      let preSolve = session.phase === 'showing' && session.submitCount === 0 && session.cursor <= 1
 
       if (e.key === 'Escape') { e.preventDefault(); tryBack() }
       else if (e.key === 'Enter') {
         e.preventDefault()
         if (isFinished) onNextUnsolved()
         else if (inExercise) dispatchSubmit()
-        else if (preSolve) toggleSolved()
       }
       else if (e.key === 'r' || e.key === 'R') {
         e.preventDefault()
@@ -483,8 +470,6 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
       else if (mark.color === 'red') paintMap[my][mx] = -1
     }
   }
-
-  let preSolve = session.phase === 'showing' && session.submitCount === 0 && session.cursor <= 1
 
   // Apply rotation if needed
   let displayRangeX = rangeX, displayRangeY = rangeY
@@ -598,7 +583,6 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
                   <span class="nav-icon">{soundOn ? '\uD83D\uDD0A' : '\uD83D\uDD07'}</span>
                   <span class="nav-label">Sound</span>
                 </button>
-                {preSolve && <button class="bar-btn mark-solved-btn" title={wasSolved ? 'Remove solved mark' : 'Skip and mark as solved (Enter)'} onClick={toggleSolved}>{wasSolved ? 'Mark as unsolved' : 'Mark as solved'}</button>}
                 {isFinished && <button class="bar-btn nav-btn eye-toggle" title={showSeqStones ? 'Hide sequence stones' : 'Show sequence stones'} onClick={() => setShowSeqStones(v => !v)}>
                   <span class="nav-icon">{showSeqStones ? '\uD83D\uDCAD' : '\uD83D\uDC41'}</span>
                   <span class="nav-label">{showSeqStones ? 'Hide' : 'Show'}</span>
