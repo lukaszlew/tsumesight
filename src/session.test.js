@@ -34,30 +34,45 @@ const bulkSgfs = [
 
 const allSgfs = [...Object.values(refSgfs), ...bulkSgfs]
 
+// Drive every 'showing' state until we exit into exercise or finished.
+// For an N-move puzzle with an exercise, this is N+1 advances (one per
+// shown move plus one to activate questions).
 function dispatchAllAdvances(session) {
-  while (session.cursor < session.totalMoves) {
+  while (session.phase === 'showing') {
     session.applyEvent({ kind: 'advance' })
   }
 }
 
 describe('QuizSession — reference puzzles', () => {
-  it('simple: plays through, phase transitions correctly', () => {
+  it('simple: each advance produces one visible state change', () => {
     let s = new QuizSession(refSgfs.simple)
     expect(s.cursor).toBe(0)
     expect(s.phase).toBe('showing')
+    expect(s.engine.showingMove).toBe(false)
+
     s.applyEvent({ kind: 'advance' })
     expect(s.cursor).toBe(1)
     expect(s.phase).toBe('showing')
+    expect(s.engine.showingMove).toBe(true)
+
     s.applyEvent({ kind: 'advance' })
     s.applyEvent({ kind: 'advance' })
     expect(s.cursor).toBe(3)
+    // After N advances, last move is showing. Exercise has NOT been entered yet.
+    expect(s.phase).toBe('showing')
+    expect(s.engine.showingMove).toBe(true)
+    expect(s.hasExercise).toBe(false)
+
+    // One more advance activates the exercise (or finishes if no changed groups).
+    s.applyEvent({ kind: 'advance' })
+    expect(s.cursor).toBe(4)
     expect(['exercise-fresh', 'finished']).toContain(s.phase)
   })
 
   it('simple: throws on advance past end', () => {
     let s = new QuizSession(refSgfs.simple)
     dispatchAllAdvances(s)
-    expect(() => s.applyEvent({ kind: 'advance' })).toThrow(/advance at cursor=3/)
+    expect(() => s.applyEvent({ kind: 'advance' })).toThrow(/advance at cursor/)
   })
 
   it('capture: final board reflects captured stone', () => {
@@ -78,6 +93,40 @@ describe('QuizSession — reference puzzles', () => {
   })
 })
 
+describe('QuizSession — last move visibility (regression)', () => {
+  // Bug: session used to call engine.activateQuestions() in the same
+  // dispatch as the last engine.advance(), collapsing two visible states
+  // into one. The last move's stone was never shown on its own.
+  it('single-move puzzle shows the move before activating the exercise', () => {
+    let s = new QuizSession('(;SZ[9];B[ee])')
+    s.applyEvent({ kind: 'advance' })
+    expect(s.phase).toBe('showing')
+    expect(s.engine.showingMove).toBe(true)
+    expect(s.engine.currentMove).toBeTruthy()
+    expect(s.engine.currentMove.vertex).toEqual([4, 4])
+    expect(s.hasExercise).toBe(false)
+
+    s.applyEvent({ kind: 'advance' })
+    expect(s.phase).toBe('exercise-fresh')
+    expect(s.hasExercise).toBe(true)
+    expect(s.engine.showingMove).toBe(false)
+  })
+
+  it('each non-last advance keeps showingMove=true for current move', () => {
+    let s = new QuizSession('(;SZ[9];B[ee];W[aa];B[fe];W[ba];B[ge])')
+    for (let i = 1; i <= s.totalMoves; i++) {
+      s.applyEvent({ kind: 'advance' })
+      expect(s.cursor).toBe(i)
+      expect(s.phase).toBe('showing')
+      expect(s.engine.showingMove).toBe(true)
+      expect(s.engine.currentMove).toBeTruthy()
+    }
+    // Exactly one more advance transitions past showing.
+    s.applyEvent({ kind: 'advance' })
+    expect(s.phase).not.toBe('showing')
+  })
+})
+
 describe('QuizSession — differential vs QuizEngine', () => {
   // Session reuses QuizEngine for Go logic; this confirms the reuse is
   // lossless: same groups detected, same liberty counts, same "changed"
@@ -85,10 +134,6 @@ describe('QuizSession — differential vs QuizEngine', () => {
   for (let sgf of allSgfs) {
     it(`${sgf}: matches old engine on final groups`, () => {
       let old = new QuizEngine(sgf, true, 2)
-      while (!old.finished) old.advance()
-      // Old engine enters FINISHED without calling activateQuestions
-      // if past last move. Re-create and drive just to last move.
-      old = new QuizEngine(sgf, true, 2)
       while (old.moveIndex < old.totalMoves) old.advance()
       old.activateQuestions()
       let oldGroups = (old.libertyExercise?.groups || []).map(g => ({
@@ -109,7 +154,8 @@ describe('QuizSession — differential vs QuizEngine', () => {
 describe('QuizSession — rewind preserves state', () => {
   it('rewind preserves marks, submitCount, feedback, startTime', () => {
     let s = new QuizSession('(;SZ[9];B[ee])')
-    s.applyEvent({ kind: 'advance' })
+    s.applyEvent({ kind: 'advance' })   // show last move
+    s.applyEvent({ kind: 'advance' })   // activate exercise
     s.applyEvent({ kind: 'setMark', vertex: [4, 4], value: 2 })  // wrong
     s.applyEvent({ kind: 'submit' })
     let startTimeBefore = s.startTime
@@ -127,12 +173,15 @@ describe('QuizSession — rewind preserves state', () => {
     expect(s.phase).toBe('showing')
   })
 
-  it('rewind then advance reaches the same exercise state', () => {
+  it('rewind then advance re-enters the same exercise state', () => {
     let s = new QuizSession('(;SZ[9];B[ee])')
+    s.applyEvent({ kind: 'advance' })
     s.applyEvent({ kind: 'advance' })
     expect(s.hasExercise).toBe(true)
     s.applyEvent({ kind: 'rewind' })
     expect(s.hasExercise).toBe(false)
+    expect(s.cursor).toBe(0)
+    s.applyEvent({ kind: 'advance' })
     s.applyEvent({ kind: 'advance' })
     expect(s.hasExercise).toBe(true)
   })
@@ -141,6 +190,7 @@ describe('QuizSession — rewind preserves state', () => {
 describe('QuizSession — finalization rules', () => {
   it('finalizes immediately if all correct', () => {
     let s = new QuizSession('(;SZ[9];B[ee])')
+    s.applyEvent({ kind: 'advance' })
     s.applyEvent({ kind: 'advance' })
     // Center stone on empty board: 4 liberties
     s.applyEvent({ kind: 'setMark', vertex: [4, 4], value: 4 })
@@ -151,6 +201,7 @@ describe('QuizSession — finalization rules', () => {
 
   it('exercise-feedback after first wrong submit; finalized after 2nd', () => {
     let s = new QuizSession('(;SZ[9];B[ee])', { maxSubmits: 2 })
+    s.applyEvent({ kind: 'advance' })
     s.applyEvent({ kind: 'advance' })
     s.applyEvent({ kind: 'setMark', vertex: [4, 4], value: 2 })  // wrong
     s.applyEvent({ kind: 'submit' })
@@ -164,6 +215,7 @@ describe('QuizSession — finalization rules', () => {
   it('configurable maxSubmits = 3', () => {
     let s = new QuizSession('(;SZ[9];B[ee])', { maxSubmits: 3 })
     s.applyEvent({ kind: 'advance' })
+    s.applyEvent({ kind: 'advance' })
     s.applyEvent({ kind: 'setMark', vertex: [4, 4], value: 2 })
     s.applyEvent({ kind: 'submit' })
     s.applyEvent({ kind: 'submit' })
@@ -175,6 +227,7 @@ describe('QuizSession — finalization rules', () => {
   it('setMark throws after finalized', () => {
     let s = new QuizSession('(;SZ[9];B[ee])')
     s.applyEvent({ kind: 'advance' })
+    s.applyEvent({ kind: 'advance' })
     s.applyEvent({ kind: 'setMark', vertex: [4, 4], value: 4 })
     s.applyEvent({ kind: 'submit' })  // finalized
     expect(() => s.applyEvent({ kind: 'setMark', vertex: [4, 4], value: 2 })).toThrow(/finalized/)
@@ -184,6 +237,7 @@ describe('QuizSession — finalization rules', () => {
 describe('QuizSession — mistake counting (fold over submits)', () => {
   it('counts per-submit wrongs, capped at 2 per group', () => {
     let s = new QuizSession('(;SZ[9];B[ee])', { maxSubmits: 2 })
+    s.applyEvent({ kind: 'advance' })
     s.applyEvent({ kind: 'advance' })
     s.applyEvent({ kind: 'setMark', vertex: [4, 4], value: 2 })  // wrong
     s.applyEvent({ kind: 'submit' })
@@ -195,6 +249,7 @@ describe('QuizSession — mistake counting (fold over submits)', () => {
 
   it('1 wrong then correct → 1 mistake → 5 pts', () => {
     let s = new QuizSession('(;SZ[9];B[ee])', { maxSubmits: 2 })
+    s.applyEvent({ kind: 'advance' })
     s.applyEvent({ kind: 'advance' })
     s.applyEvent({ kind: 'setMark', vertex: [4, 4], value: 2 })  // wrong
     s.applyEvent({ kind: 'submit' })
@@ -208,6 +263,7 @@ describe('QuizSession — mistake counting (fold over submits)', () => {
   it('all correct first try → 0 mistakes → 10 pts', () => {
     let s = new QuizSession('(;SZ[9];B[ee])')
     s.applyEvent({ kind: 'advance' })
+    s.applyEvent({ kind: 'advance' })
     s.applyEvent({ kind: 'setMark', vertex: [4, 4], value: 4 })
     s.applyEvent({ kind: 'submit' })
     let mbg = s.mistakesByGroup()
@@ -220,10 +276,11 @@ describe('QuizSession — event log', () => {
   it('records every event with timestamps', () => {
     let s = new QuizSession('(;SZ[9];B[ee])')
     s.applyEvent({ kind: 'advance' })
+    s.applyEvent({ kind: 'advance' })
     s.applyEvent({ kind: 'setMark', vertex: [4, 4], value: 4 })
     s.applyEvent({ kind: 'submit' })
-    expect(s.events.length).toBe(3)
-    expect(s.events.map(e => e.kind)).toEqual(['advance', 'setMark', 'submit'])
+    expect(s.events.length).toBe(4)
+    expect(s.events.map(e => e.kind)).toEqual(['advance', 'advance', 'setMark', 'submit'])
     for (let e of s.events) {
       expect(typeof e.t).toBe('number')
       expect(e.t).toBeGreaterThanOrEqual(0)
@@ -234,6 +291,7 @@ describe('QuizSession — event log', () => {
 describe('QuizSession — tapping rules (no group awareness)', () => {
   it('mark on any intersection is stored; only scoring checks groups', () => {
     let s = new QuizSession('(;SZ[9];B[ee])')
+    s.applyEvent({ kind: 'advance' })
     s.applyEvent({ kind: 'advance' })
     // Mark an empty intersection — allowed, stored, but ignored by scoring.
     s.applyEvent({ kind: 'setMark', vertex: [0, 0], value: 3 })

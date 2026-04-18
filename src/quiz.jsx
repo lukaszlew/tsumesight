@@ -113,7 +113,7 @@ function RadialMenu({ cx, cy, activeZone, vertexSize, boardHeight }) {
 // reconstructing state from a stored boolean history (one entry per changed
 // group, true = user answered correctly). Used when reopening a solved SGF.
 function restoreFinishedFromHistory(session, history) {
-  while (session.cursor < session.totalMoves) {
+  while (session.phase === 'showing') {
     session.applyEvent({ kind: 'advance' })
   }
   if (!session.hasExercise) return

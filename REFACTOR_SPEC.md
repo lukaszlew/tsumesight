@@ -4,21 +4,22 @@ Target model for the quiz session after the refactor. Authoritative reference du
 
 ## Core concept
 
-A quiz session is a cursor moving over a sequence of N moves, plus an exercise that appears only once the cursor reaches the end.
+A quiz session is a cursor moving over a sequence of N moves, plus an exercise that appears only once the cursor advances past the last move. **Each `advance` dispatch produces exactly one visible state change** — this invariant is what guarantees the last move gets rendered on its own before the exercise activates.
 
 ```
-cursor=0   cursor=1       cursor=2   ...   cursor=N
-  │           │              │                │
-initial   after move 1   after move 2   all moves shown → exercise
+cursor=0  cursor=1       cursor=2   ...   cursor=N       cursor=N+1
+  │          │              │                │                │
+empty    showing move 1  showing move 2  showing move N   exercise / finished
+board
 ```
 
-Everything else — phase, what's displayed, whether Done is available — is derived from `cursor`, `submitCount`, and `feedback`.
+So a puzzle with N moves and an exercise takes **N+1 advances**, not N: one per shown move plus one to activate the exercise. Everything else — phase, what's displayed, whether Done is available — is derived from `cursor`, `submitCount`, and `feedback`.
 
 ## Session state (single source of truth on engine)
 
 | Field | Type | Notes |
 |---|---|---|
-| `cursor` | `0..N` | How far through the moves we are |
+| `cursor` | `0..N+1` | 0=empty; 1..N=showing move K; N+1=past moves (exercise or finished) |
 | `marks` | `Map<vertexKey, int>` | User's current liberty-count marks |
 | `submitCount` | `int` | Number of Done presses this session |
 | `feedback` | `PerGroupStatus[] \| null` | Populated after each Done; reflects most recent submit |
@@ -32,10 +33,12 @@ Nothing else. No `showingMove`, `libertyExerciseActive`, `finished`, `libMarks`,
 All state transitions go through one dispatch point: `applyEvent(event)`.
 
 ```
-{t, kind: 'advance'}                  // cursor++, requires cursor < N
+{t, kind: 'advance'}                  // cursor++. Requires cursor <= N.
+                                      //   cursor < N: play move, showingMove=true
+                                      //   cursor === N: activate exercise (no new move played)
 {t, kind: 'rewind'}                   // cursor = 0; marks/submitCount/feedback/clock preserved
-{t, kind: 'setMark', vertex, value}   // absolute; value=0 clears. Requires cursor === N and not finalized
-{t, kind: 'submit'}                   // submitCount++, compute feedback. Requires cursor === N
+{t, kind: 'setMark', vertex, value}   // absolute; value=0 clears. Requires cursor === N+1 and not finalized
+{t, kind: 'submit'}                   // submitCount++, compute feedback. Requires cursor === N+1
 ```
 
 Events record timestamps relative to `startTime`. Recorded for later analysis (no playback UI for now).
@@ -43,9 +46,9 @@ Events record timestamps relative to `startTime`. Recorded for later analysis (n
 ## Derived phase (for UI readability only)
 
 ```
-phase = cursor < N                             ? 'showing'
+phase = cursor <= N                            ? 'showing'
+      : !hasExercise or finalized              ? 'finished'
       : submitCount === 0                      ? 'exercise-fresh'
-      : allCorrect(feedback) or finalized      ? 'finished'
       :                                          'exercise-feedback'
 ```
 

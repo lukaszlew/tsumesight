@@ -13,7 +13,10 @@ function vertexKey(v) {
 // board/liberty logic to QuizEngine (treated as a library).
 //
 // State:
-//   cursor       0..N       how far through the moves
+//   cursor       0..N+1     each advance produces one visible state change
+//                           0     = before any advance (empty board)
+//                           1..N  = showing move K (engine.showingMove=true)
+//                           N+1   = past all moves (in exercise or finished)
 //   marks        Map        user's liberty-count marks (absolute values; 0 = clear)
 //   submitCount  int        number of submits done
 //   feedback     array|null per-group statuses from the latest submit
@@ -39,7 +42,7 @@ export class QuizSession {
   }
 
   get phase() {
-    if (this.cursor < this.totalMoves) return 'showing'
+    if (this.cursor <= this.totalMoves) return 'showing'
     if (!this.hasExercise) return 'finished'
     if (this.finalized) return 'finished'
     if (this.submitCount === 0) return 'exercise-fresh'
@@ -83,11 +86,18 @@ export class QuizSession {
   }
 
   _doAdvance() {
-    assert(this.cursor < this.totalMoves, `advance at cursor=${this.cursor}/${this.totalMoves}`)
-    this.engine.advance()
-    this.cursor++
-    if (this.cursor === this.totalMoves) {
+    assert(this.cursor <= this.totalMoves, `advance at cursor=${this.cursor}/${this.totalMoves}`)
+    if (this.cursor < this.totalMoves) {
+      // Play and show the next move.
+      this.engine.advance()
+      this.cursor++
+    } else {
+      // cursor === totalMoves: last move is currently shown; activate the
+      // exercise (or enter finished if no changed groups). No new stone is
+      // played — this advance represents the user moving past the showing
+      // state into the next phase.
       this.engine.activateQuestions()
+      this.cursor++
       this.hasExercise = this.engine.libertyExerciseActive
     }
   }
@@ -101,7 +111,7 @@ export class QuizSession {
   }
 
   _doSetMark(vertex, value) {
-    assert(this.cursor === this.totalMoves, `setMark at cursor=${this.cursor}`)
+    assert(this.cursor === this.totalMoves + 1, `setMark at cursor=${this.cursor}`)
     assert(!this.finalized, `setMark after finalized`)
     let key = vertexKey(vertex)
     if (value === 0) this.marks.delete(key)
@@ -111,7 +121,7 @@ export class QuizSession {
   }
 
   _doSubmit() {
-    assert(this.cursor === this.totalMoves, `submit at cursor=${this.cursor}`)
+    assert(this.cursor === this.totalMoves + 1, `submit at cursor=${this.cursor}`)
     assert(this.hasExercise, `submit with no exercise`)
     assert(!this.finalized, `submit after finalized`)
     let result = this.engine.checkLibertyExercise(this.marks)
