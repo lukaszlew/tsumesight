@@ -303,6 +303,40 @@ describe('QuizSession — tapping rules (no group awareness)', () => {
   })
 })
 
+describe('QuizSession — locked (pre-marked) intersections', () => {
+  // An unchanged group shows its fixed liberty count at one representative
+  // intersection. That single intersection is not editable; other stones of
+  // the same group stay tappable.
+  it('setMark is a no-op on a pre-marked group representative', () => {
+    // AB[aa] is a lone corner stone, untouched by the moves. It stays with
+    // 2 liberties throughout → pre-marked (not a "changed" group).
+    let s = new QuizSession('(;SZ[9]AB[aa];B[ee];W[ff])')
+    while (s.phase === 'showing') s.applyEvent({ kind: 'advance' })
+
+    // Find the pre-marked group and confirm its representative is locked.
+    let preMarked = s.engine.libertyExercise.groups.find(g => !g.changed)
+    expect(preMarked).toBeTruthy()
+    let lockedVertex = preMarked.vertex
+    expect(s.isLockedVertex(lockedVertex)).toBe(true)
+
+    let marksBefore = new Map(s.marks)
+    let eventsBefore = s.events.length
+    s.applyEvent({ kind: 'setMark', vertex: lockedVertex, value: 3 })
+    // marks unchanged; event not recorded.
+    expect(s.marks).toEqual(marksBefore)
+    expect(s.events.length).toBe(eventsBefore)
+  })
+
+  it('setMark is allowed on a changed-group stone', () => {
+    let s = new QuizSession('(;SZ[9];B[ee])')
+    s.applyEvent({ kind: 'advance' })
+    s.applyEvent({ kind: 'advance' })
+    expect(s.isLockedVertex([4, 4])).toBe(false)
+    s.applyEvent({ kind: 'setMark', vertex: [4, 4], value: 4 })
+    expect(s.marks.get('4,4')).toEqual({ value: 4, color: null })
+  })
+})
+
 describe('QuizSession — eval overwrites marks with colors', () => {
   it('correct mark gains green color after submit', () => {
     let s = new QuizSession('(;SZ[9];B[ee])')

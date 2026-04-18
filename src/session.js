@@ -76,6 +76,7 @@ export class QuizSession {
         this._doRewind()
         break
       case 'setMark':
+        if (this.isLockedVertex(event.vertex)) return  // locked label; no-op
         this._doSetMark(event.vertex, event.value)
         break
       case 'submit':
@@ -160,6 +161,15 @@ export class QuizSession {
 
   get changedGroups() {
     return this.engine.libertyExercise?.groups.filter(g => g.changed) || []
+  }
+
+  // The representative intersection of a pre-marked (unchanged) group shows
+  // its fixed liberty count as a label. That specific intersection is not
+  // editable by the user. Other stones of the same group stay tappable.
+  isLockedVertex(vertex) {
+    let key = vertexKey(vertex)
+    let groups = this.engine.libertyExercise?.groups || []
+    return groups.some(g => !g.changed && vertexKey(g.vertex) === key)
   }
 
   // Per-group: number of submits on which this group was not correct.

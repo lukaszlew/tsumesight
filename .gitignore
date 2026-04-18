@@ -2,6 +2,7 @@ node_modules/
 dist/
 tmp/
 dumps/
+coverage/
 
 # Sandbox artifacts
 .bash_profile

@@ -315,6 +315,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
 
   let onVertexPointerDown = useCallback((evt, vertex) => {
     if (!inExercise) return
+    if (session.isLockedVertex(vertex)) return  // pre-marked (non-editable) label
     // Claim the pointer so Android suppresses its long-press gesture.
     try { evt.currentTarget.setPointerCapture(evt.pointerId) } catch {}
     let rect = evt.currentTarget.getBoundingClientRect()
