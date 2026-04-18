@@ -66,7 +66,7 @@ describe('QuizSession — reference puzzles', () => {
     // One more advance activates the exercise (or finishes if no changed groups).
     s.applyEvent({ kind: 'advance' })
     expect(s.cursor).toBe(4)
-    expect(['exercise-fresh', 'finished']).toContain(s.phase)
+    expect(['exercise', 'finished']).toContain(s.phase)
   })
 
   it('simple: throws on advance past end', () => {
@@ -107,7 +107,7 @@ describe('QuizSession — last move visibility (regression)', () => {
     expect(s.hasExercise).toBe(false)
 
     s.applyEvent({ kind: 'advance' })
-    expect(s.phase).toBe('exercise-fresh')
+    expect(s.phase).toBe('exercise')
     expect(s.hasExercise).toBe(true)
     expect(s.engine.showingMove).toBe(false)
   })
@@ -152,23 +152,23 @@ describe('QuizSession — differential vs QuizEngine', () => {
 })
 
 describe('QuizSession — rewind preserves state', () => {
-  it('rewind preserves marks, submitCount, feedback, startTime', () => {
+  it('rewind preserves marks, submitCount, submitResults, startTime', () => {
     let s = new QuizSession('(;SZ[9];B[ee])')
     s.applyEvent({ kind: 'advance' })   // show last move
     s.applyEvent({ kind: 'advance' })   // activate exercise
     s.applyEvent({ kind: 'setMark', vertex: [4, 4], value: 2 })  // wrong
     s.applyEvent({ kind: 'submit' })
     let startTimeBefore = s.startTime
-    let marksSize = s.marks.size
+    let marksSnapshot = new Map(s.marks)
     let submitCountBefore = s.submitCount
-    let feedbackBefore = s.feedback
+    let submitResultsBefore = [...s.submitResults]
 
     s.applyEvent({ kind: 'rewind' })
 
     expect(s.cursor).toBe(0)
-    expect(s.marks.size).toBe(marksSize)
+    expect(s.marks).toEqual(marksSnapshot)
     expect(s.submitCount).toBe(submitCountBefore)
-    expect(s.feedback).toEqual(feedbackBefore)
+    expect(s.submitResults).toEqual(submitResultsBefore)
     expect(s.startTime).toBe(startTimeBefore)
     expect(s.phase).toBe('showing')
   })
@@ -199,13 +199,13 @@ describe('QuizSession — finalization rules', () => {
     expect(s.finalized).toBe(true)
   })
 
-  it('exercise-feedback after first wrong submit; finalized after 2nd', () => {
+  it('stays in exercise after first wrong submit; finalized after 2nd', () => {
     let s = new QuizSession('(;SZ[9];B[ee])', { maxSubmits: 2 })
     s.applyEvent({ kind: 'advance' })
     s.applyEvent({ kind: 'advance' })
     s.applyEvent({ kind: 'setMark', vertex: [4, 4], value: 2 })  // wrong
     s.applyEvent({ kind: 'submit' })
-    expect(s.phase).toBe('exercise-feedback')
+    expect(s.phase).toBe('exercise')
     expect(s.finalized).toBe(false)
     s.applyEvent({ kind: 'submit' })
     expect(s.phase).toBe('finished')
@@ -219,7 +219,7 @@ describe('QuizSession — finalization rules', () => {
     s.applyEvent({ kind: 'setMark', vertex: [4, 4], value: 2 })
     s.applyEvent({ kind: 'submit' })
     s.applyEvent({ kind: 'submit' })
-    expect(s.phase).toBe('exercise-feedback')
+    expect(s.phase).toBe('exercise')
     s.applyEvent({ kind: 'submit' })
     expect(s.phase).toBe('finished')
   })
@@ -295,10 +295,74 @@ describe('QuizSession — tapping rules (no group awareness)', () => {
     s.applyEvent({ kind: 'advance' })
     // Mark an empty intersection — allowed, stored, but ignored by scoring.
     s.applyEvent({ kind: 'setMark', vertex: [0, 0], value: 3 })
-    expect(s.marks.get('0,0')).toBe(3)
+    expect(s.marks.get('0,0')).toEqual({ value: 3, color: null })
     // Mark the actual stone correctly and submit.
     s.applyEvent({ kind: 'setMark', vertex: [4, 4], value: 4 })
     s.applyEvent({ kind: 'submit' })
     expect(s.mistakesByGroup()).toEqual([0])
+  })
+})
+
+describe('QuizSession — eval overwrites marks with colors', () => {
+  it('correct mark gains green color after submit', () => {
+    let s = new QuizSession('(;SZ[9];B[ee])')
+    s.applyEvent({ kind: 'advance' })
+    s.applyEvent({ kind: 'advance' })
+    s.applyEvent({ kind: 'setMark', vertex: [4, 4], value: 4 })  // correct
+    s.applyEvent({ kind: 'submit' })
+    expect(s.marks.get('4,4')).toEqual({ value: 4, color: 'green' })
+  })
+
+  it('wrong mark gains red color after submit', () => {
+    let s = new QuizSession('(;SZ[9];B[ee])', { maxSubmits: 2 })
+    s.applyEvent({ kind: 'advance' })
+    s.applyEvent({ kind: 'advance' })
+    s.applyEvent({ kind: 'setMark', vertex: [4, 4], value: 2 })  // wrong
+    s.applyEvent({ kind: 'submit' })
+    expect(s.marks.get('4,4')).toEqual({ value: 2, color: 'red' })
+  })
+
+  it('missed group shows ? at group vertex in red', () => {
+    let s = new QuizSession('(;SZ[9];B[ee])', { maxSubmits: 2 })
+    s.applyEvent({ kind: 'advance' })
+    s.applyEvent({ kind: 'advance' })
+    s.applyEvent({ kind: 'submit' })   // no marks → missed
+    let g = s.changedGroups[0]
+    let key = `${g.vertex[0]},${g.vertex[1]}`
+    expect(s.marks.get(key)).toEqual({ value: '?', color: 'red' })
+  })
+
+  it('user tap after submit overwrites color at that intersection', () => {
+    let s = new QuizSession('(;SZ[9];B[ee])', { maxSubmits: 2 })
+    s.applyEvent({ kind: 'advance' })
+    s.applyEvent({ kind: 'advance' })
+    s.applyEvent({ kind: 'setMark', vertex: [4, 4], value: 2 })
+    s.applyEvent({ kind: 'submit' })
+    expect(s.marks.get('4,4').color).toBe('red')
+    s.applyEvent({ kind: 'setMark', vertex: [4, 4], value: 4 })
+    expect(s.marks.get('4,4')).toEqual({ value: 4, color: null })
+  })
+
+  it('marks on non-group intersections are preserved through submit', () => {
+    let s = new QuizSession('(;SZ[9];B[ee])')
+    s.applyEvent({ kind: 'advance' })
+    s.applyEvent({ kind: 'advance' })
+    s.applyEvent({ kind: 'setMark', vertex: [0, 0], value: 3 })  // empty intersection
+    s.applyEvent({ kind: 'setMark', vertex: [4, 4], value: 4 })  // actual stone
+    s.applyEvent({ kind: 'submit' })
+    // Non-group mark persists as-is; group mark gains color.
+    expect(s.marks.get('0,0')).toEqual({ value: 3, color: null })
+    expect(s.marks.get('4,4')).toEqual({ value: 4, color: 'green' })
+  })
+
+  it('second submit re-evaluates and overwrites colors', () => {
+    let s = new QuizSession('(;SZ[9];B[ee])', { maxSubmits: 2 })
+    s.applyEvent({ kind: 'advance' })
+    s.applyEvent({ kind: 'advance' })
+    s.applyEvent({ kind: 'setMark', vertex: [4, 4], value: 2 })
+    s.applyEvent({ kind: 'submit' })
+    s.applyEvent({ kind: 'setMark', vertex: [4, 4], value: 4 })
+    s.applyEvent({ kind: 'submit' })
+    expect(s.marks.get('4,4')).toEqual({ value: 4, color: 'green' })
   })
 })

@@ -194,7 +194,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
   }
 
   let phase = session.phase
-  let inExercise = phase === 'exercise-fresh' || phase === 'exercise-feedback'
+  let inExercise = phase === 'exercise'
   let isFinished = phase === 'finished'
 
   let checkFinished = () => {
@@ -231,8 +231,9 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
       thresholdMs: cupMs, cupMs, parScore, accPoints, speedPoints, groupCount, mistakesByGroup,
     }
     addReplay(sgfId, date, session.events)
-    // Per-group boolean history for fromReplay-style restore on reopen.
-    let history = (session.feedback || []).map(f => f.status === 'correct')
+    // Per-group boolean history for restore on reopen.
+    let lastResult = session.submitResults.at(-1) || []
+    let history = lastResult.map(r => r.status === 'correct')
     kvSet(`results:${sgfId}`, JSON.stringify(history))
     onSolved(correct, total, scoreEntry)
     setFinishPopup({
@@ -254,9 +255,10 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
 
   function dispatchSubmit() {
     if (!inExercise) return
-    if (session.marks.size === 0 && !session.feedback) return  // nothing to submit
+    if (session.marks.size === 0) return  // nothing to submit
     session.applyEvent({ kind: 'submit' })
-    let allCorrect = session.feedback?.every(f => f.status === 'correct') === true
+    let lastResult = session.submitResults.at(-1) || []
+    let allCorrect = lastResult.every(r => r.status === 'correct')
     if (session.finalized) {
       if (allCorrect) playCorrect(); else playWrong()
       let total = session.changedGroups.length
@@ -457,91 +459,43 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
   let signMap, markerMap, ghostStoneMap, paintMap
 
   if (isFinished && session.hasExercise) {
-    // Final review: show all stones or initial position (eye toggle), with
-    // per-group feedback colors from the latest submit.
+    // Final review: show all stones or initial position (eye toggle).
     signMap = (showSeqStones ? engine.trueBoard.signMap : engine.initialBoard.signMap).map(row => [...row])
-    markerMap = makeEmptyMap(size)
-    ghostStoneMap = makeEmptyMap(size)
-    paintMap = makeEmptyMap(size, 0)
-
-    let exercise = engine.libertyExercise
-    let changedGroups = session.changedGroups
-    let fb = session.feedback || []
-    for (let g of exercise?.groups || []) {
-      let [x, y] = g.vertex
-      if (!g.changed) {
-        markerMap[y][x] = { type: 'label', label: libLabel(g.libCount) }
-      } else {
-        let idx = changedGroups.indexOf(g)
-        let fbEntry = fb[idx]
-        if (fbEntry?.status === 'wrong' && fbEntry.userVertex) {
-          let [mx, my] = fbEntry.userVertex.split(',').map(Number)
-          markerMap[my][mx] = { type: 'label', label: libLabel(fbEntry.userVal) }
-          paintMap[my][mx] = -1
-        } else if (fbEntry?.status === 'missed') {
-          markerMap[y][x] = { type: 'label', label: '?' }
-          paintMap[y][x] = -1
-        } else {
-          // correct (or no feedback)
-          markerMap[y][x] = { type: 'label', label: libLabel(g.libCount) }
-          paintMap[y][x] = 1
-        }
-      }
-    }
   } else {
     signMap = engine.getDisplaySignMap()
-    markerMap = makeEmptyMap(size)
-    ghostStoneMap = makeEmptyMap(size)
-    paintMap = makeEmptyMap(size)
+  }
+  markerMap = makeEmptyMap(size)
+  ghostStoneMap = makeEmptyMap(size)
+  paintMap = makeEmptyMap(size, 0)
 
-    // Show phase: opaque stone with move number for the just-played move.
-    if (engine.currentMove && engine.showingMove) {
-      let [x, y] = engine.currentMove.vertex
-      signMap[y][x] = engine.currentMove.sign
-      markerMap[y][x] = { type: 'label', label: String(engine.moveIndex) }
+  // Show phase: opaque stone with move number for the just-played move.
+  if (!isFinished && engine.currentMove && engine.showingMove) {
+    let [x, y] = engine.currentMove.vertex
+    signMap[y][x] = engine.currentMove.sign
+    markerMap[y][x] = { type: 'label', label: String(engine.moveIndex) }
+  }
+
+  // Pre-marked (unchanged) groups show their fixed liberty count. Shown
+  // during both exercise and finished review.
+  let exercise = engine.libertyExercise
+  if ((inExercise || isFinished) && exercise) {
+    for (let g of exercise.groups) {
+      if (g.changed) continue
+      let [x, y] = g.vertex
+      markerMap[y][x] = { type: 'label', label: libLabel(g.libCount) }
     }
+  }
 
-    if (inExercise) {
-      let exercise = engine.libertyExercise
-      if (exercise) {
-        // Pre-marked (locked) groups — their count is shown; mark attempts
-        // on them are stored but score zero (scoring only checks changed groups).
-        for (let g of exercise.groups) {
-          if (g.changed) continue
-          let [x, y] = g.vertex
-          markerMap[y][x] = { type: 'label', label: libLabel(g.libCount) }
-        }
-
-        let feedback = session.feedback
-        if (feedback) {
-          // Feedback mode: show green/red/? for changed groups.
-          let changedGroups = session.changedGroups
-          for (let i = 0; i < changedGroups.length; i++) {
-            let fb = feedback[i]
-            let g = changedGroups[i]
-            if (fb.status === 'correct' && fb.userVertex) {
-              let [mx, my] = fb.userVertex.split(',').map(Number)
-              markerMap[my][mx] = { type: 'label', label: libLabel(fb.userVal) }
-              paintMap[my][mx] = 1
-            } else if (fb.status === 'wrong' && fb.userVertex) {
-              let [mx, my] = fb.userVertex.split(',').map(Number)
-              markerMap[my][mx] = { type: 'label', label: libLabel(fb.userVal) }
-              paintMap[my][mx] = -1
-            } else {
-              // missed
-              let [x, y] = g.vertex
-              markerMap[y][x] = { type: 'label', label: '?' }
-              paintMap[y][x] = -1
-            }
-          }
-        } else {
-          // No feedback: show user marks normally.
-          for (let [key, val] of session.marks) {
-            let [mx, my] = key.split(',').map(Number)
-            markerMap[my][mx] = { type: 'label', label: libLabel(val) }
-          }
-        }
-      }
+  // All user/eval marks live in session.marks with shape {value, color}.
+  // Render them directly — no separate feedback overlay. Eval colors appear
+  // after Done; user's next tap at the same intersection clears that color.
+  if (inExercise || isFinished) {
+    for (let [key, mark] of session.marks) {
+      let [mx, my] = key.split(',').map(Number)
+      let label = mark.value === '?' ? '?' : libLabel(mark.value)
+      markerMap[my][mx] = { type: 'label', label }
+      if (mark.color === 'green') paintMap[my][mx] = 1
+      else if (mark.color === 'red') paintMap[my][mx] = -1
     }
   }
 
@@ -568,9 +522,10 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
     ? (evt, [x, y]) => onVertexPointerUp(evt, [y, x])
     : onVertexPointerUp
 
-  let hasMarks = session.marks.size > 0 || !!session.feedback
+  let hasMarks = session.marks.size > 0
   let showingMoveClass = session.phase === 'showing' && engine.showingMove ? ' showing-move' : ''
-  let feedbackClass = session.feedback && inExercise ? ' lib-feedback' : ''
+  let hasEvalColors = [...session.marks.values()].some(m => m.color)
+  let feedbackClass = hasEvalColors && inExercise ? ' lib-feedback' : ''
 
   return (
     <div class="quiz">

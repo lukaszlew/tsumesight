@@ -1,5 +1,4 @@
 import { QuizEngine } from './engine.js'
-import config from './config.js'
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg)
@@ -17,9 +16,14 @@ function vertexKey(v) {
 //                           0     = before any advance (empty board)
 //                           1..N  = showing move K (engine.showingMove=true)
 //                           N+1   = past all moves (in exercise or finished)
-//   marks        Map        user's liberty-count marks (absolute values; 0 = clear)
+//   marks        Map<key, {value, color}>
+//                           value: number 1..maxLibertyLabel, or '?' sentinel (missed group)
+//                           color: null | 'green' | 'red'
+//                           Entries are per-intersection. The eval result from
+//                           Done overwrites them in-place (evals replace user
+//                           markings — no separate display state).
 //   submitCount  int        number of submits done
-//   feedback     array|null per-group statuses from the latest submit
+//   submitResults array     per-submit array of per-group statuses; fold for scoring
 //   events       []         canonical append-only log
 //
 // Phase is derived; no separate booleans.
@@ -34,8 +38,7 @@ export class QuizSession {
     this.hasExercise = false
     this.marks = new Map()
     this.submitCount = 0
-    this.feedback = null
-    this.submitResults = []   // append-only; used by scoring fold
+    this.submitResults = []
     this.events = []
     this.startTime = null
     this.clockNow = () => performance.now()
@@ -45,14 +48,14 @@ export class QuizSession {
     if (this.cursor <= this.totalMoves) return 'showing'
     if (!this.hasExercise) return 'finished'
     if (this.finalized) return 'finished'
-    if (this.submitCount === 0) return 'exercise-fresh'
-    return 'exercise-feedback'
+    return 'exercise'
   }
 
   get finalized() {
     if (this.submitCount === 0) return false
     if (this.submitCount >= this.maxSubmits) return true
-    return this.feedback?.every(f => f.status === 'correct') === true
+    let last = this.submitResults.at(-1)
+    return last?.every(r => r.status === 'correct') === true
   }
 
   get elapsedMs() {
@@ -104,7 +107,7 @@ export class QuizSession {
 
   _doRewind() {
     // Rebuild engine from scratch; preserve session-level state (marks,
-    // submitCount, feedback, submitResults, startTime, events).
+    // submitCount, submitResults, startTime, events).
     this.engine = new QuizEngine(this.sgf, true, this.maxQuestions)
     this.cursor = 0
     this.hasExercise = false
@@ -115,19 +118,42 @@ export class QuizSession {
     assert(!this.finalized, `setMark after finalized`)
     let key = vertexKey(vertex)
     if (value === 0) this.marks.delete(key)
-    else this.marks.set(key, value)
-    // Any mark change invalidates the displayed feedback; next submit refreshes it.
-    this.feedback = null
+    else this.marks.set(key, { value, color: null })
   }
 
   _doSubmit() {
     assert(this.cursor === this.totalMoves + 1, `submit at cursor=${this.cursor}`)
     assert(this.hasExercise, `submit with no exercise`)
     assert(!this.finalized, `submit after finalized`)
-    let result = this.engine.checkLibertyExercise(this.marks)
-    this.feedback = result
+
+    // Engine wants Map<key, number>. '?' sentinels left over from previous
+    // missed-group submits are filtered out (user never intended them).
+    let plain = new Map()
+    for (let [k, m] of this.marks) {
+      if (typeof m.value === 'number') plain.set(k, m.value)
+    }
+    let result = this.engine.checkLibertyExercise(plain)
     this.submitResults.push(result)
     this.submitCount++
+
+    // Overwrite marks on each changed group's stones with the eval outcome.
+    // User's intersection-level marks on the group are replaced by a single
+    // entry reflecting the group's result (green/red on user's vertex, or
+    // '?' red on the representative vertex for missed).
+    let changedGroups = this.changedGroups
+    for (let i = 0; i < changedGroups.length; i++) {
+      let g = changedGroups[i]
+      let r = result[i]
+      for (let k of g.chainKeys) this.marks.delete(k)
+      if (r.status === 'correct') {
+        this.marks.set(r.userVertex, { value: r.userVal, color: 'green' })
+      } else if (r.status === 'wrong') {
+        this.marks.set(r.userVertex, { value: r.userVal, color: 'red' })
+      } else {
+        // missed
+        this.marks.set(vertexKey(g.vertex), { value: '?', color: 'red' })
+      }
+    }
   }
 
   // --- Derived views for UI / scoring ---
@@ -153,7 +179,7 @@ export class QuizSession {
   }
 }
 
-// Pure fold over a session's submit history; returns per-group point values.
+// Pure fold over mistakesByGroup; returns per-group point values.
 // Mirrors the rule in scoring.js: [10, 5, 0] for [0, 1, 2+] mistakes per group.
 export function pointsByGroup(mistakesByGroup) {
   return mistakesByGroup.map(m => [10, 5, 0][Math.min(m, 2)])
