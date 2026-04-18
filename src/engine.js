@@ -207,13 +207,6 @@ export class QuizEngine {
     return { correctCount, wrongCount, total: changedGroups.length }
   }
 
-  materialize() {
-    // Present the true board as-is (captures removed, all stones shown)
-    this.baseSignMap = this.trueBoard.signMap.map(row => [...row])
-    this.invisibleStones.clear()
-    this.staleness.clear()
-  }
-
   getDisplaySignMap() {
     return this.baseSignMap.map(row => [...row])
   }
@@ -267,36 +260,6 @@ export class QuizEngine {
       }
     }
     return groups
-  }
-
-  recomputeQuestions() {
-    let move = this.currentMove
-    if (!move) return
-    // No questions until last move
-    if (this.moveIndex < this.totalMoves) {
-      this.libertyExercise = null
-      this.libertyExerciseActive = false
-      this.moveProgress[this.moveProgress.length - 1] = { total: 0, results: [] }
-      this.questionsPerMove[this.questionsPerMove.length - 1] = 0
-      this.questionsAsked[this.questionsAsked.length - 1] = []
-      return
-    }
-    if (this.maxQuestions === 0) {
-      this.libertyExercise = null
-      this.libertyExerciseActive = false
-      this.moveProgress[this.moveProgress.length - 1] = { total: 0, results: [] }
-      this.questionsPerMove[this.questionsPerMove.length - 1] = 0
-      this.questionsAsked[this.questionsAsked.length - 1] = []
-      return
-    }
-    this._setupLibertyExercise()
-    let changedGroups = this.libertyExercise.groups.filter(g => g.changed)
-    this.questionsAsked[this.questionsAsked.length - 1] = changedGroups.map(g => ({ vertex: g.vertex, libCount: g.libCount }))
-    this.moveProgress[this.moveProgress.length - 1] = { total: changedGroups.length, results: [] }
-    this.questionsPerMove[this.questionsPerMove.length - 1] = changedGroups.length
-    if (!this.showingMove) {
-      this.libertyExerciseActive = this.libertyExercise.groups.some(g => g.changed)
-    }
   }
 
   _advanceLiberty(move) {

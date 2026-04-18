@@ -1,13 +1,5 @@
 import { h } from 'preact'
 
-// Cup time (par): base 3s + 1.5s per move + 1.5s per group.
-export function computeCup(engine) {
-  let groupCount = engine.questionsAsked.flat().length
-  return (3 + engine.totalMoves * 1.5 + groupCount * 1.5) * 1000
-}
-// Back-compat alias for call sites still using the old name.
-export const computeThreshold = computeCup
-
 // Per-problem target score: perfect accuracy + finishing at cup time.
 export function computeParScore(groupCount, cupMs) {
   return 10 * groupCount + (cupMs / 1000)

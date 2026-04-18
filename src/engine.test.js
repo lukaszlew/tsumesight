@@ -558,14 +558,6 @@ describe('QuizEngine', () => {
       expect(aaGroup.changed).toBe(false)
     })
 
-    it('clears staleness on materialize', () => {
-      let engine = new QuizEngine(simpleSgf)
-      engine.advance()
-      engine.advance()
-      expect(engine.staleness.size).toBe(2)
-      engine.materialize()
-      expect(engine.staleness.size).toBe(0)
-    })
   })
 
   describe('checkLibertyExercise', () => {
