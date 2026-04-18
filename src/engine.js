@@ -62,26 +62,10 @@ export class QuizEngine {
     this.currentMove = null
     this.libertyExercise = null // { groups: [{ vertex, chainKeys, libCount, changed }...] }
     this.libertyExerciseActive = false
-    this.correct = 0
-    this.wrong = 0
-    this.errors = 0 // total wrong answers (for 5s penalty)
-    this.results = []
-    this.moveProgress = [] // [{total, results}] per played move
     this.boardRange = computeRange(sgfString) // [minX, minY, maxX, maxY] or null
     this.showingMove = false
-    this.showWindow = 1 // how many recent stones visible during show phase
     this.finished = false
-    this.questionsAsked = [] // per move: [{vertex, libCount}...]
     this.boardHistory = [] // trueBoard after each move (for intermediate lib tracking)
-
-    // Precompute question counts per move (ideal play, no wrong answers)
-    if (_precompute) {
-      let sim = new QuizEngine(sgfString, false, maxQuestions)
-      while (!sim.finished) sim.advance()
-      this.questionsPerMove = sim.moveProgress.map(m => m.total)
-    } else {
-      this.questionsPerMove = []
-    }
   }
 
   advance() {
@@ -146,10 +130,6 @@ export class QuizEngine {
     }
   }
 
-  get _moveQuestionsDone() {
-    return !this.libertyExerciseActive
-  }
-
   // Check marks without submitting. Returns per changed group:
   // { status: 'correct'|'wrong'|'missed', userVertex?, userVal? }
   checkLibertyExercise(marks) {
@@ -171,55 +151,8 @@ export class QuizEngine {
     })
   }
 
-  // Submit the liberty exercise: user's label per stone.
-  // marks: Map<vertexKey, number> — the number (1-5) the user assigned to each stone
-  // Returns { correctCount, wrongCount, total }
-  submitLibertyExercise(marks) {
-    assert(this.libertyExerciseActive, 'No liberty exercise active')
-
-    let checked = this.checkLibertyExercise(marks)
-    let changedGroups = this.libertyExercise.groups.filter(g => g.changed)
-    let correctCount = 0
-    let wrongCount = 0
-    let moveIdx = this.moveProgress.length - 1
-
-    for (let i = 0; i < changedGroups.length; i++) {
-      let markedCorrectly = checked[i].status === 'correct'
-
-      this.results.push(markedCorrectly)
-      this.questionsAsked[moveIdx][i].markedCorrectly = markedCorrectly
-      if (markedCorrectly) {
-        correctCount++
-        this.correct++
-        this.moveProgress[moveIdx].results.push('correct')
-      } else {
-        wrongCount++
-        this.wrong++
-        this.errors++
-        this.moveProgress[moveIdx].results.push('failed')
-      }
-    }
-
-    // Store marks for review
-    this.libertyExercise.userMarks = marks
-
-    this.libertyExerciseActive = false
-    return { correctCount, wrongCount, total: changedGroups.length }
-  }
-
   getDisplaySignMap() {
     return this.baseSignMap.map(row => [...row])
-  }
-
-  // Returns the most recent invisible stones (excluding current move) that should
-  // be visible during the show phase, based on showWindow size.
-  getWindowStones() {
-    if (this.showWindow <= 1) return []
-    let extras = [...this.invisibleStones.values()]
-      .filter(s => !this.currentMove || vertexKey(s.vertex) !== vertexKey(this.currentMove.vertex))
-      .sort((a, b) => b.moveNumber - a.moveNumber)
-      .slice(0, this.showWindow - 1)
-    return extras
   }
 
   // Returns all groups on the board with their properties
@@ -263,27 +196,17 @@ export class QuizEngine {
   }
 
   _advanceLiberty(move) {
-    // Skip questions until the last move
+    // Only set up a liberty exercise on the final move.
     if (this.moveIndex < this.totalMoves) {
       this.libertyExercise = null
       this.libertyExerciseActive = false
-      this.moveProgress.push({ total: 0, results: [] })
-      this.questionsAsked.push([])
       return
     }
-
-    // Last move: setup liberty exercise
     if (this.maxQuestions === 0) {
       this.libertyExercise = null
-      this.moveProgress.push({ total: 0, results: [] })
-      this.questionsAsked.push([])
       return
     }
-
     this._setupLibertyExercise()
-    let changedGroups = this.libertyExercise.groups.filter(g => g.changed)
-    this.questionsAsked.push(changedGroups.map(g => ({ vertex: g.vertex, libCount: g.libCount })))
-    this.moveProgress.push({ total: changedGroups.length, results: [] })
   }
 
   // Enumerate all groups on final board.
@@ -361,48 +284,6 @@ export class QuizEngine {
 
     this.libertyExercise = { groups }
   }
-
-
-  static fromReplay(sgfString, history, maxQuestions = 3) {
-    let engine = new QuizEngine(sgfString, true, maxQuestions)
-    // Advance all moves
-    while (!engine.finished) {
-      engine.advance()
-      engine.activateQuestions()
-      if (engine.libertyExerciseActive) break
-    }
-
-    if (!engine.libertyExerciseActive) {
-      // No exercise — return as-is (finished or no changed groups)
-      if (!engine.finished) {
-        engine.showingMove = true
-      }
-      return engine
-    }
-
-    if (history.length === 0) {
-      // No answers yet — show the move first
-      engine.showingMove = true
-      engine.libertyExerciseActive = false
-      return engine
-    }
-
-    // Reconstruct marks from boolean history (one bool per changed group)
-    let changedGroups = engine.libertyExercise.groups.filter(g => g.changed)
-    let marks = new Map()
-    for (let i = 0; i < changedGroups.length; i++) {
-      let g = changedGroups[i]
-      let wasCorrect = i < history.length ? history[i] : false
-      if (wasCorrect) {
-        marks.set([...g.chainKeys][0], Math.min(g.libCount, config.maxLibertyLabel))
-      }
-    }
-
-    engine.submitLibertyExercise(marks)
-    engine.advance() // finish
-    return engine
-  }
-
 }
 
 function assert(condition, msg) {

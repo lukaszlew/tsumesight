@@ -499,11 +499,6 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
       let [x, y] = engine.currentMove.vertex
       signMap[y][x] = engine.currentMove.sign
       markerMap[y][x] = { type: 'label', label: String(engine.moveIndex) }
-      for (let { sign, vertex, moveNumber } of engine.getWindowStones()) {
-        let [wx, wy] = vertex
-        signMap[wy][wx] = sign
-        markerMap[wy][wx] = { type: 'label', label: String(moveNumber) }
-      }
     }
 
     if (inExercise) {
