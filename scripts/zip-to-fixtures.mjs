@@ -20,6 +20,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
 import JSZip from 'jszip'
+import { QuizSession } from '../src/session.js'
 
 const EVENT_SCHEMA_VERSION = 2
 const SCHEMA_VERSION = 1
@@ -87,9 +88,22 @@ async function main() {
   let sgfsById = new Map(data.sgfs.map(s => [String(s.id), s]))
   let replayKeys = Object.keys(data.kv).filter(k => k.startsWith('replay:'))
 
-  let counts = { v3: 0, v2verbose: 0, skipped: 0, missingSgf: 0 }
+  let counts = { v3: 0, v2verbose: 0, skipped: 0, missingSgf: 0, replayFailed: 0 }
   fs.mkdirSync(outDir, { recursive: true })
   let written = []
+
+  // Validate a candidate fixture by trying to fold its events through the
+  // current QuizSession. Replays recorded under older rules (pre-commit
+  // 3b30899, where advance-to-activate-exercise was implicit) will throw;
+  // those are skipped so the fixture corpus only contains round-trippable
+  // sessions.
+  function replaysCleanly(sgfContent, config, events) {
+    try {
+      let s = new QuizSession(sgfContent, config)
+      for (let e of events) s.applyEvent(e)
+      return true
+    } catch { return false }
+  }
 
   for (let k of replayKeys) {
     let [, sgfId, dateStr] = k.split(':')
@@ -101,6 +115,12 @@ async function main() {
 
     let sgf = sgfsById.get(String(sgfId))
     if (!sgf) { counts.missingSgf++; continue }
+
+    let candidateConfig = kind === 'v3' ? parsed.config : { maxSubmits: 2, maxQuestions: 2 }
+    if (!replaysCleanly(sgf.content, candidateConfig, parsed.events)) {
+      counts.replayFailed++
+      continue
+    }
 
     let fixture
     if (kind === 'v3') {
@@ -165,6 +185,7 @@ async function main() {
   console.log(`  v:2 verbose partial: ${counts.v2verbose}`)
   console.log(`  skipped (compact / undefined / other): ${counts.skipped}`)
   if (counts.missingSgf > 0) console.log(`  skipped (sgf missing from export): ${counts.missingSgf}`)
+  if (counts.replayFailed > 0) console.log(`  skipped (events don't round-trip under current rules): ${counts.replayFailed}`)
 }
 
 main().catch(err => {
