@@ -105,7 +105,7 @@ export function Quiz({ sgf, sgfId, wasSolved, restored, onBack, onSolved, onProg
       case 'sound/wrong': playWrong(); break
       case 'wrongFlash':
         setWrongFlash(true)
-        setTimeout(() => setWrongFlash(false), 150)
+        setTimeout(() => setWrongFlash(false), config.wrongFlashMs)
         break
       case 'onProgress':
         onProgress({ correct: e.correct, done: e.done, total: e.total })

@@ -15,6 +15,7 @@
 import { phase, finalized, changedGroups, mistakesByGroup, totalMistakes, pointsByGroup } from './session.js'
 import { computeStars, computeParScore, computeAccPoints, computeSpeedPoints } from './scoring.js'
 import { orderGroupsByDisplay } from './display.js'
+import config from './config.js'
 
 export function sideEffectsFor(next, event) {
   let out = []
@@ -58,8 +59,7 @@ export function computeFinalizeData(state, ctx) {
   let mistakes = totalMistakes(state)
   let mbg = mistakesByGroup(state)
   let elapsedMs = Math.round(performance.now() - ctx.loadTimeMs)
-  // Cup time: base 3s + 1.5s per move + 1.5s per group.
-  let cupMs = (3 + state.totalMoves * 1.5 + groupCount * 1.5) * 1000
+  let cupMs = (config.cupBaseSec + state.totalMoves * config.cupPerMoveSec + groupCount * config.cupPerGroupSec) * 1000
   let parScore = computeParScore(groupCount, cupMs)
   let accPoints = computeAccPoints(mistakes, groupCount)
   let speedPoints = computeSpeedPoints(elapsedMs, cupMs)
