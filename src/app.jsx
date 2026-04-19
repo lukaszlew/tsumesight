@@ -172,7 +172,7 @@ export function App() {
   if (active) {
     return (
       <ErrorBoundary onReset={clearSgf}>
-        <Quiz key={active.id} quizKey={active.id} sgf={active.content}
+        <Quiz key={active.id} sgf={active.content}
           sgfId={active.id}
           wasSolved={active.solved} restored={!!active.restored}
           onBack={clearSgf} onSolved={markSolved} onProgress={saveProgress} onLoadError={handleLoadError}

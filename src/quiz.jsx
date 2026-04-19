@@ -10,7 +10,7 @@ import { kv, kvSet, addReplay, getLatestReplay } from './db.js'
 import config from './config.js'
 import { sideEffectsFor, computeFinalizeData } from './effects.js'
 
-export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolved, onProgress, onLoadError, onNextUnsolved, onPrev, onNext }) {
+export function Quiz({ sgf, sgfId, wasSolved, restored, onBack, onSolved, onProgress, onLoadError, onNextUnsolved, onPrev, onNext }) {
   let [maxQ] = useState(() => parseInt(kv('quizMaxQ', '2')))
   let sessionConfig = useMemo(() => ({ maxSubmits: config.maxSubmits, maxQuestions: maxQ }), [maxQ])
 
@@ -52,7 +52,6 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
   // (solved puzzle reopen) don't re-play sounds.
   let solvedRef = useRef(initState.autoSolved)
   let lastEventIdxRef = useRef(initState.events.length - 1)
-  let prevSubmitCountRef = useRef(0)
   let startTimeRef = useRef(null)
   let loadTimeRef = useRef(performance.now())
   // Key under which the live event log is persisted in kv. Set lazily on
@@ -71,16 +70,13 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
   let [confirmExit, setConfirmExit] = useState(false)
   let [finishPopup, setFinishPopup] = useState(null)
 
-  // Seed prevSubmitCount from the initial fold (so review-mode mounts don't
-  // trigger submit effects). Runs exactly once on mount.
+  // Mount effects: reset sound-streak and auto-advance if configured.
   useEffect(() => {
-    if (state) prevSubmitCountRef.current = state.submitCount
-    // Auto-advance on first load unless restoring a solved puzzle.
+    resetStreak()
     // config.autoShowFirstMove is currently false; branch kept for parity.
     if (!initState.autoSolved && config.autoShowFirstMove && events.length === 0) {
       dispatch({ kind: 'advance' })
     }
-    resetStreak()
   }, [])
 
   // Dispatch: append an event. Sets t relative to the first event's time.
@@ -220,7 +216,6 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
   function doRestart() {
     solvedRef.current = false
     lastEventIdxRef.current = -1
-    prevSubmitCountRef.current = 0
     startTimeRef.current = null
     loadTimeRef.current = performance.now()
     setFinishPopup(null)
