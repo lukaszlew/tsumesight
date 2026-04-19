@@ -148,9 +148,9 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
     try {
       sessionRef.current = new QuizSession(sgf, { maxSubmits: config.maxSubmits, maxQuestions: maxQ })
       if (wasSolved && restored) {
-        let events = getLatestReplay(sgfId)
-        if (events && events.length > 0) {
-          restoreFromEventLog(sessionRef.current, events)
+        let record = getLatestReplay(sgfId)
+        if (record && record.events && record.events.length > 0) {
+          restoreFromEventLog(sessionRef.current, record.events)
           solvedRef.current = true
         }
         // If no replay exists (legacy solve), fall through to a fresh
@@ -215,10 +215,24 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
       totalMs: elapsedMs, mistakes, errors: mistakes, date,
       thresholdMs: cupMs, cupMs, parScore, accPoints, speedPoints, groupCount, mistakesByGroup,
     }
-    addReplay(sgfId, date, session.events)
+    // v:3 enriched record. Matches the fixture schema (src/fixture-schema.js)
+    // so the converter can promote this into a committed test fixture.
     // The event log is the full record of the session; restore on reopen
     // folds it through a fresh session rather than reconstructing from
     // derived data.
+    let finalMarks = [...session.marks.entries()].map(([key, m]) => ({ key, value: m.value, color: m.color }))
+    let changedGroupsVertices = groups.map(g => g.vertex)
+    addReplay(sgfId, date, {
+      events: session.events,
+      config: { maxSubmits: config.maxSubmits, maxQuestions: maxQ },
+      viewport: { w: window.innerWidth, h: window.innerHeight, rotated },
+      goldens: {
+        scoreEntry,
+        finalMarks,
+        submitResults: session.submitResults,
+        changedGroupsVertices,
+      },
+    })
     onSolved(correct, total, scoreEntry)
     setFinishPopup({
       elapsedSec: Math.round(elapsedMs / 1000),
