@@ -4,24 +4,12 @@ import {
   init, step, phase, finalized, isLockedVertex,
   changedGroups, mistakesByGroup, totalMistakes, pointsByGroup,
 } from './session.js'
+import { derive } from './derive.js'
+import { buildMaps, rotateMaps, orderGroupsByDisplay } from './display.js'
 import { playCorrect, playWrong, playComplete, playStoneClick, playMark, resetStreak, isSoundEnabled, toggleSound } from './sounds.js'
 import { kv, kvSet, getScores, addReplay, getLatestReplay } from './db.js'
 import config from './config.js'
 import { computeStars, computeParScore, computeAccPoints, computeSpeedPoints, StarsDisplay } from './scoring.js'
-
-function makeEmptyMap(size, fill = null) {
-  return Array.from({ length: size }, () => Array(size).fill(fill))
-}
-
-function transpose(map) {
-  let rows = map.length
-  let cols = map[0].length
-  return Array.from({ length: cols }, (_, x) => Array.from({ length: rows }, (_, y) => map[y][x]))
-}
-
-function libLabel(n) {
-  return n >= config.maxLibertyLabel ? config.maxLibertyLabel + '+' : String(n)
-}
 
 // Decide board orientation and vertex size that fit a puzzle of cols x rows
 // in an availW x availH rectangle. Pure function — exported for testing.
@@ -147,6 +135,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
       return null
     }
   }, [events, sgf, sessionConfig])
+  let view = useMemo(() => state ? derive(state) : null, [state])
 
   // Refs that track progress through the event stream for side effects.
   // Seeded to "already caught up to initial events" so review-mode mounts
@@ -267,12 +256,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
     let stars = computeStars(accPoints, speedPoints, mistakes, parScore)
 
     // Order per-group points by displayed board position (left-to-right, top-to-bottom).
-    let displayIdx = groups.map((g, i) => i).sort((a, b) => {
-      let va = groups[a].vertex, vb = groups[b].vertex
-      let ax = rotated ? va[1] : va[0], ay = rotated ? va[0] : va[1]
-      let bx = rotated ? vb[1] : vb[0], by = rotated ? vb[0] : vb[1]
-      return ax - bx || ay - by
-    })
+    let displayIdx = orderGroupsByDisplay(groups, rotated)
     let orderedPointsByGroup = displayIdx.map(i => pointsByGroup(mbg)[i])
 
     let correct = Math.max(0, groupCount - mistakes)
@@ -514,61 +498,16 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
     return () => ro.disconnect()
   }, [cols, rows])
 
-  // Build display maps
-  let size = engine.boardSize
-  let signMap, markerMap, ghostStoneMap, paintMap
-
-  if (isFinished && state.hasExercise) {
-    // Final review: show all stones or initial position (eye toggle).
-    signMap = (showSeqStones ? engine.trueBoard.signMap : engine.initialBoard.signMap).map(row => [...row])
-  } else {
-    signMap = engine.getDisplaySignMap()
-  }
-  markerMap = makeEmptyMap(size)
-  ghostStoneMap = makeEmptyMap(size)
-  paintMap = makeEmptyMap(size, 0)
-
-  // Show phase: opaque stone with move number for the just-played move.
-  if (!isFinished && engine.currentMove && engine.showingMove) {
-    let [x, y] = engine.currentMove.vertex
-    signMap[y][x] = engine.currentMove.sign
-    markerMap[y][x] = { type: 'label', label: String(engine.moveIndex) }
-  }
-
-  // Pre-marked (unchanged) groups show their fixed liberty count. Shown
-  // during both exercise and finished review.
-  let exercise = engine.libertyExercise
-  if ((inExercise || isFinished) && exercise) {
-    for (let g of exercise.groups) {
-      if (g.changed) continue
-      let [x, y] = g.vertex
-      markerMap[y][x] = { type: 'label', label: libLabel(g.libCount) }
-    }
-  }
-
-  // All user/eval marks live in state.marks with shape {value, color}.
-  // Render them directly — no separate feedback overlay. Eval colors appear
-  // after Done; user's next tap at the same intersection clears that color.
-  if (inExercise || isFinished) {
-    for (let [key, mark] of state.marks) {
-      let [mx, my] = key.split(',').map(Number)
-      let label = mark.value === '?' ? '?' : libLabel(mark.value)
-      markerMap[my][mx] = { type: 'label', label }
-      if (mark.color === 'green') paintMap[my][mx] = 1
-      else if (mark.color === 'red') paintMap[my][mx] = -1
-    }
-  }
-
-  // Apply rotation if needed
+  // Build display maps from the derived view. buildMaps + rotateMaps are
+  // pure; callers test them in isolation.
+  let maps = buildMaps(view, state, { isFinished, showSeqStones })
   let displayRangeX = rangeX, displayRangeY = rangeY
   if (rotated) {
-    signMap = transpose(signMap)
-    markerMap = transpose(markerMap)
-    ghostStoneMap = transpose(ghostStoneMap)
-    paintMap = transpose(paintMap)
+    maps = rotateMaps(maps)
     displayRangeX = rangeY
     displayRangeY = rangeX
   }
+  let { signMap, markerMap, ghostStoneMap, paintMap } = maps
 
   let handleVertexClick = rotated
     ? (evt, [x, y]) => onVertexClick(evt, [y, x])
