@@ -2,12 +2,12 @@ import { h } from 'preact'
 
 // Per-problem target score: perfect accuracy + finishing at cup time.
 export function computeParScore(groupCount, cupMs) {
-  return 10 * groupCount + (cupMs / 1000)
+  return 20 * groupCount + (cupMs / 1000)
 }
 
-// Accuracy points: 10 per group, −5 per mistake (max 2 mistakes per group under 2-try cap).
+// Accuracy points: 20 per group, −10 per mistake (max 2 mistakes per group under 2-try cap).
 export function computeAccPoints(mistakes, groupCount) {
-  return Math.max(0, 10 * groupCount - 5 * mistakes)
+  return Math.max(0, 20 * groupCount - 10 * mistakes)
 }
 
 // Speed points: 1 per second of headroom under 2×cup, 0 if slower.

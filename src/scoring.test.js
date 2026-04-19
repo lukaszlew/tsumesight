@@ -10,19 +10,19 @@ import {
 } from './scoring.js'
 
 describe('computeParScore', () => {
-  it('is 10 per group plus cup seconds', () => {
-    expect(computeParScore(3, 10_000)).toBe(40)     // 30 + 10
+  it('is 20 per group plus cup seconds', () => {
+    expect(computeParScore(3, 10_000)).toBe(70)     // 60 + 10
     expect(computeParScore(0, 5_000)).toBe(5)
-    expect(computeParScore(5, 0)).toBe(50)
+    expect(computeParScore(5, 0)).toBe(100)
   })
 })
 
 describe('computeAccPoints', () => {
-  it('is 10 per group minus 5 per mistake, floored at 0', () => {
-    expect(computeAccPoints(0, 3)).toBe(30)
-    expect(computeAccPoints(1, 3)).toBe(25)
-    expect(computeAccPoints(2, 3)).toBe(20)
-    expect(computeAccPoints(6, 3)).toBe(0)   // 30-30
+  it('is 20 per group minus 10 per mistake, floored at 0', () => {
+    expect(computeAccPoints(0, 3)).toBe(60)
+    expect(computeAccPoints(1, 3)).toBe(50)
+    expect(computeAccPoints(2, 3)).toBe(40)
+    expect(computeAccPoints(6, 3)).toBe(0)   // 60-60
     expect(computeAccPoints(100, 3)).toBe(0) // clamped
   })
 })

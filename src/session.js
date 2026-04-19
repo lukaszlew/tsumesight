@@ -244,7 +244,7 @@ function _doSubmit(state) {
 }
 
 // Pure fold over mistakesByGroup; returns per-group point values.
-// Mirrors the rule in scoring.js: [10, 5, 0] for [0, 1, 2+] mistakes per group.
+// Mirrors the rule in scoring.js: [20, 10, 0] for [0, 1, 2+] mistakes per group.
 export function pointsByGroup(mistakesByGroup) {
-  return mistakesByGroup.map(m => [10, 5, 0][Math.min(m, 2)])
+  return mistakesByGroup.map(m => [20, 10, 0][Math.min(m, 2)])
 }

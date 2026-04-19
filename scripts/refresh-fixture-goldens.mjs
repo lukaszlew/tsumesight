@@ -1,19 +1,29 @@
 #!/usr/bin/env node
 // Re-fold each fixture's events through current session code and
-// overwrite the recorded `scoreEntry.mistakes` / `.mistakesByGroup`
-// (plus correct / accuracy derived from them) in-place.
+// overwrite the recorded `scoreEntry` computed fields in-place:
+//   mistakes, errors, mistakesByGroup, correct, accuracy,
+//   accPoints, parScore, cupMs, thresholdMs
 //
-// Use when a scoring-rule change (e.g. the "forgive one missed per
-// submit" rule) shifts what the reducer considers a mistake. Without
-// this, Layer A's goldens cross-check fails for every fixture that
-// had the newly-affected pattern.
+// Use when a rule or coefficient change shifts what the reducer or
+// scoring formulas produce for the same event stream. Without this,
+// Layer A's goldens cross-check fails for every fixture that had
+// the newly-affected pattern.
 //
-// Does NOT touch `finalMarks`, `submitResults`, `changedGroupsVertices`
-// — those are structural and should stay as recorded.
+// Fields NOT touched (structural — stay as originally recorded):
+//   finalMarks, submitResults, changedGroupsVertices,
+//   speedPoints, totalMs, date, groupCount, total
+//
+// speedPoints and totalMs depend on wall-clock which we can't replay;
+// `speedPoints` is effectively tied to the original recording. If a
+// rule change shifts speedPoints' coefficient (currently 2·cupSec
+// maximum), either write a dedicated updater or regenerate the source
+// fixtures.
 
 import fs from 'node:fs'
 import path from 'node:path'
 import { init, step, mistakesByGroup, totalMistakes, changedGroups } from '../src/session.js'
+import { computeParScore, computeAccPoints } from '../src/scoring.js'
+import config from '../src/config.js'
 
 let dir = path.resolve(import.meta.dirname, '..', 'fixtures')
 let touched = 0
@@ -32,15 +42,31 @@ for (let f of fs.readdirSync(dir)) {
   let correct = Math.max(0, total - mistakes)
   let accuracy = total > 0 ? correct / total : 1
 
+  let cupMs = (config.cupBaseSec + s.totalMoves * config.cupPerMoveSec + total * config.cupPerGroupSec) * 1000
+  let parScore = computeParScore(total, cupMs)
+  let accPoints = computeAccPoints(mistakes, total)
+
   let se = fx.goldens?.scoreEntry
   if (!se) { unchanged++; continue }
 
   let changed = false
-  if (se.mistakes !== mistakes) { se.mistakes = mistakes; changed = true }
-  if (se.errors !== undefined && se.errors !== mistakes) { se.errors = mistakes; changed = true }
-  if (JSON.stringify(se.mistakesByGroup) !== JSON.stringify(mbg)) { se.mistakesByGroup = mbg; changed = true }
-  if (se.correct !== undefined && se.correct !== correct) { se.correct = correct; changed = true }
-  if (se.accuracy !== undefined && Math.abs(se.accuracy - accuracy) > 1e-9) { se.accuracy = accuracy; changed = true }
+  let set = (k, v) => {
+    // Treat numeric near-equal as equal (floating point safety for parScore/accuracy).
+    let prev = se[k]
+    let same = typeof v === 'number' && typeof prev === 'number'
+      ? Math.abs(prev - v) < 1e-9
+      : JSON.stringify(prev) === JSON.stringify(v)
+    if (prev !== undefined && !same) { se[k] = v; changed = true }
+  }
+  set('mistakes', mistakes)
+  set('errors', mistakes)
+  set('mistakesByGroup', mbg)
+  set('correct', correct)
+  set('accuracy', accuracy)
+  set('accPoints', accPoints)
+  set('parScore', parScore)
+  set('cupMs', cupMs)
+  set('thresholdMs', cupMs)
 
   if (changed) {
     fs.writeFileSync(filePath, JSON.stringify(fx, null, 2) + '\n')

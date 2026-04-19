@@ -41,13 +41,13 @@ export function sideEffectsFor(next, event) {
     } else {
       out.push({ kind: 'sound/wrong' })
       out.push({ kind: 'wrongFlash' })
-      // Cooldown: 3 s baseline + 1 s per counted mistake. `penaltyByGroup`
-      // forgives one missed group per submit, so the cooldown and the
-      // score agree on what counts — change `FORGIVE_MISSED_PER_SUBMIT`
-      // in session.js and both this pause and the final score shift
+      // Cooldown: 2 s per counted mistake. `penaltyByGroup` forgives
+      // one missed group per submit, so the cooldown and the score
+      // agree on what counts — change `FORGIVE_MISSED_PER_SUBMIT` in
+      // session.js and both this pause and the final score shift
       // together.
       let countedMistakes = penaltyByGroup(lastResult).reduce((a, b) => a + b, 0)
-      if (countedMistakes > 0) out.push({ kind: 'cooldown', seconds: 3 + countedMistakes })
+      if (countedMistakes > 0) out.push({ kind: 'cooldown', seconds: 2 * countedMistakes })
     }
   }
   return out
@@ -110,7 +110,7 @@ export function computeFinalizeData(state, ctx) {
       elapsedSec: Math.round(elapsedMs / 1000),
       mistakes, accPoints, speedPoints, stars, parScore,
       pointsByGroup: orderedPointsByGroup,
-      maxGroups: 10 * groupCount,
+      maxGroups: 20 * groupCount,
       maxSpeed: Math.round(2 * (cupMs / 1000)),
     },
   }

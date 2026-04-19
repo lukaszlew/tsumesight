@@ -247,10 +247,10 @@ describe('session — mistake counting (fold over submits)', () => {
     step(s, { kind: 'submit' })  // still wrong, force-commit
     let mbg = mistakesByGroup(s)
     expect(mbg).toEqual([2])
-    expect(pointsByGroup(mbg)).toEqual([0])
+    expect(pointsByGroup(mbg)).toEqual([0])    // 2 mistakes → 0 pts
   })
 
-  it('1 wrong then correct → 1 mistake → 5 pts', () => {
+  it('1 wrong then correct → 1 mistake → 10 pts', () => {
     let s = init('(;SZ[9];B[ee])', { maxSubmits: 2 })
     step(s, { kind: 'advance' })
     step(s, { kind: 'advance' })
@@ -260,10 +260,10 @@ describe('session — mistake counting (fold over submits)', () => {
     step(s, { kind: 'submit' })
     let mbg = mistakesByGroup(s)
     expect(mbg).toEqual([1])
-    expect(pointsByGroup(mbg)).toEqual([5])
+    expect(pointsByGroup(mbg)).toEqual([10])   // 1 mistake → 10 pts
   })
 
-  it('all correct first try → 0 mistakes → 10 pts', () => {
+  it('all correct first try → 0 mistakes → 20 pts', () => {
     let s = init('(;SZ[9];B[ee])')
     step(s, { kind: 'advance' })
     step(s, { kind: 'advance' })
@@ -271,7 +271,7 @@ describe('session — mistake counting (fold over submits)', () => {
     step(s, { kind: 'submit' })
     let mbg = mistakesByGroup(s)
     expect(mbg).toEqual([0])
-    expect(pointsByGroup(mbg)).toEqual([10])
+    expect(pointsByGroup(mbg)).toEqual([20])
   })
 })
 
