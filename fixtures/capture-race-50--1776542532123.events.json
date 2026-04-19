@@ -182,8 +182,8 @@
       "total": 6,
       "accuracy": 0,
       "totalMs": 78683,
-      "mistakes": 11,
-      "errors": 11,
+      "mistakes": 9,
+      "errors": 9,
       "date": 1776542532123,
       "thresholdMs": 31500,
       "cupMs": 31500,
@@ -193,8 +193,8 @@
       "groupCount": 6,
       "mistakesByGroup": [
         1,
-        2,
-        2,
+        1,
+        1,
         2,
         2,
         2
