@@ -2,6 +2,8 @@
 
 Distilled from the design conversation of 2026-04-18. Target: maintainability and debuggability over all other lenses, with small-surface APIs as the operating principle ("code is a graph, cut it in narrow understandable testable places").
 
+**Status:** Shipped 2026-04-18. All 17 phases (P0.1 through P8) committed on `dev`. 266 tests passing. See the Known Behavior Changes log below for user-visible shifts.
+
 ---
 
 ## Glossary
