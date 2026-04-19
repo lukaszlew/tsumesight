@@ -54,6 +54,44 @@ Converter notes:
 
 See [docs/ARCHITECTURE.md § Testing strategy](docs/ARCHITECTURE.md) and [`scripts/zip-to-fixtures.mjs`](scripts/zip-to-fixtures.mjs) for the full pipeline.
 
+## Refreshing fixture goldens after a scoring/rule change
+
+When a rule change shifts what the reducer considers a mistake (e.g.
+the "forgive one missed group per submit" rule, `FORGIVE_MISSED_PER_SUBMIT`
+in `src/session.js`), every fixture whose events triggered the new
+case needs its recorded `scoreEntry` refreshed — otherwise Layer A's
+goldens cross-check fails.
+
+```bash
+# 1. Regenerate canonical fixtures (they recompute goldens at gen time):
+node scripts/gen-canonical-fixtures.mjs
+
+# 2. Re-fold all other fixtures' events through the current reducer
+#    and overwrite scoreEntry.{mistakes, mistakesByGroup, correct,
+#    accuracy, errors} in place. Other goldens are left untouched.
+node scripts/refresh-fixture-goldens.mjs
+
+# 3. Regenerate Layer A + Layer B snapshots:
+npx vitest -u
+
+# 4. EYEBALL THE DIFF before committing:
+git diff fixtures/
+git diff fixtures/__snapshots__/
+#    - Spot-check one or two affected fixtures.
+#    - Does the new scoreEntry match your new rule's intent?
+#    - Are unaffected fixtures really unchanged (the script prints
+#      "N unchanged" at the end)?
+
+# 5. Commit the rule change, the fixture update, and the snapshot
+#    update. Prefer three separate commits: rule, fixture refresh,
+#    snapshot regeneration — so review can examine each.
+```
+
+`refresh-fixture-goldens.mjs` only touches recorded-mistake fields; it
+leaves `finalMarks`, `submitResults`, `changedGroupsVertices` alone.
+If a rule change affects those too, extend the script or regenerate
+the source fixtures instead.
+
 ## Docs
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — V4 event-sourced design, module layout, data flow
