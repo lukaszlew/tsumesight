@@ -16,13 +16,28 @@ function vertexKey(v) {
 
 // Quiz session — V4 shape.
 //
+// ── Core invariant ───────────────────────────────────────────────────
+// Events are the source of truth. Everything else in state is a
+// fold of events via `step`. Do NOT add a "persist state" shortcut
+// alongside the events persistence in quiz.jsx — they'd drift.
+//
+// Specifically:
+//   - Only events (+ sgf + config) are persisted to kv.
+//   - State is never stored; it's recomputed by folding on load.
+//   - If you bump the event shape, add a migrator in
+//     `fixture-migrate.js` and a new EVENT_SCHEMA_VERSION.
+//   - Selectors (phase, finalized, changedGroups, …) are pure derivations
+//     over state. Adding a field to state that isn't a fold of events
+//     breaks the invariant.
+// ─────────────────────────────────────────────────────────────────────
+//
 // State (plain object, produced by `init`, advanced by `step`):
 //   cursor       0..N+1     each advance produces one visible state change
 //                           0     = before any advance (empty board)
 //                           1..N  = showing move K (engine.showingMove=true)
 //                           N+1   = past all moves (in exercise or finished)
 //   marks        Map<key, {value, color}>
-//                           value: number 1..maxLibertyLabel, or '?' sentinel
+//                           value: number 1..maxLibertyLabel, or MISSED sentinel
 //                           color: null | 'green' | 'red'
 //   submitCount  int        number of submits done
 //   submitResults array     per-submit array of per-group statuses
@@ -31,12 +46,6 @@ function vertexKey(v) {
 //   startTime    number     performance.now() at first event; elapsedMs ref
 //
 // Phase, finalized, changedGroups, etc. are derived selectors.
-//
-// The QuizSession class at the bottom of this file is a thin wrapper
-// that delegates to step + selectors and exposes state fields on
-// `this`. It exists so existing tests and quiz.jsx (pre-P2) keep
-// working verbatim while the step/init extraction is proved
-// behavior-preserving by snapshot diffs.
 
 export function init(sgf, { maxSubmits = 2, maxQuestions = 2 } = {}) {
   let engine = new QuizEngine(sgf, true, maxQuestions)
