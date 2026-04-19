@@ -1,6 +1,6 @@
 # Cleanups — post-refactor work list
 
-Items deferred from the V4 UI refactor (see `UiRefactorPlan.md`). Sorted by priority: **impact ÷ (work × risk)**, fastest-first within each priority tier. Effort tags: `[S]` under 1h, `[M]` 1–3h, `[L]` 3h+, `[XL]` multi-day.
+Items deferred from the V4 UI refactor (see git log for the P0–P8 commit series if you need implementation history). Sorted by priority: **impact ÷ (work × risk)**, fastest-first within each priority tier. Effort tags: `[S]` under 1h, `[M]` 1–3h, `[L]` 3h+, `[XL]` multi-day.
 
 ## Status
 
@@ -14,7 +14,7 @@ P2/P3/P4 items remain as-specified.
 
 ### `[S]` Refresh `ARCHITECTURE.md`
 
-Likely stale after the refactor. Migrate the module layout + data-flow diagram + "known behavior changes" from `UiRefactorPlan.md` into `ARCHITECTURE.md`; the plan doc becomes implementation history. Zero risk. Unblocks anyone reading the repo cold.
+Migrate the module layout + data-flow diagram + known behavior changes into `ARCHITECTURE.md`. Zero risk. Unblocks anyone reading the repo cold.
 
 ### `[S]` Dead code in `engine.js`
 
