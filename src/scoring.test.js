@@ -10,10 +10,12 @@ import {
 } from './scoring.js'
 
 describe('computeParScore', () => {
-  it('is 20 per group plus cup seconds', () => {
-    expect(computeParScore(3, 10_000)).toBe(70)     // 60 + 10
+  it('is 10 per group plus cup seconds', () => {
+    // parScore benchmark intentionally lags accPoints (20·GC); this
+    // makes accuracy worth more of the total score.
+    expect(computeParScore(3, 10_000)).toBe(40)     // 30 + 10
     expect(computeParScore(0, 5_000)).toBe(5)
-    expect(computeParScore(5, 0)).toBe(100)
+    expect(computeParScore(5, 0)).toBe(50)
   })
 })
 
