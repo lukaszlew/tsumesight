@@ -6,6 +6,7 @@
 // callers can test each layer in isolation.
 
 import config from './config.js'
+import { MISSED } from './session.js'
 
 function makeEmptyMap(size, fill = null) {
   return Array.from({ length: size }, () => Array(size).fill(fill))
@@ -64,7 +65,7 @@ export function buildMaps(view, state, { isFinished, showSeqStones }) {
   if (inExercise || isFinished) {
     for (let [key, mark] of state.marks) {
       let [mx, my] = key.split(',').map(Number)
-      let label = mark.value === '?' ? '?' : libLabel(mark.value)
+      let label = mark.value === MISSED ? MISSED : libLabel(mark.value)
       markerMap[my][mx] = { type: 'label', label }
       if (mark.color === 'green') paintMap[my][mx] = 1
       else if (mark.color === 'red') paintMap[my][mx] = -1

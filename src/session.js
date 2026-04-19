@@ -1,5 +1,11 @@
 import { QuizEngine } from './engine.js'
 
+// Sentinel value stored in state.marks for a "missed" changed group —
+// no user mark was placed on any of its stones at submit time. Persisted
+// as the string "?" because the value field round-trips through JSON
+// (fixture goldens, v:3 replay records).
+export const MISSED = '?'
+
 function assert(cond, msg) {
   if (!cond) throw new Error(msg)
 }
@@ -171,8 +177,9 @@ function _doSubmit(state) {
   assert(state.hasExercise, `submit with no exercise`)
   assert(!finalized(state), `submit after finalized`)
 
-  // Engine wants Map<key, number>. '?' sentinels left over from previous
-  // missed-group submits are filtered out (user never intended them).
+  // Engine wants Map<key, number>. MISSED sentinels left over from
+  // previous missed-group submits are filtered out (user never
+  // intended them).
   let plain = new Map()
   for (let [k, m] of state.marks) {
     if (typeof m.value === 'number') plain.set(k, m.value)
@@ -184,7 +191,7 @@ function _doSubmit(state) {
   // Overwrite marks on each changed group's stones with the eval outcome.
   // User's intersection-level marks on the group are replaced by a single
   // entry reflecting the group's result (green/red on user's vertex, or
-  // '?' red on the representative vertex for missed).
+  // MISSED red on the representative vertex for missed).
   let groups = changedGroups(state)
   for (let i = 0; i < groups.length; i++) {
     let g = groups[i]
@@ -196,7 +203,7 @@ function _doSubmit(state) {
       state.marks.set(r.userVertex, { value: r.userVal, color: 'red' })
     } else {
       // missed
-      state.marks.set(vertexKey(g.vertex), { value: '?', color: 'red' })
+      state.marks.set(vertexKey(g.vertex), { value: MISSED, color: 'red' })
     }
   }
 }
