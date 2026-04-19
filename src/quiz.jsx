@@ -3,91 +3,12 @@ import { init, step, phase, isLockedVertex } from './session.js'
 import { derive } from './derive.js'
 import { buildMaps, rotateMaps } from './display.js'
 import { pickBoardLayout, QuizBoard } from './quiz-board.jsx'
+import { RadialMenu, useWheel } from './quiz-wheel.jsx'
 import { playCorrect, playWrong, playComplete, playStoneClick, playMark, resetStreak, isSoundEnabled, toggleSound } from './sounds.js'
 import { kv, kvSet, getScores, addReplay, getLatestReplay } from './db.js'
 import config from './config.js'
 import { StarsDisplay } from './scoring.js'
 import { sideEffectsFor, computeFinalizeData } from './effects.js'
-
-// Radial marking menu — angles in screen coords (0°=right/E, clockwise)
-// 6 arrows at 60° intervals. Going clockwise from straight up:
-// nomark(N), 1(NNE), 2(ESE), 3(S), 4(SSW), 5+(WNW). 3 points straight down.
-const WHEEL_ZONES = [
-  { value: 0, angle: 270, label: '' },
-  { value: 1, angle: 330, label: '1' },
-  { value: 2, angle: 30,  label: '2' },
-  { value: 3, angle: 90,  label: '3' },
-  { value: 4, angle: 150, label: '4' },
-  { value: 5, angle: 210, label: '5+' },
-]
-
-function getWheelZone(dx, dy) {
-  let angle = Math.atan2(dy, dx) * 180 / Math.PI
-  if (angle < 0) angle += 360
-  let shifted = (angle - 240 + 360) % 360
-  return Math.floor(shifted / 60)
-}
-
-function RadialMenu({ cx, cy, activeZone, vertexSize, boardHeight }) {
-  let maxDiameter = Math.min(window.innerWidth * 0.5, boardHeight * 0.5)
-  let unit = maxDiameter / 6.7
-  let rInner = unit * 0.6
-  let rOuter = unit * 2
-  let rLabel = rOuter + unit * 0.55
-  let shaftW = unit * 0.25
-  let headW = unit * 0.6
-  let headLen = unit * 0.7
-  let strokeW = unit * 0.04
-  let toRad = Math.PI / 180
-  let size = rLabel + unit * 0.8
-
-  let shaftEnd = rOuter - headLen
-  let arrowPoints = [
-    `${rInner},${-shaftW / 2}`,
-    `${shaftEnd},${-shaftW / 2}`,
-    `${shaftEnd},${-headW / 2}`,
-    `${rOuter},0`,
-    `${shaftEnd},${headW / 2}`,
-    `${shaftEnd},${shaftW / 2}`,
-    `${rInner},${shaftW / 2}`,
-  ].join(' ')
-
-  return (
-    <svg style={{
-      position: 'fixed',
-      left: cx - size,
-      top: cy - size,
-      width: size * 2,
-      height: size * 2,
-      pointerEvents: 'none',
-      zIndex: 1000,
-      overflow: 'visible',
-    }} viewBox={`${-size} ${-size} ${size * 2} ${size * 2}`}>
-      <circle cx={0} cy={0} r={rLabel + vertexSize * 0.5} fill="rgba(255, 255, 255, 0.65)" />
-      {WHEEL_ZONES.map(z => {
-        let rad = z.angle * toRad
-        let lx = Math.cos(rad) * rLabel
-        let ly = Math.sin(rad) * rLabel
-        let active = activeZone === z.value
-        let fill = active ? '#4bf' : '#fff'
-        return (
-          <g key={z.value}>
-            <polygon points={arrowPoints} fill={fill}
-              stroke="#000" stroke-width={strokeW} stroke-linejoin="round"
-              transform={`rotate(${z.angle})`} />
-            {z.label && <text x={lx} y={ly} fill={fill}
-              font-size={unit * 0.95} font-weight="800"
-              text-anchor="middle" dominant-baseline="central"
-              style={{ paintOrder: 'stroke' }}
-              stroke="#000" stroke-width={strokeW}>
-              {z.label}
-            </text>}
-          </g>
-        )
-      })}
-    </svg>
-  )
-}
 
 export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolved, onProgress, onLoadError, onNextUnsolved, onPrev, onNext }) {
   let [maxQ] = useState(() => parseInt(kv('quizMaxQ', '2')))
@@ -149,11 +70,6 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
   let [showSeqStones, setShowSeqStones] = useState(false)
   let [confirmExit, setConfirmExit] = useState(false)
   let [finishPopup, setFinishPopup] = useState(null)
-
-  // Radial marking menu state: { vertex, cx, cy, active } or null
-  let [wheel, setWheel] = useState(null)
-  let wheelRef = useRef(null)
-  let wheelUsedRef = useRef(false)
 
   // Seed prevSubmitCount from the initial fold (so review-mode mounts don't
   // trigger submit effects). Runs exactly once on mount.
@@ -283,6 +199,15 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
     dispatch({ kind: 'setMark', vertex, value })
   }, [inExercise])
 
+  let isLocked = useCallback(v => isLockedVertex(state, v), [state])
+  let { wheel, wheelUsedRef, onPointerDown: onVertexPointerDown, onPointerUp: onVertexPointerUp } = useWheel({
+    enabled: inExercise,
+    isLocked,
+    commitMark,
+    vertexSize,
+    boardRowRef,
+  })
+
   function doRewind() {
     if (isFinished) return
     dispatch({ kind: 'rewind' })
@@ -319,69 +244,6 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
     }
     // Exercise: marking handled by radial menu (pointer events)
   }, [state, confirmExit])
-
-  let onVertexPointerDown = useCallback((evt, vertex) => {
-    if (!inExercise) return
-    if (isLockedVertex(state, vertex)) return  // pre-marked (non-editable) label
-    // Claim the pointer so Android suppresses its long-press gesture.
-    try { evt.currentTarget.setPointerCapture(evt.pointerId) } catch {}
-    let rect = evt.currentTarget.getBoundingClientRect()
-    let cx = rect.left + rect.width / 2
-    let cy = rect.top + rect.height / 2
-    let dx = evt.clientX - cx
-    let dy = evt.clientY - cy
-    let dist = Math.sqrt(dx * dx + dy * dy)
-    let vicinityThreshold = vertexSize * 0.4
-
-    wheelUsedRef.current = true
-    if (dist > vicinityThreshold) {
-      // Fast flick — instant commit without showing wheel
-      commitMark(vertex, getWheelZone(dx, dy))
-    } else {
-      // Show wheel opposite vertically so the finger doesn't cover it.
-      let boardEl = evt.currentTarget.closest('.shudan-goban') || boardRowRef.current
-      let board = boardEl.getBoundingClientRect()
-      let my = board.top + board.height / 2
-      let clickedTop = cy < my
-      let wcx = board.left + board.width / 2
-      let wcy = clickedTop ? board.top + board.height * 3 / 4 : board.top + board.height / 4
-      let w = { vertex, cx, cy, wcx, wcy, boardHeight: board.height, active: getWheelZone(dx, dy) }
-      wheelRef.current = w
-      setWheel(w)
-    }
-  }, [vertexSize, commitMark, state, inExercise])
-
-  let onVertexPointerUp = useCallback(() => {}, [])
-
-  useEffect(() => {
-    function onMove(evt) {
-      let w = wheelRef.current
-      if (!w) return
-      evt.preventDefault()
-      let dx = evt.clientX - w.cx
-      let dy = evt.clientY - w.cy
-      let active = getWheelZone(dx, dy)
-      if (active !== w.active) {
-        w.active = active
-        setWheel({ ...w })
-      }
-    }
-    function onUp(evt) {
-      let w = wheelRef.current
-      if (!w) return
-      wheelRef.current = null
-      let dx = evt.clientX - w.cx
-      let dy = evt.clientY - w.cy
-      commitMark(w.vertex, getWheelZone(dx, dy))
-      setWheel(null)
-    }
-    window.addEventListener('pointermove', onMove, { passive: false })
-    window.addEventListener('pointerup', onUp)
-    return () => {
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup', onUp)
-    }
-  }, [vertexSize, commitMark])
 
   let tryBack = useCallback(() => {
     if (confirmExit || isFinished) { onBack(); return }
