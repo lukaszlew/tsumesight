@@ -4,6 +4,7 @@ import { starsFromScore, StarsDisplay } from './scoring.js'
 import { parseSgf } from './sgf-utils.js'
 import { isArchive, extractSgfs } from './archive.js'
 import { decodeSgf } from './sgf-utils.js'
+import { siblings as siblingsAt, nextUnsolved } from './navigation.js'
 
 const DEFAULT_URL = 'https://files.catbox.moe/v3phv1.zip'
 const isDev = location.pathname.includes('/dev/')
@@ -270,19 +271,30 @@ export function Library({ onSelect, cwd, onCwdChange }) {
   }
 
   // Files in current directory, sorted by upload date then filename
-  let filesHere = sgfs.filter(s => (s.path || '') === cwd)
-    .sort((a, b) => (a.uploadedAt || 0) - (b.uploadedAt || 0) || a.filename.localeCompare(b.filename))
+  let filesHere = siblingsAt(sgfs, cwd)
 
-  // Enter = next unsolved/imperfect problem (skip problems with no moves)
-  let pickable = (s) => s.moveCount > 0
+  // Shared scoreLookup for nextUnsolved — wraps db calls.
+  let scoreLookup = (id) => {
+    let b = getBestScore(id)
+    return { bestAccuracy: b ? b.accuracy : null, latestDate: getLatestScoreDate(id) }
+  }
+
+  // Enter = next unsolved/imperfect problem. Reused by the progress-hero
+  // button below.
+  function selectNext() {
+    let r = nextUnsolved(filesHere, null, scoreLookup)
+    if (!r || r.reason === 'least-recent') return  // All perfect: button is hidden
+    let s = r.sgf
+    onSelect({ id: s.id, content: s.content, path: s.path || '', filename: s.filename, solved: s.solved })
+  }
   useEffect(() => {
     function onKeyDown(e) {
       if (e.key !== 'Enter') return
-      let next = filesHere.find(s => pickable(s) && !s.solved)
-        || filesHere.find(s => { if (!pickable(s)) return false; let b = getBestScore(s.id); return !b || b.accuracy < 1 })
-      if (!next) return
+      let r = nextUnsolved(filesHere, null, scoreLookup)
+      if (!r || r.reason === 'least-recent') return
       e.preventDefault()
-      onSelect({ id: next.id, content: next.content, path: next.path || '', filename: next.filename, solved: next.solved })
+      let s = r.sgf
+      onSelect({ id: s.id, content: s.content, path: s.path || '', filename: s.filename, solved: s.solved })
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
@@ -331,31 +343,21 @@ export function Library({ onSelect, cwd, onCwdChange }) {
 
       {filesHere.length > 0 && (() => {
         let solvedCount = filesHere.filter(s => s.solved).length
-        let unsolved = filesHere.find(s => pickable(s) && !s.solved)
-        if (unsolved) {
-          let select = () => onSelect({ id: unsolved.id, content: unsolved.content, path: unsolved.path || '', filename: unsolved.filename, solved: unsolved.solved })
-          return <>
-            <div class="progress-hero" title="Problems solved in this folder">
-              <span class="progress-num">{solvedCount}</span>
-              <span class="progress-sep">/</span>
-              <span class="progress-den">{filesHere.length}</span>
-            </div>
-            <button class="next-hero" title="First unsolved problem" onClick={select}>Next</button>
-          </>
+        let r = nextUnsolved(filesHere, null, scoreLookup)
+        if (!r || r.reason === 'least-recent') {
+          return <div class="complete-badge">All Perfect</div>
         }
-        let imperfect = filesHere.find(s => { if (!pickable(s)) return false; let b = getBestScore(s.id); return !b || b.accuracy < 1 })
-        if (imperfect) {
-          let select = () => onSelect({ id: imperfect.id, content: imperfect.content, path: imperfect.path || '', filename: imperfect.filename, solved: imperfect.solved })
-          return <>
-            <div class="progress-hero complete" title="All problems solved">
-              <span class="progress-num">{solvedCount}</span>
-              <span class="progress-sep">/</span>
-              <span class="progress-den">{filesHere.length}</span>
-            </div>
-            <button class="next-hero" title="All solved — first without 100% accuracy" onClick={select}>Next</button>
-          </>
-        }
-        return <div class="complete-badge">All Perfect</div>
+        let complete = r.reason === 'imperfect' ? ' complete' : ''
+        let title = r.reason === 'unsolved' ? 'First unsolved problem' : 'All solved — first without 100% accuracy'
+        let heroTitle = r.reason === 'unsolved' ? 'Problems solved in this folder' : 'All problems solved'
+        return <>
+          <div class={`progress-hero${complete}`} title={heroTitle}>
+            <span class="progress-num">{solvedCount}</span>
+            <span class="progress-sep">/</span>
+            <span class="progress-den">{filesHere.length}</span>
+          </div>
+          <button class="next-hero" title={title} onClick={selectNext}>Next</button>
+        </>
       })()}
 
       <div class="menu-wrap">

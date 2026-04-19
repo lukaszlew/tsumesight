@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'preact/hooks'
+import { useState } from 'preact/hooks'
 import { Component } from 'preact'
 import { Library } from './library.jsx'
 import { Quiz } from './quiz.jsx'
 import { getAllSgfs, updateSgf, addScore, getBestScore, getLatestScoreDate, kv, kvSet, kvRemove } from './db.js'
+import { siblings as siblingsAt, stepSibling, nextUnsolved } from './navigation.js'
 
 class ErrorBoundary extends Component {
   state = { error: null }
@@ -29,7 +30,6 @@ class ErrorBoundary extends Component {
 }
 
 export function App() {
-  const [position, setPosition] = useState(null)
   const [active, setActive] = useState(() => {
     let saved = kv('activeSgf')
     if (!saved) return null
@@ -37,136 +37,56 @@ export function App() {
   })
   const [cwd, setCwd] = useState(() => kv('lastPath', ''))
 
-  async function refreshPosition(id, path) {
-    let siblings = await getSiblings(path)
-    let idx = siblings.findIndex(s => s.id === id)
-    setPosition({ index: idx + 1, total: siblings.length })
-  }
-
   function selectSgf({ id, content, path, filename, solved }) {
     let val = { id, content, path, filename, solved: !!solved }
     kvSet('activeSgf', JSON.stringify(val))
     kvSet('lastPath', path)
     setCwd(path)
     setActive(val)
-    history.pushState({ sgfId: id, cwd: path }, '')
-    refreshPosition(id, path)
   }
 
   function clearSgf() {
     kvRemove('activeSgf')
     setActive(null)
-    setPosition(null)
-    history.pushState({ sgfId: null, cwd }, '')
   }
 
   function changeCwd(newCwd) {
     setCwd(newCwd)
     kvSet('lastPath', newCwd)
-    history.pushState({ sgfId: null, cwd: newCwd }, '')
   }
 
-  // Replace initial history entry with current state
-  useEffect(() => {
-    history.replaceState({ sgfId: active?.id || null, cwd }, '')
-  }, [])
-
-  // Handle browser back/forward
-  useEffect(() => {
-    async function onPopState(e) {
-      let sgfId = e.state?.sgfId
-      let stateCwd = e.state?.cwd ?? ''
-      setCwd(stateCwd)
-      kvSet('lastPath', stateCwd)
-      if (!sgfId) {
-        kvRemove('activeSgf')
-        setActive(null)
-        setPosition(null)
-        return
-      }
-      let all = await getAllSgfs()
-      let found = all.find(s => s.id === sgfId)
-      if (!found) {
-        kvRemove('activeSgf')
-        setActive(null)
-        setPosition(null)
-        return
-      }
-      let val = { id: found.id, content: found.content, path: found.path || '', filename: found.filename }
-      kvSet('activeSgf', JSON.stringify(val))
-      setActive(val)
-      refreshPosition(val.id, val.path)
-    }
-    window.addEventListener('popstate', onPopState)
-    return () => window.removeEventListener('popstate', onPopState)
-  }, [])
-
-  useEffect(() => {
-    if (active) refreshPosition(active.id, active.path)
-  }, [])
-
   function saveProgress({ correct, done, total }) {
-    if (active.id) updateSgf(active.id, { correct, done, total })
+    updateSgf(active.id, { correct, done, total })
   }
 
   function markSolved(correct, done, scoreEntry) {
-    if (active.id) {
-      updateSgf(active.id, { solved: true, correct, done })
-      if (scoreEntry) addScore(active.id, scoreEntry)
-      setActive(prev => {
-        let next = { ...prev, solved: true }
-        kvSet('activeSgf', JSON.stringify(next))
-        return next
-      })
-    }
+    updateSgf(active.id, { solved: true, correct, done })
+    if (scoreEntry) addScore(active.id, scoreEntry)
+    setActive(prev => {
+      let next = { ...prev, solved: true }
+      kvSet('activeSgf', JSON.stringify(next))
+      return next
+    })
   }
 
-  async function getSiblings(path) {
-    let all = await getAllSgfs()
-    return all
-      .filter(s => (s.path || '') === (path || ''))
-      .sort((a, b) => (a.uploadedAt || 0) - (b.uploadedAt || 0) || a.filename.localeCompare(b.filename))
+  let scoreLookup = (id) => {
+    let b = getBestScore(id)
+    return { bestAccuracy: b ? b.accuracy : null, latestDate: getLatestScoreDate(id) }
   }
 
   async function goStep(delta) {
-    let siblings = await getSiblings(active.path)
-    let curIdx = siblings.findIndex(s => s.id === active.id)
-    let s = siblings[(curIdx + delta + siblings.length) % siblings.length]
-    if (s) selectSgf({ id: s.id, content: s.content, path: s.path || '', filename: s.filename })
+    let all = await getAllSgfs()
+    let list = siblingsAt(all, active.path)
+    let next = stepSibling(list, active.id, delta)
+    if (next) selectSgf({ id: next.id, content: next.content, path: next.path || '', filename: next.filename })
   }
 
   async function goNextUnsolved() {
-    let siblings = (await getSiblings(active.path)).filter(s => s.moveCount > 0)
-    let curIdx = siblings.findIndex(s => s.id === active.id)
-    // First unsolved
-    for (let i = 1; i < siblings.length; i++) {
-      let s = siblings[(curIdx + i) % siblings.length]
-      if (!s.solved) {
-        selectSgf({ id: s.id, content: s.content, path: s.path || '', filename: s.filename })
-        return
-      }
-    }
-    // All solved — first non-perfect
-    for (let i = 1; i < siblings.length; i++) {
-      let s = siblings[(curIdx + i) % siblings.length]
-      let best = getBestScore(s.id)
-      if (!best || best.accuracy < 1) {
-        selectSgf({ id: s.id, content: s.content, path: s.path || '', filename: s.filename })
-        return
-      }
-    }
-    // All perfect — pick least recently practiced
-    let sorted = [...siblings].sort((a, b) => getLatestScoreDate(a.id) - getLatestScoreDate(b.id))
-    if (sorted.length > 0) {
-      let s = sorted[0]
-      selectSgf({ id: s.id, content: s.content, path: s.path || '', filename: s.filename })
-    } else {
-      clearSgf()
-    }
-  }
-
-  function handleLoadError() {
-    clearSgf()
+    let all = await getAllSgfs()
+    let list = siblingsAt(all, active.path)
+    let r = nextUnsolved(list, active.id, scoreLookup)
+    if (r) selectSgf({ id: r.sgf.id, content: r.sgf.content, path: r.sgf.path || '', filename: r.sgf.filename })
+    else clearSgf()
   }
 
   if (active) {
@@ -175,10 +95,9 @@ export function App() {
         <Quiz key={active.id} sgf={active.content}
           sgfId={active.id}
           wasSolved={active.solved} restored={!!active.restored}
-          onBack={clearSgf} onSolved={markSolved} onProgress={saveProgress} onLoadError={handleLoadError}
+          onBack={clearSgf} onSolved={markSolved} onProgress={saveProgress} onLoadError={clearSgf}
           onPrev={() => goStep(-1)} onNext={() => goStep(1)}
-          onNextUnsolved={goNextUnsolved}
-          fileIndex={position?.index} fileTotal={position?.total} />
+          onNextUnsolved={goNextUnsolved} />
       </ErrorBoundary>
     )
   }

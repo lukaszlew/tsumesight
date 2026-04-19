@@ -437,6 +437,7 @@ Filled in as phases land. Intentional behavior shifts; users will notice these e
 
 - **P2 — canonical fixture timestamps deterministic.** The generator (`scripts/gen-canonical-fixtures.mjs`) now overwrites `event.t` with the event index after constructing a session, so regeneration is bit-identical across machines and run speeds. User-recorded fixtures are untouched (their `t` values come from the original session's clock).
 - **P2.5 — eager event persistence; start-fresh on reopen.** Every dispatched event now mirrors to `kv('session:<sgfId>:<startTime>')`. Abandoning a puzzle mid-play leaves a `session:*` key in kv (preserved as raw history; never cleaned up). Reopening an unsolved puzzle **always starts fresh** — previous `session:*` records are not loaded back into the UI. Solved-puzzle review (`wasSolved && restored`) still folds the latest `replay:*` record as before.
+- **P6 — browser history removed.** The prior pushState/popstate integration is gone. Browser back/forward no longer navigates between puzzles or between library folders. OS back button on mobile exits the PWA rather than stepping through the internal stack. Escape still exits a puzzle; breadcrumbs still navigate cwd.
 
 ## Definition of Done
 
