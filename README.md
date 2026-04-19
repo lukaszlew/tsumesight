@@ -95,5 +95,6 @@ the source fixtures instead.
 ## Docs
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — V4 event-sourced design, module layout, data flow
+- [docs/SCORING.md](docs/SCORING.md) — score / stars / cooldown rules and formulas
 - [docs/CLEANUPS.md](docs/CLEANUPS.md) — prioritized post-refactor work list
 - [docs/GAMIFICATION.md](docs/GAMIFICATION.md) — product vision (engagement loops, retention features) — aspirational, not implemented
