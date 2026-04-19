@@ -10,5 +10,6 @@ export default defineConfig({
   plugins: [preact()],
   test: {
     environment: 'happy-dom',
+    setupFiles: ['./src/test-setup.js'],
   },
 })

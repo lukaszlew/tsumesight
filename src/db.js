@@ -118,18 +118,18 @@ export function kv(key, fallback) {
   return val !== undefined ? val : fallback
 }
 
-// kv writes are fire-and-forget. The in-memory cache makes them effectively
-// synchronous to readers; the IDB write is best-effort. Errors are swallowed
-// because the contract is "cache is truth, IDB is durability." In environments
-// without IDB (tests), the cache path still works.
+// kv writes are fire-and-forget. The in-memory cache makes them
+// effectively synchronous to readers; the IDB write is best-effort
+// durability. Tests provide a fake IndexedDB via src/test-setup.js so
+// production IDB errors surface instead of being swallowed.
 export function kvSet(key, value) {
   kvCache[key] = value
-  openDb().then(db => promisify(tx(db, 'readwrite', KV_STORE).put(value, key))).catch(() => {})
+  openDb().then(db => promisify(tx(db, 'readwrite', KV_STORE).put(value, key)))
 }
 
 export function kvRemove(key) {
   delete kvCache[key]
-  openDb().then(db => promisify(tx(db, 'readwrite', KV_STORE).delete(key))).catch(() => {})
+  openDb().then(db => promisify(tx(db, 'readwrite', KV_STORE).delete(key)))
 }
 
 export function getScores(sgfId) {
