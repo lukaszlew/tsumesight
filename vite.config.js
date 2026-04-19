@@ -1,7 +1,6 @@
 import { defineConfig } from 'vite'
-import { readFileSync, writeFileSync } from 'fs'
+import { readFileSync, writeFileSync, watch as fsWatch } from 'fs'
 import { execSync } from 'child_process'
-import path from 'path'
 import preact from '@preact/preset-vite'
 
 function swVersionPlugin() {
@@ -50,19 +49,22 @@ export const BUILD_TIME = ${JSON.stringify(buildTime)}
     configureServer(server) {
       // .git/HEAD changes on branch switch. .git/logs/HEAD appends an
       // entry on every new commit / amend / reset. Watching both covers
-      // common workflows. Chokidar (vite's watcher) walks files that
-      // match adds, so we point to the files directly.
-      let watched = [
-        path.resolve('.git/HEAD'),
-        path.resolve('.git/logs/HEAD'),
-      ]
-      for (let p of watched) server.watcher.add(p)
-      server.watcher.on('change', (file) => {
-        if (watched.includes(file)) {
-          let mod = server.moduleGraph.getModuleById(RESOLVED)
-          if (mod) server.moduleGraph.invalidateModule(mod)
-          server.ws.send({ type: 'full-reload' })
-        }
+      // common workflows.
+      //
+      // We use fs.watch directly because vite's server.watcher has
+      // '**/.git/**' in its default `ignored` list, so `watcher.add()`
+      // calls on paths inside .git/ silently no-op.
+      let invalidate = () => {
+        let mod = server.moduleGraph.getModuleById(RESOLVED)
+        if (mod) server.moduleGraph.invalidateModule(mod)
+        server.ws.send({ type: 'full-reload' })
+      }
+      let watchers = []
+      for (let p of ['.git/HEAD', '.git/logs/HEAD']) {
+        try { watchers.push(fsWatch(p, invalidate)) } catch {}
+      }
+      server.httpServer?.once('close', () => {
+        for (let w of watchers) w.close()
       })
     }
   }
