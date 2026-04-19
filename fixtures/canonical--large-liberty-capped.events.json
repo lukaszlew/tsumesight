@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "sgf": {
+    "content": "(;SZ[9];B[ee])",
+    "filename": "canonical-large-liberty-capped.sgf",
+    "path": "canonical",
+    "contentHash": "sha256:3652cca95e5284f8e1e0ceecfe48d4721c9de3e1b67b2482f23ec8cc3e1d95b7"
+  },
+  "config": {
+    "maxSubmits": 2,
+    "maxQuestions": 2
+  },
+  "recorded": {
+    "at": null,
+    "eventSchemaVersion": 2,
+    "viewport": null,
+    "rotated": null,
+    "source": "canonical",
+    "description": "Center black stone on empty 9x9 has 4 libs — tests normal label"
+  },
+  "events": [
+    {
+      "kind": "advance",
+      "t": 0
+    },
+    {
+      "kind": "advance",
+      "t": 0
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        4,
+        4
+      ],
+      "value": 5,
+      "t": 0
+    },
+    {
+      "kind": "submit",
+      "t": 0
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        4,
+        4
+      ],
+      "value": 4,
+      "t": 0
+    },
+    {
+      "kind": "submit",
+      "t": 0
+    }
+  ],
+  "goldens": {
+    "scoreEntry": {
+      "correct": 0,
+      "total": 1,
+      "accuracy": 0,
+      "mistakes": 1,
+      "mistakesByGroup": [
+        1
+      ],
+      "groupCount": 1
+    },
+    "finalMarks": [
+      {
+        "key": "4,4",
+        "value": 4,
+        "color": "green"
+      }
+    ],
+    "submitResults": [
+      [
+        {
+          "status": "wrong",
+          "userVertex": "4,4",
+          "userVal": 5
+        }
+      ],
+      [
+        {
+          "status": "correct",
+          "userVertex": "4,4",
+          "userVal": 4
+        }
+      ]
+    ],
+    "changedGroupsVertices": [
+      [
+        4,
+        4
+      ]
+    ]
+  }
+}

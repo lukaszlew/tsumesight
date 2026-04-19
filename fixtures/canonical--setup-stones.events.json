@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "sgf": {
+    "content": "(;SZ[9]AB[dd][ed]AW[de][ee];B[cd];W[ce])",
+    "filename": "canonical-setup-stones.sgf",
+    "path": "canonical",
+    "contentHash": "sha256:8baec303728205dcfeb44e372f0891f83fcc797bc2186eccdb6f82e7e5e81983"
+  },
+  "config": {
+    "maxSubmits": 2,
+    "maxQuestions": 2
+  },
+  "recorded": {
+    "at": null,
+    "eventSchemaVersion": 2,
+    "viewport": null,
+    "rotated": null,
+    "source": "canonical",
+    "description": "Setup stones (AB/AW) + moves — setup groups can be pre-marked"
+  },
+  "events": [
+    {
+      "kind": "advance",
+      "t": 0
+    },
+    {
+      "kind": "advance",
+      "t": 0
+    },
+    {
+      "kind": "advance",
+      "t": 1
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        4,
+        3
+      ],
+      "value": 5,
+      "t": 1
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        4,
+        4
+      ],
+      "value": 5,
+      "t": 1
+    },
+    {
+      "kind": "submit",
+      "t": 1
+    }
+  ],
+  "goldens": {
+    "scoreEntry": {
+      "correct": 2,
+      "total": 2,
+      "accuracy": 1,
+      "mistakes": 0,
+      "mistakesByGroup": [
+        0,
+        0
+      ],
+      "groupCount": 2
+    },
+    "finalMarks": [
+      {
+        "key": "4,3",
+        "value": 5,
+        "color": "green"
+      },
+      {
+        "key": "4,4",
+        "value": 5,
+        "color": "green"
+      }
+    ],
+    "submitResults": [
+      [
+        {
+          "status": "correct",
+          "userVertex": "4,3",
+          "userVal": 5
+        },
+        {
+          "status": "correct",
+          "userVertex": "4,4",
+          "userVal": 5
+        }
+      ]
+    ],
+    "changedGroupsVertices": [
+      [
+        4,
+        3
+      ],
+      [
+        4,
+        4
+      ]
+    ]
+  }
+}
