@@ -1,16 +1,12 @@
 import { h } from 'preact'
 
-// Per-problem star benchmark. accPoints ceiling (20·groupCount) now
-// exceeds this on its own — that's intentional: with the doubled
-// per-group score, perfect accuracy is worth more of the total, and
-// any clean run earns ratio ≥ 1 (5★ gate requires mistakes === 0
-// separately). Speed still polishes the ratio for sub-5★ tiers but
-// no longer gatekeeps the trophy for clean play.
-//
-// The cupSec contribution is retained so slow-but-imperfect runs
-// still have a denominator to measure against.
+// Per-problem 5★ benchmark: perfect accuracy (20·groupCount) + par
+// time (cupSec). Together with the doubled accPoints the denominator
+// is big enough that each mistake's −10 pts shows up as a meaningful
+// ratio drop — stars fall faster with mistakes than under the old
+// 10·groupCount scoring.
 export function computeParScore(groupCount, cupMs) {
-  return 10 * groupCount + (cupMs / 1000)
+  return 20 * groupCount + (cupMs / 1000)
 }
 
 // Accuracy points: 20 per group, −10 per mistake (max 2 mistakes per group under 2-try cap).
