@@ -130,14 +130,40 @@ export function isLockedVertex(state, vertex) {
   return groups.some(g => !g.changed && vertexKey(g.vertex) === key)
 }
 
-// Per-group: number of submits on which this group was not correct.
+// Per-submit: which groups count toward the mistake tally. Returns a
+// 0/1 array aligned to the submit's per-group statuses.
+//
+// Rule: every `wrong` group counts; `missed` groups count except the
+// first one in order (users routinely forget exactly one group —
+// forgive it). Tweak the constant below to forgive more.
+//
+// Shared between scoring (mistakesByGroup fold) and the UI cooldown in
+// effects.js. Changing the forgiveness count in one place changes both.
+const FORGIVE_MISSED_PER_SUBMIT = 1
+
+export function penaltyByGroup(submitResult) {
+  let n = submitResult.length
+  let counts = new Array(n).fill(0)
+  let forgivenBudget = FORGIVE_MISSED_PER_SUBMIT
+  for (let i = 0; i < n; i++) {
+    let s = submitResult[i]?.status
+    if (s === 'wrong') counts[i] = 1
+    else if (s === 'missed') {
+      if (forgivenBudget > 0) forgivenBudget--
+      else counts[i] = 1
+    }
+  }
+  return counts
+}
+
+// Per-group: number of submits on which this group counted as a
+// mistake (after `penaltyByGroup` forgiveness).
 export function mistakesByGroup(state) {
   let n = changedGroups(state).length
   let counts = new Array(n).fill(0)
   for (let r of state.submitResults) {
-    for (let i = 0; i < n; i++) {
-      if (r[i]?.status !== 'correct') counts[i]++
-    }
+    let p = penaltyByGroup(r)
+    for (let i = 0; i < n; i++) counts[i] += p[i]
   }
   return counts
 }

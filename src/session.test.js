@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   init, step, phase, finalized, changedGroups, isLockedVertex,
-  mistakesByGroup, totalMistakes, pointsByGroup,
+  mistakesByGroup, totalMistakes, pointsByGroup, penaltyByGroup,
 } from './session.js'
 import { QuizEngine } from './engine.js'
 

@@ -12,7 +12,7 @@
 // body but with ctx providing the bits that aren't in session state
 // (loadTimeMs, viewport, rotated, sgfId, config).
 
-import { phase, finalized, changedGroups, mistakesByGroup, totalMistakes, pointsByGroup } from './session.js'
+import { phase, finalized, changedGroups, mistakesByGroup, totalMistakes, pointsByGroup, penaltyByGroup } from './session.js'
 import { computeStars, computeParScore, computeAccPoints, computeSpeedPoints } from './scoring.js'
 import { orderGroupsByDisplay } from './display.js'
 import config from './config.js'
@@ -41,14 +41,13 @@ export function sideEffectsFor(next, event) {
     } else {
       out.push({ kind: 'sound/wrong' })
       out.push({ kind: 'wrongFlash' })
-      // Cooldown penalty: disable Done for `3 + N` seconds where N is
-      // the number of wrong-or-missed groups in this submit. 3 s baseline
-      // is forced reflection time; +1 s per wrong nudges speedPoints
-      // down proportionally to the user's error density. Fast Done-Done
-      // spam loses elapsed-time speedPoints instead of getting a cheap
-      // partial score.
-      let wrongCount = lastResult.filter(r => r.status !== 'correct').length
-      if (wrongCount > 0) out.push({ kind: 'cooldown', seconds: 3 + wrongCount })
+      // Cooldown: 3 s baseline + 1 s per counted mistake. `penaltyByGroup`
+      // forgives one missed group per submit, so the cooldown and the
+      // score agree on what counts — change `FORGIVE_MISSED_PER_SUBMIT`
+      // in session.js and both this pause and the final score shift
+      // together.
+      let countedMistakes = penaltyByGroup(lastResult).reduce((a, b) => a + b, 0)
+      if (countedMistakes > 0) out.push({ kind: 'cooldown', seconds: 3 + countedMistakes })
     }
   }
   return out
