@@ -35,7 +35,7 @@
     {
       "event": {
         "kind": "advance",
-        "t": 0
+        "t": 1
       },
       "state": {
         "cursor": 2,
@@ -51,7 +51,7 @@
     {
       "event": {
         "kind": "advance",
-        "t": 0
+        "t": 2
       },
       "state": {
         "cursor": 3,
@@ -72,7 +72,7 @@
           0
         ],
         "value": 1,
-        "t": 0
+        "t": 3
       },
       "state": {
         "cursor": 3,
@@ -94,7 +94,7 @@
     {
       "event": {
         "kind": "submit",
-        "t": 0
+        "t": 4
       },
       "state": {
         "cursor": 3,
@@ -132,7 +132,7 @@
     {
       "event": {
         "kind": "rewind",
-        "t": 0
+        "t": 5
       },
       "state": {
         "cursor": 0,
@@ -170,7 +170,7 @@
     {
       "event": {
         "kind": "advance",
-        "t": 0
+        "t": 6
       },
       "state": {
         "cursor": 1,
@@ -208,7 +208,7 @@
     {
       "event": {
         "kind": "advance",
-        "t": 1
+        "t": 7
       },
       "state": {
         "cursor": 2,
@@ -246,7 +246,7 @@
     {
       "event": {
         "kind": "advance",
-        "t": 1
+        "t": 8
       },
       "state": {
         "cursor": 3,
@@ -289,7 +289,7 @@
           0
         ],
         "value": 1,
-        "t": 1
+        "t": 9
       },
       "state": {
         "cursor": 3,
@@ -332,7 +332,7 @@
           0
         ],
         "value": 2,
-        "t": 1
+        "t": 10
       },
       "state": {
         "cursor": 3,
@@ -370,7 +370,7 @@
     {
       "event": {
         "kind": "submit",
-        "t": 1
+        "t": 11
       },
       "state": {
         "cursor": 3,

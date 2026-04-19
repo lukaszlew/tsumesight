@@ -35,7 +35,7 @@
     {
       "event": {
         "kind": "advance",
-        "t": 0
+        "t": 1
       },
       "state": {
         "cursor": 2,
@@ -51,7 +51,7 @@
     {
       "event": {
         "kind": "advance",
-        "t": 1
+        "t": 2
       },
       "state": {
         "cursor": 3,
@@ -72,7 +72,7 @@
           3
         ],
         "value": 5,
-        "t": 1
+        "t": 3
       },
       "state": {
         "cursor": 3,
@@ -99,7 +99,7 @@
           4
         ],
         "value": 5,
-        "t": 1
+        "t": 4
       },
       "state": {
         "cursor": 3,
@@ -126,7 +126,7 @@
     {
       "event": {
         "kind": "submit",
-        "t": 1
+        "t": 5
       },
       "state": {
         "cursor": 3,

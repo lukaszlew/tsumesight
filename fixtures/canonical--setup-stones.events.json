@@ -25,11 +25,11 @@
     },
     {
       "kind": "advance",
-      "t": 0
+      "t": 1
     },
     {
       "kind": "advance",
-      "t": 1
+      "t": 2
     },
     {
       "kind": "setMark",
@@ -38,7 +38,7 @@
         3
       ],
       "value": 5,
-      "t": 1
+      "t": 3
     },
     {
       "kind": "setMark",
@@ -47,11 +47,11 @@
         4
       ],
       "value": 5,
-      "t": 1
+      "t": 4
     },
     {
       "kind": "submit",
-      "t": 1
+      "t": 5
     }
   ],
   "goldens": {

@@ -201,42 +201,6 @@ function _doSubmit(state) {
   }
 }
 
-// --- Back-compat class wrapper. Deleted in P2 once quiz.jsx moves to
-//     useReducer + the functional surface (init/step/selectors) directly.
-//     Tests still drive the session through this class until P2.
-
-const STATE_FIELDS = [
-  'sgf', 'maxSubmits', 'maxQuestions', 'engine', 'totalMoves',
-  'cursor', 'hasExercise', 'marks', 'submitCount',
-  'submitResults', 'events', 'startTime',
-]
-
-export class QuizSession {
-  constructor(sgf, config) {
-    this._state = init(sgf, config)
-    this.clockNow = () => performance.now()
-    this._sync()
-  }
-
-  _sync() {
-    for (let f of STATE_FIELDS) this[f] = this._state[f]
-  }
-
-  get phase() { return phase(this._state) }
-  get finalized() { return finalized(this._state) }
-  get elapsedMs() { return elapsedMs(this._state) }
-  get changedGroups() { return changedGroups(this._state) }
-
-  isLockedVertex(v) { return isLockedVertex(this._state, v) }
-  mistakesByGroup() { return mistakesByGroup(this._state) }
-  totalMistakes() { return totalMistakes(this._state) }
-
-  applyEvent(event) {
-    step(this._state, event)
-    this._sync()
-  }
-}
-
 // Pure fold over mistakesByGroup; returns per-group point values.
 // Mirrors the rule in scoring.js: [10, 5, 0] for [0, 1, 2+] mistakes per group.
 export function pointsByGroup(mistakesByGroup) {

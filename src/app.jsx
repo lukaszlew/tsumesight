@@ -43,10 +43,7 @@ export function App() {
     setPosition({ index: idx + 1, total: siblings.length })
   }
 
-  const [selectCount, setSelectCount] = useState(0)
-
   function selectSgf({ id, content, path, filename, solved }) {
-    setSelectCount(c => c + 1)
     let val = { id, content, path, filename, solved: !!solved }
     kvSet('activeSgf', JSON.stringify(val))
     kvSet('lastPath', path)
@@ -97,7 +94,6 @@ export function App() {
       }
       let val = { id: found.id, content: found.content, path: found.path || '', filename: found.filename }
       kvSet('activeSgf', JSON.stringify(val))
-      setSelectCount(c => c + 1)
       setActive(val)
       refreshPosition(val.id, val.path)
     }
@@ -176,7 +172,7 @@ export function App() {
   if (active) {
     return (
       <ErrorBoundary onReset={clearSgf}>
-        <Quiz key={`${active.id}-${selectCount}`} quizKey={active.id} sgf={active.content}
+        <Quiz key={active.id} quizKey={active.id} sgf={active.content}
           sgfId={active.id}
           wasSolved={active.solved} restored={!!active.restored}
           onBack={clearSgf} onSolved={markSolved} onProgress={saveProgress} onLoadError={handleLoadError}

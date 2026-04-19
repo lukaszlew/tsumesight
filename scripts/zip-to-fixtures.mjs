@@ -20,7 +20,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
 import JSZip from 'jszip'
-import { QuizSession } from '../src/session.js'
+import { init, step } from '../src/session.js'
 
 const EVENT_SCHEMA_VERSION = 2
 const SCHEMA_VERSION = 1
@@ -93,14 +93,14 @@ async function main() {
   let written = []
 
   // Validate a candidate fixture by trying to fold its events through the
-  // current QuizSession. Replays recorded under older rules (pre-commit
+  // current session reducer. Replays recorded under older rules (pre-commit
   // 3b30899, where advance-to-activate-exercise was implicit) will throw;
   // those are skipped so the fixture corpus only contains round-trippable
   // sessions.
   function replaysCleanly(sgfContent, config, events) {
     try {
-      let s = new QuizSession(sgfContent, config)
-      for (let e of events) s.applyEvent(e)
+      let s = init(sgfContent, config)
+      for (let e of events) step(s, e)
       return true
     } catch { return false }
   }

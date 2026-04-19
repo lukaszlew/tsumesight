@@ -35,7 +35,7 @@
     {
       "event": {
         "kind": "advance",
-        "t": 0
+        "t": 1
       },
       "state": {
         "cursor": 2,
@@ -51,7 +51,7 @@
     {
       "event": {
         "kind": "advance",
-        "t": 0
+        "t": 2
       },
       "state": {
         "cursor": 3,
@@ -67,7 +67,7 @@
     {
       "event": {
         "kind": "advance",
-        "t": 0
+        "t": 3
       },
       "state": {
         "cursor": 4,
@@ -83,7 +83,7 @@
     {
       "event": {
         "kind": "advance",
-        "t": 0
+        "t": 4
       },
       "state": {
         "cursor": 5,
@@ -104,7 +104,7 @@
           0
         ],
         "value": 3,
-        "t": 0
+        "t": 5
       },
       "state": {
         "cursor": 5,
@@ -131,7 +131,7 @@
           1
         ],
         "value": 3,
-        "t": 0
+        "t": 6
       },
       "state": {
         "cursor": 5,
@@ -163,7 +163,7 @@
           4
         ],
         "value": 4,
-        "t": 0
+        "t": 7
       },
       "state": {
         "cursor": 5,
@@ -195,7 +195,7 @@
     {
       "event": {
         "kind": "submit",
-        "t": 0
+        "t": 8
       },
       "state": {
         "cursor": 5,

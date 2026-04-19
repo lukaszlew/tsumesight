@@ -435,7 +435,7 @@ P0 (fixtures) ──┬──► P1 ──► P2 ──► P2.5
 
 Filled in as phases land. Intentional behavior shifts; users will notice these even though they are not regressions.
 
-- _(none yet — pre-refactor)_
+- **P2 — canonical fixture timestamps deterministic.** The generator (`scripts/gen-canonical-fixtures.mjs`) now overwrites `event.t` with the event index after constructing a session, so regeneration is bit-identical across machines and run speeds. User-recorded fixtures are untouched (their `t` values come from the original session's clock).
 
 ## Definition of Done
 

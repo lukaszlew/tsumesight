@@ -1,6 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'preact/hooks'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'preact/hooks'
 import { Goban } from '@sabaki/shudan'
-import { QuizSession, pointsByGroup } from './session.js'
+import {
+  init, step, phase, finalized, isLockedVertex,
+  changedGroups, mistakesByGroup, totalMistakes, pointsByGroup,
+} from './session.js'
 import { playCorrect, playWrong, playComplete, playStoneClick, playMark, resetStreak, isSoundEnabled, toggleSound } from './sounds.js'
 import { kv, getScores, addReplay, getLatestReplay } from './db.js'
 import config from './config.js'
@@ -109,28 +112,55 @@ function RadialMenu({ cx, cy, activeZone, vertexSize, boardHeight }) {
   )
 }
 
-// Reconstruct a finished session by folding the stored event log. The log
-// is the complete record of what the user did; every piece of derived state
-// (marks overlay, submitResults, feedback colors, phase) comes out of the
-// fold exactly as it was at finish time.
-function restoreFromEventLog(session, events) {
-  for (let evt of events) session.applyEvent(evt)
-}
-
 export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolved, onProgress, onLoadError, onNextUnsolved, onPrev, onNext }) {
-  let sessionRef = useRef(null)
-  let solvedRef = useRef(false)
-  let loadTimeRef = useRef(performance.now())
-  let [, forceRender] = useState(0)
-  let rerender = () => forceRender(n => n + 1)
+  let [maxQ] = useState(() => parseInt(kv('quizMaxQ', '2')))
+  let sessionConfig = useMemo(() => ({ maxSubmits: config.maxSubmits, maxQuestions: maxQ }), [maxQ])
 
+  // Initial events: if reopening a solved puzzle, fold its stored replay.
+  // Otherwise start fresh. This is the P2 shape; once P2.5 lands, kv
+  // persistence per-event makes abandoned sessions recoverable too.
+  let [initState] = useState(() => {
+    let events = []
+    let autoSolved = false
+    if (wasSolved && restored) {
+      let record = getLatestReplay(sgfId)
+      if (record?.events?.length > 0) {
+        events = record.events
+        autoSolved = true
+      }
+    }
+    return { events, autoSolved }
+  })
+
+  let [error, setError] = useState(null)
+
+  // events is the append-only source of truth for the session. Fold through
+  // step() to derive the current session state. useMemo caches per-events.
+  let [events, setEvents] = useState(initState.events)
+  let state = useMemo(() => {
+    try {
+      let s = init(sgf, sessionConfig)
+      for (let e of events) step(s, e)
+      return s
+    } catch (e) {
+      setError(e.message)
+      return null
+    }
+  }, [events, sgf, sessionConfig])
+
+  // Refs that track progress through the event stream for side effects.
+  // Seeded to "already caught up to initial events" so review-mode mounts
+  // (solved puzzle reopen) don't re-play sounds.
+  let solvedRef = useRef(initState.autoSolved)
+  let lastEventIdxRef = useRef(initState.events.length - 1)
+  let prevSubmitCountRef = useRef(0)
+  let startTimeRef = useRef(null)
+  let loadTimeRef = useRef(performance.now())
+  // Layout + UI-only state (not session state)
   let [vertexSize, setVertexSize] = useState(0)
   let [rotated, setRotated] = useState(false)
   let boardRowRef = useRef(null)
   let bottomBarRef = useRef(null)
-
-  let [maxQ] = useState(() => parseInt(kv('quizMaxQ', '2')))
-  let [error, setError] = useState(null)
   let [wrongFlash, setWrongFlash] = useState(false)
   let [soundOn, setSoundOn] = useState(() => isSoundEnabled())
   let [showSeqStones, setShowSeqStones] = useState(false)
@@ -142,29 +172,123 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
   let wheelRef = useRef(null)
   let wheelUsedRef = useRef(false)
 
-  // Initialize session
-  if (!sessionRef.current && !error) {
-    resetStreak()
-    try {
-      sessionRef.current = new QuizSession(sgf, { maxSubmits: config.maxSubmits, maxQuestions: maxQ })
-      if (wasSolved && restored) {
-        let record = getLatestReplay(sgfId)
-        if (record && record.events && record.events.length > 0) {
-          restoreFromEventLog(sessionRef.current, record.events)
-          solvedRef.current = true
-        }
-        // If no replay exists (legacy solve), fall through to a fresh
-        // session. Q7's minimal "solved (no record)" review is a follow-up.
-      }
-      if (!solvedRef.current && config.autoShowFirstMove) {
-        sessionRef.current.applyEvent({ kind: 'advance' })
-        playStoneClick()
-      }
-    } catch (e) {
-      setError(e.message)
+  // Seed prevSubmitCount from the initial fold (so review-mode mounts don't
+  // trigger submit effects). Runs exactly once on mount.
+  useEffect(() => {
+    if (state) prevSubmitCountRef.current = state.submitCount
+    // Auto-advance on first load unless restoring a solved puzzle.
+    // config.autoShowFirstMove is currently false; branch kept for parity.
+    if (!initState.autoSolved && config.autoShowFirstMove && events.length === 0) {
+      dispatch({ kind: 'advance' })
     }
+    resetStreak()
+  }, [])
+
+  // Dispatch: append an event. Sets t relative to the first event's time.
+  function dispatch(evt) {
+    if (startTimeRef.current == null) startTimeRef.current = performance.now()
+    let t = evt.t ?? Math.round(performance.now() - startTimeRef.current)
+    setEvents(e => [...e, { ...evt, t }])
   }
-  let session = sessionRef.current
+
+  // Per-event sound effects. Walks from lastEventIdxRef to the current end.
+  useEffect(() => {
+    if (!state) return
+    let n = state.events.length
+    while (lastEventIdxRef.current < n - 1) {
+      let idx = ++lastEventIdxRef.current
+      let evt = state.events[idx]
+      if (evt.kind === 'setMark') playMark(evt.value)
+      // advance sound is handled in dispatchAdvance (predictive on pre-state)
+      // submit sounds are handled by the submit effect below (needs post-state)
+    }
+  }, [state?.events])
+
+  // Submit effects: post-submit sound + wrong flash + onProgress on finalize.
+  useEffect(() => {
+    if (!state) return
+    if (state.submitCount <= prevSubmitCountRef.current) return
+    prevSubmitCountRef.current = state.submitCount
+    let lastResult = state.submitResults.at(-1) || []
+    let allCorrect = lastResult.every(r => r.status === 'correct')
+    if (finalized(state)) {
+      if (allCorrect) playCorrect(); else playWrong()
+      let total = changedGroups(state).length
+      let wrongCount = mistakesByGroup(state).filter(m => m > 0).length
+      onProgress({
+        correct: allCorrect ? total : total - wrongCount,
+        done: total,
+        total,
+      })
+    } else {
+      playWrong()
+      setWrongFlash(true)
+      setTimeout(() => setWrongFlash(false), 150)
+    }
+  }, [state?.submitCount])
+
+  // Finalize effect: compute scoring, write enriched replay, show popup,
+  // play completion sound. Runs exactly once per session (gated on
+  // solvedRef) when state transitions to 'finished'.
+  useEffect(() => {
+    if (!state) return
+    if (phase(state) !== 'finished' || solvedRef.current) return
+    solvedRef.current = true
+    let groups = changedGroups(state)
+    let groupCount = groups.length
+    let mistakes = totalMistakes(state)
+    let mbg = mistakesByGroup(state)
+    let elapsedMs = Math.round(performance.now() - loadTimeRef.current)
+    // Cup time: base 3s + 1.5s per move + 1.5s per group.
+    let cupMs = (3 + state.totalMoves * 1.5 + groupCount * 1.5) * 1000
+    let parScore = computeParScore(groupCount, cupMs)
+    let accPoints = computeAccPoints(mistakes, groupCount)
+    let speedPoints = computeSpeedPoints(elapsedMs, cupMs)
+    let stars = computeStars(accPoints, speedPoints, mistakes, parScore)
+
+    // Order per-group points by displayed board position (left-to-right, top-to-bottom).
+    let displayIdx = groups.map((g, i) => i).sort((a, b) => {
+      let va = groups[a].vertex, vb = groups[b].vertex
+      let ax = rotated ? va[1] : va[0], ay = rotated ? va[0] : va[1]
+      let bx = rotated ? vb[1] : vb[0], by = rotated ? vb[0] : vb[1]
+      return ax - bx || ay - by
+    })
+    let orderedPointsByGroup = displayIdx.map(i => pointsByGroup(mbg)[i])
+
+    let correct = Math.max(0, groupCount - mistakes)
+    let total = groupCount
+    let accuracy = total > 0 ? correct / total : 1
+    let date = Date.now()
+    let scoreEntry = {
+      correct, total, accuracy,
+      totalMs: elapsedMs, mistakes, errors: mistakes, date,
+      thresholdMs: cupMs, cupMs, parScore, accPoints, speedPoints, groupCount, mistakesByGroup: mbg,
+    }
+    // v:3 enriched record. Matches the fixture schema (src/fixture-schema.js)
+    // so the converter can promote this into a committed test fixture.
+    let finalMarks = [...state.marks.entries()].map(([key, m]) => ({ key, value: m.value, color: m.color }))
+    let changedGroupsVertices = groups.map(g => g.vertex)
+    addReplay(sgfId, date, {
+      events: state.events,
+      config: sessionConfig,
+      viewport: { w: window.innerWidth, h: window.innerHeight, rotated },
+      goldens: {
+        scoreEntry,
+        finalMarks,
+        submitResults: state.submitResults,
+        changedGroupsVertices,
+      },
+    })
+    onSolved(correct, total, scoreEntry)
+    setFinishPopup({
+      elapsedSec: Math.round(elapsedMs / 1000),
+      mistakes, accPoints, speedPoints, stars, parScore,
+      pointsByGroup: orderedPointsByGroup,
+      maxGroups: 10 * groupCount,
+      maxSpeed: Math.round(2 * (cupMs / 1000)),
+    })
+    playComplete(stars)
+  }, [state])
 
   if (error) {
     return (
@@ -178,142 +302,72 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
     )
   }
 
-  let phase = session.phase
-  let inExercise = phase === 'exercise'
-  let isFinished = phase === 'finished'
+  if (!state) return null  // mid-init error; will be handled on next render
 
-  let checkFinished = () => {
-    if (session.phase !== 'finished' || solvedRef.current) return
-    solvedRef.current = true
-    let groups = session.changedGroups
-    let groupCount = groups.length
-    let mistakes = session.totalMistakes()
-    let mistakesByGroup = session.mistakesByGroup()
-    let elapsedMs = Math.round(performance.now() - loadTimeRef.current)
-    // Cup time: base 3s + 1.5s per move + 1.5s per group.
-    let cupMs = (3 + session.totalMoves * 1.5 + groupCount * 1.5) * 1000
-    let parScore = computeParScore(groupCount, cupMs)
-    let accPoints = computeAccPoints(mistakes, groupCount)
-    let speedPoints = computeSpeedPoints(elapsedMs, cupMs)
-    let stars = computeStars(accPoints, speedPoints, mistakes, parScore)
-
-    // Order per-group points by displayed board position (left-to-right, top-to-bottom).
-    let displayIdx = groups.map((g, i) => i).sort((a, b) => {
-      let va = groups[a].vertex, vb = groups[b].vertex
-      let ax = rotated ? va[1] : va[0], ay = rotated ? va[0] : va[1]
-      let bx = rotated ? vb[1] : vb[0], by = rotated ? vb[0] : vb[1]
-      return ax - bx || ay - by
-    })
-    let orderedPointsByGroup = displayIdx.map(i => pointsByGroup(mistakesByGroup)[i])
-
-    let correct = Math.max(0, groupCount - mistakes)
-    let total = groupCount
-    let accuracy = total > 0 ? correct / total : 1
-    let date = Date.now()
-    let scoreEntry = {
-      correct, total, accuracy,
-      totalMs: elapsedMs, mistakes, errors: mistakes, date,
-      thresholdMs: cupMs, cupMs, parScore, accPoints, speedPoints, groupCount, mistakesByGroup,
-    }
-    // v:3 enriched record. Matches the fixture schema (src/fixture-schema.js)
-    // so the converter can promote this into a committed test fixture.
-    // The event log is the full record of the session; restore on reopen
-    // folds it through a fresh session rather than reconstructing from
-    // derived data.
-    let finalMarks = [...session.marks.entries()].map(([key, m]) => ({ key, value: m.value, color: m.color }))
-    let changedGroupsVertices = groups.map(g => g.vertex)
-    addReplay(sgfId, date, {
-      events: session.events,
-      config: { maxSubmits: config.maxSubmits, maxQuestions: maxQ },
-      viewport: { w: window.innerWidth, h: window.innerHeight, rotated },
-      goldens: {
-        scoreEntry,
-        finalMarks,
-        submitResults: session.submitResults,
-        changedGroupsVertices,
-      },
-    })
-    onSolved(correct, total, scoreEntry)
-    setFinishPopup({
-      elapsedSec: Math.round(elapsedMs / 1000),
-      mistakes, accPoints, speedPoints, stars, parScore,
-      pointsByGroup: orderedPointsByGroup,
-      maxGroups: 10 * groupCount,
-      maxSpeed: Math.round(2 * (cupMs / 1000)),
-    })
-    playComplete(stars)
-  }
+  let inExercise = phase(state) === 'exercise'
+  let isFinished = phase(state) === 'finished'
 
   function dispatchAdvance() {
-    if (session.phase !== 'showing') return
-    session.applyEvent({ kind: 'advance' })
-    if (session.phase === 'showing') playStoneClick()
-    rerender()
+    if (phase(state) !== 'showing') return
+    // Predict: if we're pre-last-move, the advance plays a stone click.
+    // If cursor === totalMoves, advance activates the exercise (no sound).
+    let willClick = state.cursor < state.totalMoves
+    dispatch({ kind: 'advance' })
+    if (willClick) playStoneClick()
   }
 
   function dispatchSubmit() {
     if (!inExercise) return
-    if (session.marks.size === 0) return  // nothing to submit
-    session.applyEvent({ kind: 'submit' })
-    let lastResult = session.submitResults.at(-1) || []
-    let allCorrect = lastResult.every(r => r.status === 'correct')
-    if (session.finalized) {
-      if (allCorrect) playCorrect(); else playWrong()
-      let total = session.changedGroups.length
-      onProgress({ correct: allCorrect ? total : total - session.mistakesByGroup().filter(m => m > 0).length, done: total, total })
-      checkFinished()
-    } else {
-      playWrong()
-      setWrongFlash(true)
-      setTimeout(() => setWrongFlash(false), 150)
-    }
-    rerender()
+    if (state.marks.size === 0) return
+    dispatch({ kind: 'submit' })
+    // Sound + wrong-flash + onProgress + finalize handled in useEffects.
   }
 
   let commitMark = useCallback((vertex, value) => {
     if (!inExercise) return
-    session.applyEvent({ kind: 'setMark', vertex, value })
-    playMark(value)
-    rerender()
-  }, [phase])
+    dispatch({ kind: 'setMark', vertex, value })
+  }, [inExercise])
 
   function doRewind() {
     if (isFinished) return
-    session.applyEvent({ kind: 'rewind' })
+    dispatch({ kind: 'rewind' })
     if (config.autoShowFirstMove) {
-      session.applyEvent({ kind: 'advance' })
+      dispatch({ kind: 'advance' })
       playStoneClick()
     }
-    rerender()
   }
 
   function doRestart() {
-    sessionRef.current = new QuizSession(sgf, { maxSubmits: config.maxSubmits, maxQuestions: maxQ })
     solvedRef.current = false
+    lastEventIdxRef.current = -1
+    prevSubmitCountRef.current = 0
+    startTimeRef.current = null
     loadTimeRef.current = performance.now()
     setFinishPopup(null)
     setWrongFlash(false)
     resetStreak()
     if (config.autoShowFirstMove) {
-      sessionRef.current.applyEvent({ kind: 'advance' })
+      startTimeRef.current = performance.now()
+      setEvents([{ kind: 'advance', t: 0 }])
       playStoneClick()
+    } else {
+      setEvents([])
     }
-    rerender()
   }
 
   let onVertexClick = useCallback((evt, vertex) => {
     if (wheelUsedRef.current) { wheelUsedRef.current = false; return }
     if (confirmExit) { setConfirmExit(false); return }
-    if (session.phase === 'showing') {
+    if (phase(state) === 'showing') {
       dispatchAdvance()
       return
     }
     // Exercise: marking handled by radial menu (pointer events)
-  }, [phase, confirmExit])
+  }, [state, confirmExit])
 
   let onVertexPointerDown = useCallback((evt, vertex) => {
     if (!inExercise) return
-    if (session.isLockedVertex(vertex)) return  // pre-marked (non-editable) label
+    if (isLockedVertex(state, vertex)) return  // pre-marked (non-editable) label
     // Claim the pointer so Android suppresses its long-press gesture.
     try { evt.currentTarget.setPointerCapture(evt.pointerId) } catch {}
     let rect = evt.currentTarget.getBoundingClientRect()
@@ -340,7 +394,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
       wheelRef.current = w
       setWheel(w)
     }
-  }, [vertexSize, commitMark])
+  }, [vertexSize, commitMark, state, inExercise])
 
   let onVertexPointerUp = useCallback(() => {}, [])
 
@@ -399,7 +453,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
       else if (e.key === ' ') {
         e.preventDefault()
         if (inExercise) dispatchSubmit()
-        else if (session.phase === 'showing') dispatchAdvance()
+        else if (phase(state) === 'showing') dispatchAdvance()
       }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -407,7 +461,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
   })
 
   // Layout computation
-  let engine = session.engine
+  let engine = state.engine
   let rangeX = engine.boardRange ? [engine.boardRange[0], engine.boardRange[2]] : undefined
   let rangeY = engine.boardRange ? [engine.boardRange[1], engine.boardRange[3]] : undefined
   let cols = rangeX ? rangeX[1] - rangeX[0] + 1 : engine.boardSize
@@ -444,7 +498,7 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
   let size = engine.boardSize
   let signMap, markerMap, ghostStoneMap, paintMap
 
-  if (isFinished && session.hasExercise) {
+  if (isFinished && state.hasExercise) {
     // Final review: show all stones or initial position (eye toggle).
     signMap = (showSeqStones ? engine.trueBoard.signMap : engine.initialBoard.signMap).map(row => [...row])
   } else {
@@ -472,11 +526,11 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
     }
   }
 
-  // All user/eval marks live in session.marks with shape {value, color}.
+  // All user/eval marks live in state.marks with shape {value, color}.
   // Render them directly — no separate feedback overlay. Eval colors appear
   // after Done; user's next tap at the same intersection clears that color.
   if (inExercise || isFinished) {
-    for (let [key, mark] of session.marks) {
+    for (let [key, mark] of state.marks) {
       let [mx, my] = key.split(',').map(Number)
       let label = mark.value === '?' ? '?' : libLabel(mark.value)
       markerMap[my][mx] = { type: 'label', label }
@@ -506,9 +560,9 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
     ? (evt, [x, y]) => onVertexPointerUp(evt, [y, x])
     : onVertexPointerUp
 
-  let hasMarks = session.marks.size > 0
-  let showingMoveClass = session.phase === 'showing' && engine.showingMove ? ' showing-move' : ''
-  let hasEvalColors = [...session.marks.values()].some(m => m.color)
+  let hasMarks = state.marks.size > 0
+  let showingMoveClass = phase(state) === 'showing' && engine.showingMove ? ' showing-move' : ''
+  let hasEvalColors = [...state.marks.values()].some(m => m.color)
   let feedbackClass = hasEvalColors && inExercise ? ' lib-feedback' : ''
 
   return (
@@ -588,8 +642,8 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
                 ? <button class={`next-hero${hasMarks ? '' : ' next-hero-hidden'}`} title="Submit (Space/Enter)" onClick={dispatchSubmit}>
                     {hasMarks ? 'Done' : 'Press and swipe each group to set its liberty count'}
                   </button>
-                : session.phase === 'showing'
-                  ? <div class="action-hint"><span class="hint-blue">Tap</span> board to advance. <span class="hint-blue">Remember</span> the variation. Move {session.cursor}/{session.totalMoves}.</div>
+                : phase(state) === 'showing'
+                  ? <div class="action-hint"><span class="hint-blue">Tap</span> board to advance. <span class="hint-blue">Remember</span> the variation. Move {state.cursor}/{state.totalMoves}.</div>
                   : null}
               {isFinished && <StatsBar sgfId={sgfId} />}
               <div class="bottom-bar-row">

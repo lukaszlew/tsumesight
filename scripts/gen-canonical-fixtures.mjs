@@ -17,7 +17,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
-import { QuizSession } from '../src/session.js'
+import { init, step, changedGroups, totalMistakes, mistakesByGroup, phase } from '../src/session.js'
 import config from '../src/config.js'
 
 const OUT_DIR = path.resolve(import.meta.dirname, '..', 'fixtures')
@@ -29,16 +29,16 @@ function sha256Hex(s) { return 'sha256:' + crypto.createHash('sha256').update(s)
 
 // Advance until phase is no longer 'showing'.
 function dispatchAllAdvances(s) {
-  while (s.phase === 'showing') s.applyEvent({ kind: 'advance' })
+  while (phase(s) === 'showing') step(s, { kind: 'advance' })
 }
 
 // Tap the correct liberty count on every changed group (uses representative
 // vertex from g.vertex — any stone of the group works, but the vertex is
 // what's available without extra plumbing).
 function markAllCorrect(s) {
-  for (let g of s.changedGroups) {
+  for (let g of changedGroups(s)) {
     let [x, y] = g.vertex.split ? g.vertex.split(',').map(Number) : g.vertex
-    s.applyEvent({
+    step(s, {
       kind: 'setMark',
       vertex: Array.isArray(g.vertex) ? g.vertex : [x, y],
       value: Math.min(g.libCount, config.maxLibertyLabel),
@@ -53,7 +53,7 @@ const SCENARIOS = [
     name: 'single-move-correct',
     description: 'Center stone, correct liberty count first submit',
     sgf: '(;SZ[9];B[ee])',
-    play(s) { dispatchAllAdvances(s); markAllCorrect(s); s.applyEvent({ kind: 'submit' }) },
+    play(s) { dispatchAllAdvances(s); markAllCorrect(s); step(s, { kind: 'submit' }) },
   },
   {
     name: 'single-move-wrong-then-correct',
@@ -61,10 +61,10 @@ const SCENARIOS = [
     sgf: '(;SZ[9];B[ee])',
     play(s) {
       dispatchAllAdvances(s)
-      s.applyEvent({ kind: 'setMark', vertex: [4, 4], value: 2 })
-      s.applyEvent({ kind: 'submit' })
-      s.applyEvent({ kind: 'setMark', vertex: [4, 4], value: 4 })
-      s.applyEvent({ kind: 'submit' })
+      step(s, { kind: 'setMark', vertex: [4, 4], value: 2 })
+      step(s, { kind: 'submit' })
+      step(s, { kind: 'setMark', vertex: [4, 4], value: 4 })
+      step(s, { kind: 'submit' })
     },
   },
   {
@@ -73,9 +73,9 @@ const SCENARIOS = [
     sgf: '(;SZ[9];B[ee])',
     play(s) {
       dispatchAllAdvances(s)
-      s.applyEvent({ kind: 'setMark', vertex: [4, 4], value: 2 })
-      s.applyEvent({ kind: 'submit' })
-      s.applyEvent({ kind: 'submit' })
+      step(s, { kind: 'setMark', vertex: [4, 4], value: 2 })
+      step(s, { kind: 'submit' })
+      step(s, { kind: 'submit' })
     },
   },
   {
@@ -84,8 +84,8 @@ const SCENARIOS = [
     sgf: '(;SZ[9];B[ee])',
     play(s) {
       dispatchAllAdvances(s)
-      s.applyEvent({ kind: 'submit' })
-      s.applyEvent({ kind: 'submit' })
+      step(s, { kind: 'submit' })
+      step(s, { kind: 'submit' })
     },
   },
   {
@@ -94,19 +94,19 @@ const SCENARIOS = [
     sgf: '(;SZ[9];B[ba];W[aa])',
     play(s) {
       dispatchAllAdvances(s)
-      s.applyEvent({ kind: 'setMark', vertex: [0, 0], value: 1 })
-      s.applyEvent({ kind: 'submit' })
-      s.applyEvent({ kind: 'rewind' })
+      step(s, { kind: 'setMark', vertex: [0, 0], value: 1 })
+      step(s, { kind: 'submit' })
+      step(s, { kind: 'rewind' })
       dispatchAllAdvances(s)
       markAllCorrect(s)
-      s.applyEvent({ kind: 'submit' })
+      step(s, { kind: 'submit' })
     },
   },
   {
     name: 'capture',
     description: 'Capture sequence (B[aa] captured by W[ba];W[ab])',
     sgf: '(;SZ[9];B[aa];W[ba];B[ee];W[ab])',
-    play(s) { dispatchAllAdvances(s); markAllCorrect(s); s.applyEvent({ kind: 'submit' }) },
+    play(s) { dispatchAllAdvances(s); markAllCorrect(s); step(s, { kind: 'submit' }) },
   },
   {
     name: 'setup-stones',
@@ -115,7 +115,7 @@ const SCENARIOS = [
     play(s) {
       dispatchAllAdvances(s)
       markAllCorrect(s)
-      s.applyEvent({ kind: 'submit' })
+      step(s, { kind: 'submit' })
     },
   },
   {
@@ -125,7 +125,7 @@ const SCENARIOS = [
     play(s) {
       dispatchAllAdvances(s)
       markAllCorrect(s)
-      s.applyEvent({ kind: 'submit' })
+      step(s, { kind: 'submit' })
     },
   },
   {
@@ -134,26 +134,29 @@ const SCENARIOS = [
     sgf: '(;SZ[9];B[ee])',
     play(s) {
       dispatchAllAdvances(s)
-      s.applyEvent({ kind: 'setMark', vertex: [4, 4], value: 5 }) // wrong: value=5 means "5+"
-      s.applyEvent({ kind: 'submit' })
-      s.applyEvent({ kind: 'setMark', vertex: [4, 4], value: 4 })
-      s.applyEvent({ kind: 'submit' })
+      step(s, { kind: 'setMark', vertex: [4, 4], value: 5 }) // wrong: value=5 means "5+"
+      step(s, { kind: 'submit' })
+      step(s, { kind: 'setMark', vertex: [4, 4], value: 4 })
+      step(s, { kind: 'submit' })
     },
   },
 ]
 
 function buildFixture({ name, description, sgf, play }) {
-  let s = new QuizSession(sgf, DEFAULT_CONFIG)
+  let s = init(sgf, DEFAULT_CONFIG)
   play(s)
+  // Canonical fixtures are synthetic; rewrite t values to event index
+  // so regeneration is deterministic across machines and run speeds.
+  for (let i = 0; i < s.events.length; i++) s.events[i].t = i
 
   let finalMarks = [...s.marks.entries()]
     .map(([key, m]) => ({ key, value: m.value, color: m.color }))
     .sort((a, b) => a.key.localeCompare(b.key))
 
-  let changedGroupsVertices = s.changedGroups.map(g => g.vertex)
-  let mistakes = s.totalMistakes()
-  let mistakesByGroup = s.mistakesByGroup()
-  let groupCount = s.changedGroups.length
+  let changedGroupsVertices = changedGroups(s).map(g => g.vertex)
+  let mistakes = totalMistakes(s)
+  let mbg = mistakesByGroup(s)
+  let groupCount = changedGroups(s).length
   let correct = Math.max(0, groupCount - mistakes)
 
   return {
@@ -183,7 +186,7 @@ function buildFixture({ name, description, sgf, play }) {
         total: groupCount,
         accuracy: groupCount > 0 ? correct / groupCount : 1,
         mistakes,
-        mistakesByGroup,
+        mistakesByGroup: mbg,
         groupCount,
       },
       finalMarks,
