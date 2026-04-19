@@ -2,6 +2,12 @@
 
 Items deferred from the V4 UI refactor (see `UiRefactorPlan.md`). Sorted by priority: **impact ÷ (work × risk)**, fastest-first within each priority tier. Effort tags: `[S]` under 1h, `[M]` 1–3h, `[L]` 3h+, `[XL]` multi-day.
 
+## Status
+
+**Priority 1 — all 11 items shipped** (commits C1–C11, 2026-04-18). Every P1 entry below is now historical reference. Total churn: ~180 lines deleted from src/ (engine dead code, sounds variants, autoShowFirstMove branches), 11 commits, test count 257 → 269.
+
+P2/P3/P4 items remain as-specified.
+
 ---
 
 ## Priority 1 — Do these first (high impact, low risk, short)
