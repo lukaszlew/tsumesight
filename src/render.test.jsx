@@ -1,4 +1,3 @@
-// @vitest-environment happy-dom
 import { describe, it, expect } from 'vitest'
 import { render } from '@testing-library/preact'
 import { Goban } from '@sabaki/shudan'
