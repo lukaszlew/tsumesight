@@ -2,7 +2,7 @@ import { useState, useEffect } from 'preact/hooks'
 import { getAllSgfs, addSgfBatch, deleteSgf, deleteSgfsByPrefix, renameSgfsByPrefix, clearAll, getBestScore, getLatestScoreDate, updateSgf, exportDb, downloadExport, getScores } from './db.js'
 import { starsFromScore, StarsDisplay } from './scoring.js'
 import { parseSgf } from './sgf-utils.js'
-import { siblings as siblingsAt, nextUnsolved } from './navigation.js'
+import { siblings as siblingsAt, nextUnsolved, toSelection } from './navigation.js'
 import { importFiles, importFolder, importUrl } from './importer.js'
 
 const DEFAULT_URL = 'https://files.catbox.moe/v3phv1.zip'
@@ -184,8 +184,7 @@ export function Library({ onSelect, cwd, onCwdChange }) {
   function selectNext() {
     let r = nextUnsolved(filesHere, null, scoreLookup)
     if (!r || r.reason === 'least-recent') return  // All perfect: button is hidden
-    let s = r.sgf
-    onSelect({ id: s.id, content: s.content, path: s.path || '', filename: s.filename, solved: s.solved })
+    onSelect(toSelection(r.sgf))
   }
   useEffect(() => {
     function onKeyDown(e) {
@@ -193,8 +192,7 @@ export function Library({ onSelect, cwd, onCwdChange }) {
       let r = nextUnsolved(filesHere, null, scoreLookup)
       if (!r || r.reason === 'least-recent') return
       e.preventDefault()
-      let s = r.sgf
-      onSelect({ id: s.id, content: s.content, path: s.path || '', filename: s.filename, solved: s.solved })
+      onSelect(toSelection(r.sgf))
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
@@ -360,7 +358,7 @@ export function Library({ onSelect, cwd, onCwdChange }) {
             let lp = useLongPress(() => handleDelete(s.id, s.filename))
             return (
               <div key={s.id} class={`tile file-tile${s.solved ? ' tile-solved' : ''}`}
-                onClick={() => onSelect({ id: s.id, content: s.content, path: s.path || '', filename: s.filename, solved: s.solved })} {...lp}>
+                onClick={() => onSelect(toSelection(s))} {...lp}>
                 <span class="tile-num" title="Number of moves">{s.moveCount || '?'}</span>
                 {stars > 0
                   ? <span class="tile-stars" title={`${stars}/5 stars`}>

@@ -3,7 +3,7 @@ import { Component } from 'preact'
 import { Library } from './library.jsx'
 import { Quiz } from './quiz.jsx'
 import { getAllSgfs, updateSgf, addScore, getBestScore, getLatestScoreDate, kv, kvSet, kvRemove } from './db.js'
-import { siblings as siblingsAt, stepSibling, nextUnsolved } from './navigation.js'
+import { siblings as siblingsAt, stepSibling, nextUnsolved, toSelection } from './navigation.js'
 
 class ErrorBoundary extends Component {
   state = { error: null }
@@ -76,16 +76,14 @@ export function App() {
 
   async function goStep(delta) {
     let all = await getAllSgfs()
-    let list = siblingsAt(all, active.path)
-    let next = stepSibling(list, active.id, delta)
-    if (next) selectSgf({ id: next.id, content: next.content, path: next.path || '', filename: next.filename })
+    let next = stepSibling(siblingsAt(all, active.path), active.id, delta)
+    if (next) selectSgf(toSelection(next))
   }
 
   async function goNextUnsolved() {
     let all = await getAllSgfs()
-    let list = siblingsAt(all, active.path)
-    let r = nextUnsolved(list, active.id, scoreLookup)
-    if (r) selectSgf({ id: r.sgf.id, content: r.sgf.content, path: r.sgf.path || '', filename: r.sgf.filename })
+    let r = nextUnsolved(siblingsAt(all, active.path), active.id, scoreLookup)
+    if (r) selectSgf(toSelection(r.sgf))
     else clearSgf()
   }
 

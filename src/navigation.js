@@ -5,6 +5,12 @@
 // where bestAccuracy is null if no score exists, latestDate is 0 if
 // none. Keeps the helpers testable without touching db.
 
+// The selection payload onSelect handlers expect. Normalizes `path` and
+// `solved` from whatever the source record provides.
+export function toSelection(s) {
+  return { id: s.id, content: s.content, path: s.path || '', filename: s.filename, solved: !!s.solved }
+}
+
 // SGFs at the given cwd, sorted by upload date then filename.
 export function siblings(sgfs, cwd) {
   let path = cwd || ''
