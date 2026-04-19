@@ -1,32 +1,14 @@
 import { useState, useEffect } from 'preact/hooks'
-import { getAllSgfs, addSgfBatch, deleteSgf, deleteSgfsByPrefix, renameSgfsByPrefix, clearAll, getBestScore, getLatestScoreDate, updateSgf, exportDb, downloadExport, getScores } from './db.js'
-import { starsFromScore, StarsDisplay } from './scoring.js'
+import { getAllSgfs, addSgfBatch, deleteSgf, deleteSgfsByPrefix, renameSgfsByPrefix, clearAll, getBestScore, getLatestScoreDate, updateSgf, exportDb, downloadExport } from './db.js'
 import { parseSgf } from './sgf-utils.js'
 import { siblings as siblingsAt, nextUnsolved, toSelection } from './navigation.js'
 import { importFiles, importFolder, importUrl } from './importer.js'
 import { GIT_SHA, GIT_DATE, GIT_DATE_SHORT, BUILD_TIME } from './version.js'
 import { usePwaInstall } from './usePwaInstall.js'
+import { DirTile, DirHeaderTile, FileTile } from './library-tile.jsx'
 
 const DEFAULT_URL = 'https://files.catbox.moe/v3phv1.zip'
 const isDev = location.pathname.includes('/dev/')
-
-function splitDirName(name) {
-  // Split long names into two lines at comma or dash
-  let i = name.indexOf(',')
-  if (i === -1) i = name.indexOf(' - ')
-  if (i === -1) i = name.indexOf('-')
-  if (i === -1) return name
-  let sep = name[i] === ',' ? ', ' : name.slice(i).startsWith(' - ') ? ' - ' : '-'
-  let line1 = name.slice(0, i).trim()
-  let line2 = name.slice(i + sep.length).trim()
-  return <>{line1}<br />{line2}</>
-}
-
-function scoreColor(accuracy) {
-  if (accuracy >= 0.8) return '#c8a060'
-  if (accuracy >= 0.5) return '#c80'
-  return '#c44'
-}
 
 function WelcomeMessage() {
   return (
@@ -34,15 +16,6 @@ function WelcomeMessage() {
       <p>Upload SGF files above or click <b>Fetch</b> below to load the default collection.</p>
     </div>
   )
-}
-
-function useLongPress(callback, ms = 500) {
-  let timer = null
-  let onDown = (e) => {
-    timer = setTimeout(() => { timer = null; callback(e) }, ms)
-  }
-  let cancel = () => { if (timer) { clearTimeout(timer); timer = null } }
-  return { onPointerDown: onDown, onPointerUp: cancel, onPointerLeave: cancel, onPointerCancel: cancel }
 }
 
 export function Library({ onSelect, cwd, onCwdChange }) {
@@ -294,62 +267,34 @@ export function Library({ onSelect, cwd, onCwdChange }) {
           if (p === cwd || p.startsWith(cwd + '/')) { total++; if (s.solved) solved++ }
         }
         if (total === 0) return null
-        return (
-          <div class={`dir-header-tile${solved === total ? ' dir-complete' : ''}`}>
-            <div class="dir-count" title={`${solved} of ${total} solved`}>
-              <span class="dir-count-num">{solved}</span>
-              <span class="dir-count-sep">/</span>
-              <span class="dir-count-den">{total}</span>
-            </div>
-            <div class="tile-name">{splitDirName(dirName)}</div>
-          </div>
-        )
+        return <DirHeaderTile name={dirName} solved={solved} total={total} />
       })()}
 
       {sortedDirs.length > 0 && (
         <div class="tile-grid">
-          {sortedDirs.map(d => {
-            let { solved, total } = dirStats[d]
-            return (
-              <div key={'d:' + d} class={`tile dir-tile${solved === total ? ' dir-complete' : ''}`} onClick={() => onCwdChange(prefix + d)}>
-                <div class="dir-count" title={`${solved} of ${total} solved`}>
-                  <span class="dir-count-num">{solved}</span>
-                  <span class="dir-count-sep">/</span>
-                  <span class="dir-count-den">{total}</span>
-                </div>
-                <div class="tile-name">{splitDirName(d)}</div>
-                <div class="dir-actions">
-                  <button class="dir-action-btn" title="Rename folder" onClick={e => { e.stopPropagation(); handleRenameDir(prefix + d, d) }}>&#x270E;</button>
-                  <button class="dir-action-btn dir-action-delete" title="Delete folder" onClick={e => { e.stopPropagation(); handleDeleteDir(prefix + d, d) }}>&times;</button>
-                </div>
-              </div>
-            )
-          })}
+          {sortedDirs.map(d => (
+            <DirTile
+              key={'d:' + d}
+              name={d}
+              stats={dirStats[d]}
+              onOpen={() => onCwdChange(prefix + d)}
+              onRename={() => handleRenameDir(prefix + d, d)}
+              onDelete={() => handleDeleteDir(prefix + d, d)}
+            />
+          ))}
         </div>
       )}
 
       {filesHere.length > 0 && (
         <div class="tile-grid">
-          {filesHere.map(s => {
-            let best = getBestScore(s.id)
-            let stars = best ? starsFromScore(best) : 0
-            let lp = useLongPress(() => handleDelete(s.id, s.filename))
-            return (
-              <div key={s.id} class={`tile file-tile${s.solved ? ' tile-solved' : ''}`}
-                onClick={() => onSelect(toSelection(s))} {...lp}>
-                <span class="tile-num" title="Number of moves">{s.moveCount || '?'}</span>
-                {stars > 0
-                  ? <span class="tile-stars" title={`${stars}/5 stars`}>
-                      <StarsDisplay stars={stars} wrapClass="" trophyClass="tile-trophy" medalClass="tile-medal" offClass="star-off" onClass="star-on" />
-                    </span>
-                  : <span class={`tile-acc${best && best.accuracy >= 1 ? ' tile-perfect' : ''}`}
-                      title="Best score"
-                      style={best && best.accuracy < 1 ? { color: scoreColor(best.accuracy) } : undefined}
-                    >{best ? Math.round(best.accuracy * 100) + '%' : ''}</span>
-                }
-              </div>
-            )
-          })}
+          {filesHere.map(s => (
+            <FileTile
+              key={s.id}
+              sgf={s}
+              onSelect={() => onSelect(toSelection(s))}
+              onDelete={() => handleDelete(s.id, s.filename)}
+            />
+          ))}
         </div>
       )}
     </div>
