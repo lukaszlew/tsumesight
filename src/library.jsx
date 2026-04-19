@@ -4,6 +4,7 @@ import { starsFromScore, StarsDisplay } from './scoring.js'
 import { parseSgf } from './sgf-utils.js'
 import { siblings as siblingsAt, nextUnsolved, toSelection } from './navigation.js'
 import { importFiles, importFolder, importUrl } from './importer.js'
+import { VERSION, GIT_SHA, BUILD_TIME } from './version.js'
 
 const DEFAULT_URL = 'https://files.catbox.moe/v3phv1.zip'
 const isDev = location.pathname.includes('/dev/')
@@ -271,6 +272,7 @@ export function Library({ onSelect, cwd, onCwdChange }) {
               <a class={`env-btn${isDev ? '' : ' env-active'}`} href={isDev ? '../' : undefined} onClick={() => localStorage.setItem('preferredEnv', 'prod')}>Prod</a>
               <a class={`env-btn${isDev ? ' env-active' : ''}`} href={isDev ? undefined : 'dev/'} onClick={() => localStorage.setItem('preferredEnv', 'dev')}>Dev</a>
             </div>
+            <div class="menu-version" title={BUILD_TIME || ''}>v{VERSION} · {GIT_SHA}</div>
           </div>
         </>}
       </div>

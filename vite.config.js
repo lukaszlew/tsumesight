@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite'
 import { readFileSync, writeFileSync } from 'fs'
+import { execSync } from 'child_process'
 import preact from '@preact/preset-vite'
+import pkg from './package.json' with { type: 'json' }
 
 function swVersionPlugin() {
   return {
@@ -13,7 +15,17 @@ function swVersionPlugin() {
   }
 }
 
+// Git SHA at build time. Fallback 'nogit' if git isn't available (e.g. a
+// tarball build outside the repo).
+let gitSha = 'nogit'
+try { gitSha = execSync('git rev-parse --short HEAD').toString().trim() } catch {}
+
 export default defineConfig({
   plugins: [preact(), swVersionPlugin()],
   base: '/tsumesight/',
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+    __APP_GIT_SHA__: JSON.stringify(gitSha),
+    __APP_BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+  },
 })

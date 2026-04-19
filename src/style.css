@@ -156,6 +156,13 @@ body {
   gap: 0;
   margin: 0.3rem 0.6rem;
 }
+.menu-version {
+  padding: 0.4rem 0.75rem 0.2rem;
+  font-size: 0.7rem;
+  color: #666;
+  text-align: center;
+  font-family: monospace;
+}
 .env-btn {
   flex: 1;
   padding: 0.4rem 0;
