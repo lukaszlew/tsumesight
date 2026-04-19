@@ -1,0 +1,207 @@
+{
+  "schemaVersion": 1,
+  "sgf": {
+    "content": "(;GM[1]FF[4]CA[UTF-8]AP[Converter:3]ST[2]RU[Japanese]SZ[19]KM[0.00]PW[White]PB[Black]\nAB[af][bd][bf][bj][bk][cd][cf][cg][ch][cj][dd][de][dh]\nAW[ae][bc][be][bl][cb][ce][ci][cl][df][dg][dj][dk][ec][eh][ei][fd][ff]PL[W]C[White to play.\n\nCapture race - Reduce Opponent's Liberties\n\nSource: Guan-Zhi-Pu.]\n;W[bi]\n(\n;B[di]\n;W[bh]\n;B[ah]\n;W[aj]\n;B[ak]\n;W[ag]\n;B[ad]\n(\n;W[ck]\n;B[ai]\n;W[aj]\n;B[ai]\n;W[al]C[RIGHT\n])\n(\n;W[al]\n;B[ai]\n;W[aj]\n;B[ai]\n;W[ck]C[RIGHT\n]))\n(\n;B[bh]\n;W[di]\n;B[ai]\n;W[ah]\n;B[ag]\n;W[aj]\n;B[ak]\n(\n;W[ck]\n;B[ad]\n;W[al]C[RIGHT\n])\n(\n;W[al]\n;B[ad]\n;W[ck]C[RIGHT\n])))",
+    "filename": "CAPTURE RACE (50).sgf",
+    "path": "Semeai - Intermediate",
+    "contentHash": "sha256:1d03b3389ad45d78c1fc542a1c072ba77413ce5c39edb768d4101a5b6566e4fd"
+  },
+  "config": {
+    "maxSubmits": 2,
+    "maxQuestions": 2
+  },
+  "recorded": {
+    "at": "2026-04-18T20:02:12.123Z",
+    "eventSchemaVersion": 2,
+    "viewport": null,
+    "rotated": null,
+    "source": "v2-verbose"
+  },
+  "events": [
+    {
+      "kind": "advance",
+      "t": 0
+    },
+    {
+      "kind": "advance",
+      "t": 521
+    },
+    {
+      "kind": "advance",
+      "t": 1591
+    },
+    {
+      "kind": "advance",
+      "t": 2531
+    },
+    {
+      "kind": "advance",
+      "t": 3909
+    },
+    {
+      "kind": "advance",
+      "t": 6602
+    },
+    {
+      "kind": "advance",
+      "t": 7336
+    },
+    {
+      "kind": "advance",
+      "t": 12822
+    },
+    {
+      "kind": "advance",
+      "t": 14292
+    },
+    {
+      "kind": "advance",
+      "t": 15709
+    },
+    {
+      "kind": "advance",
+      "t": 16338
+    },
+    {
+      "kind": "rewind",
+      "t": 17268
+    },
+    {
+      "kind": "advance",
+      "t": 18173
+    },
+    {
+      "kind": "advance",
+      "t": 18608
+    },
+    {
+      "kind": "advance",
+      "t": 19148
+    },
+    {
+      "kind": "advance",
+      "t": 19772
+    },
+    {
+      "kind": "advance",
+      "t": 22992
+    },
+    {
+      "kind": "advance",
+      "t": 24442
+    },
+    {
+      "kind": "advance",
+      "t": 27547
+    },
+    {
+      "kind": "advance",
+      "t": 29747
+    },
+    {
+      "kind": "advance",
+      "t": 30408
+    },
+    {
+      "kind": "advance",
+      "t": 36360
+    },
+    {
+      "kind": "advance",
+      "t": 40589
+    },
+    {
+      "kind": "advance",
+      "t": 50307
+    },
+    {
+      "kind": "advance",
+      "t": 52085
+    },
+    {
+      "kind": "advance",
+      "t": 58128
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        1,
+        5
+      ],
+      "value": 5,
+      "t": 67930
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        5,
+        9
+      ],
+      "value": 0,
+      "t": 69929
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        5,
+        9
+      ],
+      "value": 1,
+      "t": 70570
+    },
+    {
+      "kind": "submit",
+      "t": 71282
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        1,
+        5
+      ],
+      "value": 4,
+      "t": 73821
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        0,
+        6
+      ],
+      "value": 1,
+      "t": 77259
+    },
+    {
+      "kind": "submit",
+      "t": 78009
+    }
+  ],
+  "goldens": {
+    "scoreEntry": {
+      "correct": 0,
+      "total": 6,
+      "accuracy": 0,
+      "totalMs": 78683,
+      "mistakes": 11,
+      "errors": 11,
+      "date": 1776542532123,
+      "thresholdMs": 31500,
+      "cupMs": 31500,
+      "parScore": 91.5,
+      "accPoints": 5,
+      "speedPoints": 0,
+      "groupCount": 6,
+      "mistakesByGroup": [
+        1,
+        2,
+        2,
+        2,
+        2,
+        2
+      ]
+    },
+    "finalMarks": null,
+    "submitResults": null,
+    "changedGroupsVertices": null
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "sgf": {
+    "content": "(;GM[1]FF[4]CA[UTF-8]AP[Converter:3]ST[2]RU[Japanese]SZ[19]KM[0.00]PW[White]PB[Black]\nAB[bd][bf][cd][cf][cg][db][de][df][eb][ec][ed][fc][gb][gd][hd]\nAW[bc][bg][bh][cb][cc][ch][dc][dd][dg][ee][ef][fd][fe][gc][ge]PL[W]C[White to play.\n\nCapture race - Reduce Opponent's Liberties\n\nSource: Guan-Zhi-Pu.]\n(\n;W[ae]\n;B[ad]\n;W[be]C[RIGHT\n])\n(\n;W[af]\n;B[ae]\n;W[ag]\n;B[ab]\n;W[be]\n;B[ce]\n;W[ac]\n;B[ca]\n;W[ba]\n;B[da]C[Both Alive]))",
+    "filename": "CAPTURE RACE (48).sgf",
+    "path": "Semeai - Intermediate",
+    "contentHash": "sha256:c72c206e45ca4217667e5496500d6371ce0a1e2f3345d7760e8ee2f25b5d78d6"
+  },
+  "config": {
+    "maxSubmits": 2,
+    "maxQuestions": 2
+  },
+  "recorded": {
+    "at": "2026-04-18T19:24:18.226Z",
+    "eventSchemaVersion": 2,
+    "viewport": null,
+    "rotated": null,
+    "source": "v2-verbose"
+  },
+  "events": [
+    {
+      "kind": "advance",
+      "t": 0
+    },
+    {
+      "kind": "advance",
+      "t": 415
+    },
+    {
+      "kind": "advance",
+      "t": 882
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        1,
+        3
+      ],
+      "value": 3,
+      "t": 4121
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        0,
+        4
+      ],
+      "value": 2,
+      "t": 5112
+    },
+    {
+      "kind": "submit",
+      "t": 6592
+    },
+    {
+      "kind": "rewind",
+      "t": 9499
+    },
+    {
+      "kind": "advance",
+      "t": 9924
+    },
+    {
+      "kind": "advance",
+      "t": 10263
+    },
+    {
+      "kind": "advance",
+      "t": 10617
+    },
+    {
+      "kind": "submit",
+      "t": 15211
+    }
+  ],
+  "goldens": {
+    "scoreEntry": {
+      "correct": 0,
+      "total": 3,
+      "accuracy": 0,
+      "totalMs": 15895,
+      "mistakes": 4,
+      "errors": 4,
+      "date": 1776540258226,
+      "thresholdMs": 12000,
+      "cupMs": 12000,
+      "parScore": 42,
+      "accPoints": 10,
+      "speedPoints": 8,
+      "groupCount": 3,
+      "mistakesByGroup": [
+        2,
+        0,
+        2
+      ]
+    },
+    "finalMarks": null,
+    "submitResults": null,
+    "changedGroupsVertices": null
+  }
+}
