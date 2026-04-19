@@ -70,13 +70,19 @@ cursor > totalMoves, !hasExercise → 'finished'
 src/
   main.jsx              Bootstrap: PWA env redirect, kv load, render <App>
   app.jsx               Route: <Library> or <Quiz> based on active sgf
-  library.jsx           File browser + uploads + hamburger menu
+  error-boundary.jsx    <ErrorBoundary> around Quiz subtree
+
+  library.jsx           File browser: loads sgfs, cwd, dir stats, keyboard
+  library-menu.jsx      <LibraryMenu> hamburger + uploads + env + version
+  library-tile.jsx      <DirTile>, <DirHeaderTile>, <FileTile>
+  usePwaInstall.js      beforeinstallprompt wiring → {canInstall, install}
+
   quiz.jsx              Orchestrator: events state, dispatch, layout, keyboard
   quiz-board.jsx        <QuizBoard> + pickBoardLayout; renders Goban
   quiz-wheel.jsx        <RadialMenu> + useWheel hook (pointer gesture)
   quiz-finish.jsx       <FinishPopup> + <StatsBar>
 
-  session.js            init, step (reducer), pure selectors
+  session.js            init, step (reducer), pure selectors, MISSED sentinel
   derive.js             derive(state) → view
   display.js            buildMaps, rotateMaps, orderGroupsByDisplay
   effects.js            sideEffectsFor, computeFinalizeData
@@ -90,9 +96,11 @@ src/
   archive.js            isArchive, extractSgfs (.zip / .tar / .tar.gz)
   db.js                 IndexedDB wrapper + kv cache
 
-  config.js             Compile-time constants
+  config.js             Compile-time constants (cup timings, flash, etc.)
+  version.js            Git SHA / commit date surfaced in hamburger menu
   fixture-schema.js     SCHEMA_VERSION, EVENT_SCHEMA_VERSION constants
   fixture-migrate.js    Migration chain (stub for future bumps)
+  test-setup.js         fake-indexeddb polyfill for vitest env
 ```
 
 ## Quiz engine (`engine.js`)
