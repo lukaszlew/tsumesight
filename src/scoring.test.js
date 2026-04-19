@@ -10,9 +10,10 @@ import {
 } from './scoring.js'
 
 describe('computeParScore', () => {
-  it('is 20 per group plus cup seconds', () => {
-    expect(computeParScore(3, 10_000)).toBe(70)     // 60 + 10
-    expect(computeParScore(0, 5_000)).toBe(5)
+  it('is 20 per group plus half the max time window in seconds', () => {
+    // maxTimeMs = 20_000 → half = 10s → 20·3 + 10 = 70
+    expect(computeParScore(3, 20_000)).toBe(70)
+    expect(computeParScore(0, 10_000)).toBe(5)
     expect(computeParScore(5, 0)).toBe(100)
   })
 })
@@ -28,16 +29,16 @@ describe('computeAccPoints', () => {
 })
 
 describe('computeSpeedPoints', () => {
-  it('gives 1 point per second under 2x cup, rounded, floored at 0', () => {
-    let cupMs = 10_000
+  it('drops linearly from maxTimeMs/1000 at t=0 to 0 at t=maxTimeMs', () => {
+    let maxTimeMs = 20_000
     // elapsed 5s → 20 - 5 = 15
-    expect(computeSpeedPoints(5_000, cupMs)).toBe(15)
-    // elapsed 20s → 0
-    expect(computeSpeedPoints(20_000, cupMs)).toBe(0)
-    // elapsed 25s → clamped to 0
-    expect(computeSpeedPoints(25_000, cupMs)).toBe(0)
-    // rounding: 14.4s → 2*10 - 14.4 = 5.6 → round → 6
-    expect(computeSpeedPoints(14_400, cupMs)).toBe(6)
+    expect(computeSpeedPoints(5_000, maxTimeMs)).toBe(15)
+    // elapsed 20s → 0 (at the cap)
+    expect(computeSpeedPoints(20_000, maxTimeMs)).toBe(0)
+    // elapsed 25s → still 0 (clamped)
+    expect(computeSpeedPoints(25_000, maxTimeMs)).toBe(0)
+    // rounding: 14.4s → 20 - 14.4 = 5.6 → round → 6
+    expect(computeSpeedPoints(14_400, maxTimeMs)).toBe(6)
   })
 })
 

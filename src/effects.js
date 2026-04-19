@@ -66,10 +66,14 @@ export function computeFinalizeData(state, ctx) {
   let mistakes = totalMistakes(state)
   let mbg = mistakesByGroup(state)
   let elapsedMs = Math.round(performance.now() - ctx.loadTimeMs)
-  let cupMs = (config.cupBaseSec + state.totalMoves * config.cupPerMoveSec + groupCount * config.cupPerGroupSec) * 1000
-  let parScore = computeParScore(groupCount, cupMs)
+  // Max time window (ms). Speed bonus starts full here at t=0 and
+  // drops linearly to zero at t = maxTimeMs. Config stays in natural
+  // "seconds per move" units; we compute the window as 2× the per-move
+  // budget so that parScore's "half the window" convention lines up.
+  let maxTimeMs = 2 * (config.cupBaseSec + state.totalMoves * config.cupPerMoveSec + groupCount * config.cupPerGroupSec) * 1000
+  let parScore = computeParScore(groupCount, maxTimeMs)
   let accPoints = computeAccPoints(mistakes, groupCount)
-  let speedPoints = computeSpeedPoints(elapsedMs, cupMs)
+  let speedPoints = computeSpeedPoints(elapsedMs, maxTimeMs)
   let stars = computeStars(accPoints, speedPoints, mistakes, parScore)
 
   let displayIdx = orderGroupsByDisplay(groups, ctx.rotated)
@@ -82,7 +86,11 @@ export function computeFinalizeData(state, ctx) {
   let scoreEntry = {
     correct, total, accuracy,
     totalMs: elapsedMs, mistakes, errors: mistakes, date,
-    thresholdMs: cupMs, cupMs, parScore, accPoints, speedPoints, groupCount, mistakesByGroup: mbg,
+    // thresholdMs kept for starsFromScore's legacy-format fallback;
+    // it's the "finish-within-this-to-get-5★-on-time" threshold,
+    // which is half the max time window.
+    thresholdMs: maxTimeMs / 2, maxTimeMs,
+    parScore, accPoints, speedPoints, groupCount, mistakesByGroup: mbg,
   }
 
   let finalMarks = [...state.marks.entries()].map(([key, m]) => ({ key, value: m.value, color: m.color }))
@@ -111,7 +119,7 @@ export function computeFinalizeData(state, ctx) {
       mistakes, accPoints, speedPoints, stars, parScore,
       pointsByGroup: orderedPointsByGroup,
       maxGroups: 20 * groupCount,
-      maxSpeed: Math.round(2 * (cupMs / 1000)),
+      maxSpeed: Math.round(maxTimeMs / 1000),
     },
   }
 }

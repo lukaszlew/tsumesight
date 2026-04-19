@@ -1,12 +1,12 @@
 import { h } from 'preact'
 
-// Per-problem 5★ benchmark: perfect accuracy (20·groupCount) + par
-// time (cupSec). Together with the doubled accPoints the denominator
-// is big enough that each mistake's −10 pts shows up as a meaningful
-// ratio drop — stars fall faster with mistakes than under the old
-// 10·groupCount scoring.
-export function computeParScore(groupCount, cupMs) {
-  return 20 * groupCount + (cupMs / 1000)
+// 5★ benchmark: perfect accuracy (20·groupCount) plus half the max
+// time window. Hitting ratio ≥ 1 means either finishing inside the
+// half-budget with perfect play, or compensating time with more
+// accuracy — though max acc alone doesn't reach parScore (speed
+// contribution is required for ratio 1.0 at perfect acc).
+export function computeParScore(groupCount, maxTimeMs) {
+  return 20 * groupCount + (maxTimeMs / 2000)
 }
 
 // Accuracy points: 20 per group, −10 per mistake (max 2 mistakes per group under 2-try cap).
@@ -14,9 +14,10 @@ export function computeAccPoints(mistakes, groupCount) {
   return Math.max(0, 20 * groupCount - 10 * mistakes)
 }
 
-// Speed points: 1 per second of headroom under 2×cup, 0 if slower.
-export function computeSpeedPoints(elapsedMs, cupMs) {
-  return Math.max(0, Math.round(2 * (cupMs / 1000) - elapsedMs / 1000))
+// Speed points: linear from `maxTimeMs/1000` at t=0 down to 0 at
+// elapsed = maxTimeMs. After that, clamped at 0.
+export function computeSpeedPoints(elapsedMs, maxTimeMs) {
+  return Math.max(0, Math.round((maxTimeMs - elapsedMs) / 1000))
 }
 
 // Stars from points: fractions of par score, with 5★ requiring 0 mistakes.

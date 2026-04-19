@@ -13,8 +13,11 @@ export default {
   // Duration (ms) of the red-flash on a wrong submit.
   wrongFlashMs: 150,
 
-  // Par time: cupMs = (cupBaseSec + totalMoves*cupPerMoveSec + groups*cupPerGroupSec) * 1000
-  // Used by scoring.js:computeSpeedPoints to set the "comfortable" completion time.
+  // Time budget for speed bonus. The full max-time window in seconds is
+  // 2 × (cupBaseSec + totalMoves·cupPerMoveSec + groupCount·cupPerGroupSec).
+  // Config stays in per-move/per-group units so tuning "how much time per
+  // move?" is natural; the doubling to produce the full window happens at
+  // the effects.js call site.
   cupBaseSec: 3,
   cupPerMoveSec: 1.5,
   cupPerGroupSec: 1.5,

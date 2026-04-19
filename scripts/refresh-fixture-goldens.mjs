@@ -2,7 +2,9 @@
 // Re-fold each fixture's events through current session code and
 // overwrite the recorded `scoreEntry` computed fields in-place:
 //   mistakes, errors, mistakesByGroup, correct, accuracy,
-//   accPoints, parScore, cupMs, thresholdMs
+//   accPoints, parScore, maxTimeMs, thresholdMs.
+// Also deletes the legacy `cupMs` field if present (replaced by
+// maxTimeMs).
 //
 // Use when a rule or coefficient change shifts what the reducer or
 // scoring formulas produce for the same event stream. Without this,
@@ -42,8 +44,8 @@ for (let f of fs.readdirSync(dir)) {
   let correct = Math.max(0, total - mistakes)
   let accuracy = total > 0 ? correct / total : 1
 
-  let cupMs = (config.cupBaseSec + s.totalMoves * config.cupPerMoveSec + total * config.cupPerGroupSec) * 1000
-  let parScore = computeParScore(total, cupMs)
+  let maxTimeMs = 2 * (config.cupBaseSec + s.totalMoves * config.cupPerMoveSec + total * config.cupPerGroupSec) * 1000
+  let parScore = computeParScore(total, maxTimeMs)
   let accPoints = computeAccPoints(mistakes, total)
 
   let se = fx.goldens?.scoreEntry
@@ -65,8 +67,17 @@ for (let f of fs.readdirSync(dir)) {
   set('accuracy', accuracy)
   set('accPoints', accPoints)
   set('parScore', parScore)
-  set('cupMs', cupMs)
-  set('thresholdMs', cupMs)
+  set('thresholdMs', maxTimeMs / 2)
+  set('maxTimeMs', maxTimeMs)
+  // Migrate legacy cupMs → maxTimeMs: if cupMs was present, the fixture
+  // carries time-budget goldens and should now have maxTimeMs too.
+  // Canonical fixtures that omit cupMs also omit maxTimeMs — leave them
+  // minimal.
+  if ('cupMs' in se) {
+    if (se.maxTimeMs !== maxTimeMs) { se.maxTimeMs = maxTimeMs; changed = true }
+    delete se.cupMs
+    changed = true
+  }
 
   if (changed) {
     fs.writeFileSync(filePath, JSON.stringify(fx, null, 2) + '\n')
