@@ -436,6 +436,7 @@ P0 (fixtures) ──┬──► P1 ──► P2 ──► P2.5
 Filled in as phases land. Intentional behavior shifts; users will notice these even though they are not regressions.
 
 - **P2 — canonical fixture timestamps deterministic.** The generator (`scripts/gen-canonical-fixtures.mjs`) now overwrites `event.t` with the event index after constructing a session, so regeneration is bit-identical across machines and run speeds. User-recorded fixtures are untouched (their `t` values come from the original session's clock).
+- **P2.5 — eager event persistence; start-fresh on reopen.** Every dispatched event now mirrors to `kv('session:<sgfId>:<startTime>')`. Abandoning a puzzle mid-play leaves a `session:*` key in kv (preserved as raw history; never cleaned up). Reopening an unsolved puzzle **always starts fresh** — previous `session:*` records are not loaded back into the UI. Solved-puzzle review (`wasSolved && restored`) still folds the latest `replay:*` record as before.
 
 ## Definition of Done
 

@@ -5,7 +5,7 @@ import {
   changedGroups, mistakesByGroup, totalMistakes, pointsByGroup,
 } from './session.js'
 import { playCorrect, playWrong, playComplete, playStoneClick, playMark, resetStreak, isSoundEnabled, toggleSound } from './sounds.js'
-import { kv, getScores, addReplay, getLatestReplay } from './db.js'
+import { kv, kvSet, getScores, addReplay, getLatestReplay } from './db.js'
 import config from './config.js'
 import { computeStars, computeParScore, computeAccPoints, computeSpeedPoints, StarsDisplay } from './scoring.js'
 
@@ -156,6 +156,11 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
   let prevSubmitCountRef = useRef(0)
   let startTimeRef = useRef(null)
   let loadTimeRef = useRef(performance.now())
+  // Key under which the live event log is persisted in kv. Set lazily on
+  // first dispatch so review-mode mounts don't create a spurious session
+  // record. On finalize, the enriched replay is written to `replay:*`
+  // via addReplay; this session:* key stays in place as raw history.
+  let sessionKeyRef = useRef(null)
   // Layout + UI-only state (not session state)
   let [vertexSize, setVertexSize] = useState(0)
   let [rotated, setRotated] = useState(false)
@@ -185,11 +190,26 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
   }, [])
 
   // Dispatch: append an event. Sets t relative to the first event's time.
+  // First dispatch also pins the session kv key so the live event log
+  // survives a reload.
   function dispatch(evt) {
-    if (startTimeRef.current == null) startTimeRef.current = performance.now()
+    if (startTimeRef.current == null) {
+      startTimeRef.current = performance.now()
+      sessionKeyRef.current = `session:${sgfId}:${Date.now()}`
+    }
     let t = evt.t ?? Math.round(performance.now() - startTimeRef.current)
     setEvents(e => [...e, { ...evt, t }])
   }
+
+  // Eager persistence: on every events change, mirror the full log into
+  // kv. Review-mode sessions (autoSolved) skip this — they'd just
+  // duplicate an already-finalized replay.
+  useEffect(() => {
+    if (initState.autoSolved) return
+    if (!sessionKeyRef.current) return
+    if (events.length === 0) return
+    kvSet(sessionKeyRef.current, JSON.stringify(events))
+  }, [events])
 
   // Per-event sound effects. Walks from lastEventIdxRef to the current end.
   useEffect(() => {
