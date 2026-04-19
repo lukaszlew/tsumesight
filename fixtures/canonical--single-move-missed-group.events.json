@@ -38,12 +38,12 @@
   ],
   "goldens": {
     "scoreEntry": {
-      "correct": 1,
+      "correct": 0,
       "total": 1,
-      "accuracy": 1,
-      "mistakes": 0,
+      "accuracy": 0,
+      "mistakes": 2,
       "mistakesByGroup": [
-        0
+        2
       ],
       "groupCount": 1
     },

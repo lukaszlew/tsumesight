@@ -132,17 +132,17 @@
   ],
   "goldens": {
     "scoreEntry": {
-      "correct": 6,
+      "correct": 5,
       "total": 6,
-      "accuracy": 1,
+      "accuracy": 0.8333333333333334,
       "totalMs": 19361,
-      "mistakes": 0,
-      "errors": 0,
+      "mistakes": 1,
+      "errors": 1,
       "date": 1776542428454,
       "thresholdMs": 25500,
       "cupMs": 25500,
       "parScore": 145.5,
-      "accPoints": 120,
+      "accPoints": 110,
       "speedPoints": 32,
       "groupCount": 6,
       "mistakesByGroup": [
@@ -150,7 +150,7 @@
         0,
         0,
         0,
-        0,
+        1,
         0
       ]
     },
