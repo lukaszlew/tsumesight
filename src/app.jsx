@@ -1,33 +1,9 @@
 import { useState } from 'preact/hooks'
-import { Component } from 'preact'
 import { Library } from './library.jsx'
 import { Quiz } from './quiz.jsx'
 import { getAllSgfs, updateSgf, addScore, getBestScore, getLatestScoreDate, kv, kvSet, kvRemove } from './db.js'
 import { siblings as siblingsAt, stepSibling, nextUnsolved, toSelection } from './navigation.js'
-
-class ErrorBoundary extends Component {
-  state = { error: null }
-  componentDidCatch(error) {
-    kvRemove('activeSgf')
-    this.setState({ error: error.message })
-  }
-  render() {
-    if (this.state.error) {
-      return (
-        <div class="quiz">
-          <div class="summary-overlay">
-            <h2>Something went wrong</h2>
-            <p>{this.state.error}</p>
-            <button class="back-btn" onClick={() => { this.setState({ error: null }); this.props.onReset() }}>
-              Back to Library
-            </button>
-          </div>
-        </div>
-      )
-    }
-    return this.props.children
-  }
-}
+import { ErrorBoundary } from './error-boundary.jsx'
 
 export function App() {
   const [active, setActive] = useState(() => {
