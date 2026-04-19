@@ -2,7 +2,8 @@
 
 Behavior requirements collected from design conversations. These are the
 user-facing rules that drive the session model and UI. For implementation
-detail, see `REFACTOR_SPEC.md` (model) and the code.
+detail, see `ARCHITECTURE.md` (module layout + V4 data flow) and
+`src/session.js` (the step reducer + selectors).
 
 ## Session lifecycle
 
