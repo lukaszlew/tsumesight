@@ -16,12 +16,14 @@ function swVersionPlugin() {
 }
 
 // Git identity at build time. Fallbacks if git isn't reachable (e.g. a
-// tarball build outside the repo).
+// tarball build outside the repo). The `--` disambiguates HEAD as a
+// revision — this repo has a `HEAD` file at root that confuses plain
+// `git show HEAD` otherwise.
 let gitSha = 'nogit'
 let gitDate = ''
 try {
   gitSha = execSync('git rev-parse --short HEAD').toString().trim()
-  gitDate = execSync('git show -s --format=%cI HEAD').toString().trim()
+  gitDate = execSync('git show -s --format=%cI HEAD --').toString().trim()
 } catch {}
 
 export default defineConfig({
