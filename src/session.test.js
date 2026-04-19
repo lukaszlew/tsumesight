@@ -238,7 +238,7 @@ describe('session — finalization rules', () => {
 })
 
 describe('session — mistake counting (fold over submits)', () => {
-  it('counts per-submit wrongs, capped at 2 per group', () => {
+  it('counts per-submit wrongs under 2-try cap → 2 mistakes → 6 pts', () => {
     let s = init('(;SZ[9];B[ee])', { maxSubmits: 2 })
     step(s, { kind: 'advance' })
     step(s, { kind: 'advance' })
@@ -247,10 +247,23 @@ describe('session — mistake counting (fold over submits)', () => {
     step(s, { kind: 'submit' })  // still wrong, force-commit
     let mbg = mistakesByGroup(s)
     expect(mbg).toEqual([2])
-    expect(pointsByGroup(mbg)).toEqual([0])    // 2 mistakes → 0 pts
+    expect(pointsByGroup(mbg)).toEqual([6])    // schedule[2] = 6
   })
 
-  it('1 wrong then correct → 1 mistake → 10 pts', () => {
+  it('3 wrong submits under 3-try cap → 3 mistakes → 0 pts', () => {
+    let s = init('(;SZ[9];B[ee])', { maxSubmits: 3 })
+    step(s, { kind: 'advance' })
+    step(s, { kind: 'advance' })
+    step(s, { kind: 'setMark', vertex: [4, 4], value: 2 })
+    step(s, { kind: 'submit' })
+    step(s, { kind: 'submit' })
+    step(s, { kind: 'submit' })   // force-commit at 3
+    let mbg = mistakesByGroup(s)
+    expect(mbg).toEqual([3])
+    expect(pointsByGroup(mbg)).toEqual([0])    // schedule[3] = 0
+  })
+
+  it('1 wrong then correct → 1 mistake → 12 pts', () => {
     let s = init('(;SZ[9];B[ee])', { maxSubmits: 2 })
     step(s, { kind: 'advance' })
     step(s, { kind: 'advance' })
@@ -260,7 +273,7 @@ describe('session — mistake counting (fold over submits)', () => {
     step(s, { kind: 'submit' })
     let mbg = mistakesByGroup(s)
     expect(mbg).toEqual([1])
-    expect(pointsByGroup(mbg)).toEqual([10])   // 1 mistake → 10 pts
+    expect(pointsByGroup(mbg)).toEqual([12])   // schedule[1] = 12
   })
 
   it('all correct first try → 0 mistakes → 20 pts', () => {

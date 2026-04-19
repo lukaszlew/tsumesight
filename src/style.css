@@ -928,8 +928,9 @@ body {
   line-height: 1.4;
 }
 .finish-breakdown td {
-  padding: .1em .4em;
+  padding: 0 .3em;
   white-space: nowrap;
+  line-height: 1.15;
 }
 .finish-breakdown .b-label {
   text-align: right;
@@ -980,6 +981,27 @@ body {
   color: #888;
   font-weight: normal;
   margin: 0 .1em;
+}
+.finish-breakdown .b-bucket-row .b-eq,
+.finish-breakdown .b-bucket-row .b-plus {
+  text-align: right;
+}
+.finish-breakdown .b-schedule {
+  text-align: left;
+  color: #888;
+  font-size: .95em;
+}
+.finish-breakdown .b-bucket-row td {
+  padding: 0 .3em;
+  line-height: 1.1;
+}
+.finish-breakdown .b-bucket {
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+.finish-breakdown .b-bucket-n {
+  color: #5c5;
+  font-weight: bold;
 }
 .finish-thresholds {
   margin: .6em auto 0;

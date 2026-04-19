@@ -1,6 +1,6 @@
 {
   "totalMoves": 1,
-  "eventCount": 4,
+  "eventCount": 5,
   "finalPhase": "finished",
   "timeline": [
     {
@@ -83,10 +83,10 @@
       },
       "state": {
         "cursor": 2,
-        "phase": "finished",
+        "phase": "exercise",
         "hasExercise": true,
         "submitCount": 2,
-        "finalized": true,
+        "finalized": false,
         "marks": [
           {
             "key": "4,4",
@@ -106,8 +106,46 @@
             }
           ]
         ],
+        "mistakesByGroup": null
+      }
+    },
+    {
+      "event": {
+        "kind": "submit",
+        "t": 4
+      },
+      "state": {
+        "cursor": 2,
+        "phase": "finished",
+        "hasExercise": true,
+        "submitCount": 3,
+        "finalized": true,
+        "marks": [
+          {
+            "key": "4,4",
+            "value": "?",
+            "color": "red"
+          }
+        ],
+        "submitResults": [
+          [
+            {
+              "status": "missed"
+            }
+          ],
+          [
+            {
+              "status": "missed"
+            }
+          ],
+          [
+            {
+              "status": "missed"
+            }
+          ]
+        ],
         "mistakesByGroup": [
-          2
+          3
         ]
       }
     }

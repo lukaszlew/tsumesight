@@ -9,22 +9,26 @@ import {
   starLabel,
 } from './scoring.js'
 
+const SCHEDULE = [20, 12, 6, 0]
+
 describe('computeParScore', () => {
-  it('is 20 per group plus half the max time window in seconds', () => {
+  it('is schedule[0] per group plus half the max time window in seconds', () => {
     // maxTimeMs = 20_000 → half = 10s → 20·3 + 10 = 70
-    expect(computeParScore(3, 20_000)).toBe(70)
-    expect(computeParScore(0, 10_000)).toBe(5)
-    expect(computeParScore(5, 0)).toBe(100)
+    expect(computeParScore(3, 20_000, SCHEDULE)).toBe(70)
+    expect(computeParScore(0, 10_000, SCHEDULE)).toBe(5)
+    expect(computeParScore(5, 0, SCHEDULE)).toBe(100)
   })
 })
 
 describe('computeAccPoints', () => {
-  it('is 20 per group minus 10 per mistake, floored at 0', () => {
-    expect(computeAccPoints(0, 3)).toBe(60)
-    expect(computeAccPoints(1, 3)).toBe(50)
-    expect(computeAccPoints(2, 3)).toBe(40)
-    expect(computeAccPoints(6, 3)).toBe(0)   // 60-60
-    expect(computeAccPoints(100, 3)).toBe(0) // clamped
+  it('sums schedule[mᵢ] across groups; last entry is floor', () => {
+    expect(computeAccPoints([0, 0, 0], SCHEDULE)).toBe(60)
+    expect(computeAccPoints([1, 0, 0], SCHEDULE)).toBe(52)   // 12+20+20
+    expect(computeAccPoints([2, 0, 0], SCHEDULE)).toBe(46)   // 6+20+20
+    expect(computeAccPoints([3, 0, 0], SCHEDULE)).toBe(40)   // 0+20+20
+    expect(computeAccPoints([3, 3, 3], SCHEDULE)).toBe(0)
+    expect(computeAccPoints([100, 0, 0], SCHEDULE)).toBe(40) // clamped to last entry
+    expect(computeAccPoints([], SCHEDULE)).toBe(0)
   })
 })
 

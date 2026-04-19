@@ -5,12 +5,17 @@ import { getScores } from './db.js'
 // threshold tiers, and a close button. `data` is the popupData field
 // produced by computeFinalizeData (effects.js).
 export function FinishPopup({ data, onClose }) {
-  let counts = [
-    { n: data.pointsByGroup.filter(p => p === 10).length, v: 10, cls: 'b-num', cntCls: 'b-count-good' },
-    { n: data.pointsByGroup.filter(p => p === 5).length, v: 5, cls: 'b-num', cntCls: 'b-count-bad' },
-    { n: data.pointsByGroup.filter(p => p === 0).length, v: 0, cls: 'b-zero', cntCls: 'b-count-bad' },
-  ].filter(c => c.n > 0)
-
+  let schedule = data.schedule
+  let lastIdx = schedule.length - 1
+  let buckets = schedule
+    .map((v, i) => ({ v, i, n: data.pointsByGroup.filter(p => p === v).length }))
+    .filter(b => b.n > 0)
+  let mistakeLabel = i => {
+    if (i === lastIdx) return 'never'
+    let n = i + 1
+    let suffix = n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'
+    return `${n}${suffix} try`
+  }
   return (
     <div class="finish-popup">
       <StarsDisplay stars={data.stars} wrapClass="finish-stars" trophyClass="finish-trophy" medalClass="finish-medal" offClass="star-off" />
@@ -18,25 +23,24 @@ export function FinishPopup({ data, onClose }) {
       <table class="finish-breakdown"><tbody>
         <tr>
           <td class="b-label">groups:</td>
-          <td class="b-total-col"><span class="b-total">{data.accPoints}</span></td>
-          <td class="b-eq">=</td>
-          <td class="b-sum">
-            {counts.map((c, i) => <span key={i}>
-              {i > 0 && <span class="b-plus"> + </span>}
-              <span class={c.cls}>{c.v}</span><span class="b-times">×</span><span class={c.cntCls}>{c.n}</span>
-            </span>)}
-            <span class="b-unit"> (max {data.maxGroups})</span>
-          </td>
+          <td class="b-sum"><span class="b-total">{data.accPoints}</span></td>
+          <td class="b-schedule">(max {data.maxGroups})</td>
         </tr>
+        {buckets.map((b, i) => (
+          <tr key={i} class="b-bucket-row">
+            <td class={i === 0 ? 'b-eq' : 'b-plus'}>{i === 0 ? '=' : '+'}</td>
+            <td class="b-bucket">
+              <span class="b-bucket-n">{b.n}</span>
+              <span class="b-times">×</span>
+              <span class={b.v === 0 ? 'b-zero' : 'b-num'}>{b.v}</span>
+            </td>
+            <td class="b-schedule">({mistakeLabel(b.i)})</td>
+          </tr>
+        ))}
         <tr>
           <td class="b-label">time:</td>
-          <td class="b-total-col"><span class="b-total">{data.speedPoints}</span></td>
-          <td class="b-eq">=</td>
-          <td class="b-sum">
-            <span class="b-num">{data.maxSpeed}</span><span class="b-unit"> (max)</span>
-            <span class="b-eq"> − </span>
-            <span class="b-count">{data.elapsedSec}</span><span class="b-unit">s</span>
-          </td>
+          <td class="b-sum"><span class="b-total">{data.speedPoints}</span></td>
+          <td class="b-schedule">(max {data.maxSpeed} − took {data.elapsedSec}s)</td>
         </tr>
       </tbody></table>
       <table class="finish-thresholds"><tbody>

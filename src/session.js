@@ -1,4 +1,5 @@
 import { QuizEngine } from './engine.js'
+import config from './config.js'
 
 // Sentinel value stored in state.marks for a "missed" changed group —
 // no user mark was placed on any of its stones at submit time. Persisted
@@ -47,7 +48,7 @@ function vertexKey(v) {
 //
 // Phase, finalized, changedGroups, etc. are derived selectors.
 
-export function init(sgf, { maxSubmits = 2, maxQuestions = 2 } = {}) {
+export function init(sgf, { maxSubmits = 3, maxQuestions = 2 } = {}) {
   let engine = new QuizEngine(sgf, true, maxQuestions)
   return {
     sgf,
@@ -224,8 +225,10 @@ function _doSubmit(state) {
   }
 }
 
-// Pure fold over mistakesByGroup; returns per-group point values.
-// Mirrors the rule in scoring.js: [20, 10, 0] for [0, 1, 2+] mistakes per group.
+// Pure fold over mistakesByGroup; returns per-group point values using
+// the schedule defined in config.pointsByMistakes. Last schedule entry
+// is the floor (applies for any mᵢ past its index).
 export function pointsByGroup(mistakesByGroup) {
-  return mistakesByGroup.map(m => [20, 10, 0][Math.min(m, 2)])
+  let schedule = config.pointsByMistakes
+  return mistakesByGroup.map(m => schedule[Math.min(m, schedule.length - 1)])
 }

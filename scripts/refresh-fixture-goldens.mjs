@@ -56,8 +56,9 @@ for (let f of fs.readdirSync(dir)) {
   let accuracy = total > 0 ? correct / total : 1
 
   let maxTimeMs = 2 * (config.cupBaseSec + s.totalMoves * config.cupPerMoveSec + total * config.cupPerGroupSec) * 1000
-  let parScore = computeParScore(total, maxTimeMs)
-  let accPoints = computeAccPoints(mistakes, total)
+  let schedule = config.pointsByMistakes
+  let parScore = computeParScore(total, maxTimeMs, schedule)
+  let accPoints = computeAccPoints(mbg, schedule)
 
   let se = fx.goldens?.scoreEntry
   if (!se) { unchanged++; continue }

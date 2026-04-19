@@ -69,21 +69,23 @@ const SCENARIOS = [
   },
   {
     name: 'single-move-force-commit',
-    description: 'Two wrong submits — force-commit at maxSubmits',
+    description: 'Three wrong submits — force-commit at maxSubmits',
     sgf: '(;SZ[9];B[ee])',
     play(s) {
       dispatchAllAdvances(s)
       step(s, { kind: 'setMark', vertex: [4, 4], value: 2 })
       step(s, { kind: 'submit' })
       step(s, { kind: 'submit' })
+      step(s, { kind: 'submit' })
     },
   },
   {
     name: 'single-move-missed-group',
-    description: 'Submit with no marks; group shows as missed',
+    description: 'Submit with no marks; group shows as missed after force-commit',
     sgf: '(;SZ[9];B[ee])',
     play(s) {
       dispatchAllAdvances(s)
+      step(s, { kind: 'submit' })
       step(s, { kind: 'submit' })
       step(s, { kind: 'submit' })
     },

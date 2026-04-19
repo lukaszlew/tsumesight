@@ -7,7 +7,7 @@
     "contentHash": "sha256:9bd13f1618f9b4afce348e1a5a02e4e21009651bb7beb2e4ab61137b7cdc2ed9"
   },
   "config": {
-    "maxSubmits": 2,
+    "maxSubmits": 3,
     "maxQuestions": 2
   },
   "recorded": {

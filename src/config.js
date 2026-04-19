@@ -8,7 +8,12 @@ export default {
 
   // Maximum number of Done presses per exercise. After this many submits,
   // the current marks are force-committed regardless of correctness.
-  maxSubmits: 2,
+  maxSubmits: 3,
+
+  // Per-group accuracy schedule indexed by mistake count: mᵢ=0,1,2,3+.
+  // Length MUST be maxSubmits+1 — the last entry is the "3+" floor.
+  // Changing these numbers reshapes accuracy scoring; see docs/SCORING.md.
+  pointsByMistakes: [20, 12, 6, 0],
 
   // Duration (ms) of the red-flash on a wrong submit.
   wrongFlashMs: 150,

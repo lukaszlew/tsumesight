@@ -7,7 +7,7 @@
     "contentHash": "sha256:3652cca95e5284f8e1e0ceecfe48d4721c9de3e1b67b2482f23ec8cc3e1d95b7"
   },
   "config": {
-    "maxSubmits": 2,
+    "maxSubmits": 3,
     "maxQuestions": 2
   },
   "recorded": {
@@ -16,7 +16,7 @@
     "viewport": null,
     "rotated": null,
     "source": "canonical",
-    "description": "Two wrong submits — force-commit at maxSubmits"
+    "description": "Three wrong submits — force-commit at maxSubmits"
   },
   "events": [
     {
@@ -43,6 +43,10 @@
     {
       "kind": "submit",
       "t": 4
+    },
+    {
+      "kind": "submit",
+      "t": 5
     }
   ],
   "goldens": {
@@ -50,9 +54,9 @@
       "correct": 0,
       "total": 1,
       "accuracy": 0,
-      "mistakes": 2,
+      "mistakes": 3,
       "mistakesByGroup": [
-        2
+        3
       ],
       "groupCount": 1
     },
@@ -64,6 +68,13 @@
       }
     ],
     "submitResults": [
+      [
+        {
+          "status": "wrong",
+          "userVertex": "4,4",
+          "userVal": 2
+        }
+      ],
       [
         {
           "status": "wrong",

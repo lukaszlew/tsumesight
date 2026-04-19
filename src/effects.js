@@ -41,13 +41,11 @@ export function sideEffectsFor(next, event) {
     } else {
       out.push({ kind: 'sound/wrong' })
       out.push({ kind: 'wrongFlash' })
-      // Cooldown: 2 s per counted mistake. `penaltyByGroup` forgives
-      // one missed group per submit, so the cooldown and the score
-      // agree on what counts — change `FORGIVE_MISSED_PER_SUBMIT` in
-      // session.js and both this pause and the final score shift
-      // together.
+      // Cooldown: 3 s per counted non-correct group. Shares penaltyByGroup
+      // with the scoring fold so the cooldown and the final score always
+      // agree on what counts.
       let countedMistakes = penaltyByGroup(lastResult).reduce((a, b) => a + b, 0)
-      if (countedMistakes > 0) out.push({ kind: 'cooldown', seconds: 2 * countedMistakes })
+      if (countedMistakes > 0) out.push({ kind: 'cooldown', seconds: 3 * countedMistakes })
     }
   }
   return out
@@ -71,8 +69,9 @@ export function computeFinalizeData(state, ctx) {
   // "seconds per move" units; we compute the window as 2× the per-move
   // budget so that parScore's "half the window" convention lines up.
   let maxTimeMs = 2 * (config.cupBaseSec + state.totalMoves * config.cupPerMoveSec + groupCount * config.cupPerGroupSec) * 1000
-  let parScore = computeParScore(groupCount, maxTimeMs)
-  let accPoints = computeAccPoints(mistakes, groupCount)
+  let schedule = config.pointsByMistakes
+  let parScore = computeParScore(groupCount, maxTimeMs, schedule)
+  let accPoints = computeAccPoints(mbg, schedule)
   let speedPoints = computeSpeedPoints(elapsedMs, maxTimeMs)
   let stars = computeStars(accPoints, speedPoints, mistakes, parScore)
 
@@ -118,7 +117,8 @@ export function computeFinalizeData(state, ctx) {
       elapsedSec: Math.round(elapsedMs / 1000),
       mistakes, accPoints, speedPoints, stars, parScore,
       pointsByGroup: orderedPointsByGroup,
-      maxGroups: 20 * groupCount,
+      schedule,
+      maxGroups: schedule[0] * groupCount,
       maxSpeed: Math.round(maxTimeMs / 1000),
     },
   }

@@ -1,17 +1,19 @@
 import { h } from 'preact'
 
-// 5★ benchmark: perfect accuracy (20·groupCount) plus half the max
-// time window. Hitting ratio ≥ 1 means either finishing inside the
-// half-budget with perfect play, or compensating time with more
+// 5★ benchmark: perfect accuracy (schedule[0]·groupCount) plus half
+// the max time window. Hitting ratio ≥ 1 means either finishing inside
+// the half-budget with perfect play, or compensating time with more
 // accuracy — though max acc alone doesn't reach parScore (speed
 // contribution is required for ratio 1.0 at perfect acc).
-export function computeParScore(groupCount, maxTimeMs) {
-  return 20 * groupCount + (maxTimeMs / 2000)
+export function computeParScore(groupCount, maxTimeMs, schedule) {
+  return schedule[0] * groupCount + (maxTimeMs / 2000)
 }
 
-// Accuracy points: 20 per group, −10 per mistake (max 2 mistakes per group under 2-try cap).
-export function computeAccPoints(mistakes, groupCount) {
-  return Math.max(0, 20 * groupCount - 10 * mistakes)
+// Accuracy points: sum of per-group points under the mistake→points
+// schedule. schedule[i] is per-group points for exactly i mistakes;
+// the last entry is the floor (applies for any mᵢ past its index).
+export function computeAccPoints(mistakesByGroup, schedule) {
+  return mistakesByGroup.reduce((s, m) => s + schedule[Math.min(m, schedule.length - 1)], 0)
 }
 
 // Speed points: linear from `maxTimeMs/1000` at t=0 down to 0 at
