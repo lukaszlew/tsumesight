@@ -70,14 +70,8 @@ export function Quiz({ sgf, sgfId, wasSolved, restored, onBack, onSolved, onProg
   let [confirmExit, setConfirmExit] = useState(false)
   let [finishPopup, setFinishPopup] = useState(null)
 
-  // Mount effects: reset sound-streak and auto-advance if configured.
-  useEffect(() => {
-    resetStreak()
-    // config.autoShowFirstMove is currently false; branch kept for parity.
-    if (!initState.autoSolved && config.autoShowFirstMove && events.length === 0) {
-      dispatch({ kind: 'advance' })
-    }
-  }, [])
+  // Mount: reset sound streak. First move is revealed on user's first tap.
+  useEffect(() => { resetStreak() }, [])
 
   // Dispatch: append an event. Sets t relative to the first event's time.
   // First dispatch also pins the session kv key so the live event log
@@ -207,10 +201,6 @@ export function Quiz({ sgf, sgfId, wasSolved, restored, onBack, onSolved, onProg
   function doRewind() {
     if (isFinished) return
     dispatch({ kind: 'rewind' })
-    if (config.autoShowFirstMove) {
-      dispatch({ kind: 'advance' })
-      playStoneClick()
-    }
   }
 
   function doRestart() {
@@ -221,13 +211,7 @@ export function Quiz({ sgf, sgfId, wasSolved, restored, onBack, onSolved, onProg
     setFinishPopup(null)
     setWrongFlash(false)
     resetStreak()
-    if (config.autoShowFirstMove) {
-      startTimeRef.current = performance.now()
-      setEvents([{ kind: 'advance', t: 0 }])
-      playStoneClick()
-    } else {
-      setEvents([])
-    }
+    setEvents([])
   }
 
   let onVertexClick = useCallback((evt, vertex) => {
