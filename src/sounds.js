@@ -83,9 +83,9 @@ export function playStoneClick() {
 // value: 0 = clear, 1..(max-1) = normal, max = capped (e.g. "5+")
 export function playMark(value) {
   if (!getEnabled()) return
+  let c = getCtx()
   if (value === 0) {
-    // Muted pluck: short triangle wave at 220Hz, fast decay
-    let c = getCtx()
+    // Muted pluck: short triangle wave at 220Hz, fast decay.
     let osc = c.createOscillator()
     let gain = c.createGain()
     osc.type = 'triangle'
@@ -96,106 +96,9 @@ export function playMark(value) {
     osc.start(); osc.stop(c.currentTime + 0.03)
     return
   }
+  // Hold base → glide to target → hold target. Target ratio spans
+  // unison (value=1) to ~3× (value=max), so each rung sounds distinct.
   let max = config.maxLibertyLabel
-  let mode = config.markSoundMode
-
-  if (mode === 'repeat') playMarkRepeat(value, max)
-  else if (mode === 'interval') playMarkInterval(value, max)
-  else if (mode === 'pluck') playMarkPluck(value, max)
-  else if (mode === 'interval_pluck') playMarkIntervalPluck(value, max)
-}
-
-function playMarkRepeat(value, max) {
-  let c = getCtx()
-  let isMax = value >= max
-  let count = isMax ? max : value
-  let gap = 0.08
-  for (let i = 0; i < count; i++) {
-    let t = c.currentTime + i * gap
-    let osc = c.createOscillator()
-    let gain = c.createGain()
-    osc.type = 'sine'
-    osc.frequency.value = 880
-    let dur = (i === count - 1 && isMax) ? 0.2 : 0.04
-    gain.gain.setValueAtTime(0.001, t)
-    gain.gain.linearRampToValueAtTime(0.12, t + 0.01)
-    gain.gain.exponentialRampToValueAtTime(0.001, t + dur)
-    osc.connect(gain)
-    gain.connect(c.destination)
-    osc.start(t)
-    osc.stop(t + dur)
-  }
-}
-
-function playMarkInterval(value, max) {
-  // Spread from unison (ratio=1) to octave (ratio=2) across 1..max
-  let ratio = 1 + (value - 1) / (max - 1)
-  let base = 440
-  let c = getCtx()
-  // Play base and interval together
-  let notes = [base, base * ratio]
-  for (let freq of notes) {
-    let osc = c.createOscillator()
-    let gain = c.createGain()
-    osc.type = 'sine'
-    osc.frequency.value = freq
-    gain.gain.setValueAtTime(0.001, c.currentTime)
-    gain.gain.linearRampToValueAtTime(0.1, c.currentTime + 0.01)
-    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.25)
-    osc.connect(gain)
-    gain.connect(c.destination)
-    osc.start()
-    osc.stop(c.currentTime + 0.25)
-  }
-}
-
-function playMarkPluck(value, max) {
-  let c = getCtx()
-  // Different timbre per value: vary frequency, filter decay, and harmonic content
-  // Spread base frequency from 300 to 700 across 1..max
-  let freq = 300 + (value - 1) / (max - 1) * 400
-  // Pluck: sharp attack, fast exponential decay, with harmonics
-  let harmonics = [1, 2, 3, 4, 5]
-  let decayBase = 0.08 + (max - value) / max * 0.15 // lower values ring longer
-  for (let h of harmonics) {
-    let osc = c.createOscillator()
-    let gain = c.createGain()
-    osc.type = 'sine'
-    osc.frequency.value = freq * h
-    let vol = 0.12 / (h * h) // harmonics fall off
-    let decay = decayBase / h
-    gain.gain.setValueAtTime(vol, c.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + decay)
-    osc.connect(gain)
-    gain.connect(c.destination)
-    osc.start()
-    osc.stop(c.currentTime + decay)
-  }
-}
-
-function pluckNote(c, freq, vol, decay, t) {
-  t = t || c.currentTime
-  let harmonics = [1, 2, 3, 4, 5]
-  for (let h of harmonics) {
-    let osc = c.createOscillator()
-    let gain = c.createGain()
-    osc.type = 'sine'
-    osc.frequency.value = freq * h
-    let hVol = vol / (h * h)
-    let hDecay = decay / h
-    gain.gain.setValueAtTime(0.001, t)
-    gain.gain.linearRampToValueAtTime(hVol, t + 0.003)
-    gain.gain.exponentialRampToValueAtTime(0.001, t + hDecay)
-    osc.connect(gain)
-    gain.connect(c.destination)
-    osc.start(t)
-    osc.stop(t + hDecay)
-  }
-}
-
-function playMarkIntervalPluck(value, max) {
-  let c = getCtx()
-  // Hold base → glide to target → hold target (2:6:6 ratio, 300ms total)
   let ratio = 1 + (value - 1) / (max - 1) * 2
   let base = 330, target = base * ratio
   let total = 0.1, sum = 2 + 6 + 6

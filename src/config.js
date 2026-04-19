@@ -9,11 +9,4 @@ export default {
   // Maximum number of Done presses per exercise. After this many submits,
   // the current marks are force-committed regardless of correctness.
   maxSubmits: 2,
-
-  // Mark sound mode: how tapping a stone to cycle its liberty label sounds.
-  //   'repeat'   — N short beeps for N, longer tone for max+
-  //   'interval' — rising musical interval: 1=unison, max+=octave
-  //   'pluck'    — plucked string with different timbre per number
-  //   'interval_pluck' — interval frequencies with plucked string timbre
-  markSoundMode: 'interval_pluck',
 }
