@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { pickBoardLayout } from './quiz.jsx'
+import { pickBoardLayout } from './quiz-board.jsx'
 
 describe('pickBoardLayout', () => {
   it('keeps a square 19x19 unrotated in a square area', () => {

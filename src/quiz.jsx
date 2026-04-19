@@ -1,22 +1,13 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'preact/hooks'
-import { Goban } from '@sabaki/shudan'
 import { init, step, phase, isLockedVertex } from './session.js'
 import { derive } from './derive.js'
 import { buildMaps, rotateMaps } from './display.js'
+import { pickBoardLayout, QuizBoard } from './quiz-board.jsx'
 import { playCorrect, playWrong, playComplete, playStoneClick, playMark, resetStreak, isSoundEnabled, toggleSound } from './sounds.js'
 import { kv, kvSet, getScores, addReplay, getLatestReplay } from './db.js'
 import config from './config.js'
 import { StarsDisplay } from './scoring.js'
 import { sideEffectsFor, computeFinalizeData } from './effects.js'
-
-// Decide board orientation and vertex size that fit a puzzle of cols x rows
-// in an availW x availH rectangle. Pure function — exported for testing.
-export function pickBoardLayout(availW, availH, cols, rows) {
-  let normalSize = Math.floor(Math.min(availW / (cols + 0.5), availH / (rows + 0.5)))
-  let rotatedSize = Math.floor(Math.min(availW / (rows + 0.5), availH / (cols + 0.5)))
-  let rotated = rotatedSize > normalSize * 1.1
-  return { rotated, vertexSize: Math.max(1, rotated ? rotatedSize : normalSize) }
-}
 
 // Radial marking menu — angles in screen coords (0°=right/E, clockwise)
 // 6 arrows at 60° intervals. Going clockwise from straight up:
@@ -467,7 +458,6 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
     displayRangeX = rangeY
     displayRangeY = rangeX
   }
-  let { signMap, markerMap, ghostStoneMap, paintMap } = maps
 
   let handleVertexClick = rotated
     ? (evt, [x, y]) => onVertexClick(evt, [y, x])
@@ -487,23 +477,19 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
   return (
     <div class="quiz">
       <div class="board-row" ref={boardRowRef}>
-        <div class={`board-container${wrongFlash ? ' wrong-flash' : ''}${isFinished ? ' finished' : ''}${feedbackClass}${showingMoveClass}`}>
-          {vertexSize > 0 && <Goban
-            vertexSize={vertexSize}
-            signMap={signMap}
-            markerMap={markerMap}
-            ghostStoneMap={ghostStoneMap}
-            paintMap={paintMap}
-            onVertexClick={handleVertexClick}
-            onVertexPointerDown={handlePointerDown}
-            onVertexPointerUp={handlePointerUp}
-            rangeX={displayRangeX}
-            rangeY={displayRangeY}
-            showCoordinates={false}
-            fuzzyStonePlacement={false}
-            animateStonePlacement={false}
-          />}
-        </div>
+        <QuizBoard
+          maps={maps}
+          vertexSize={vertexSize}
+          rangeX={displayRangeX}
+          rangeY={displayRangeY}
+          wrongFlash={wrongFlash}
+          isFinished={isFinished}
+          feedbackClass={feedbackClass}
+          showingMoveClass={showingMoveClass}
+          onVertexClick={handleVertexClick}
+          onVertexPointerDown={handlePointerDown}
+          onVertexPointerUp={handlePointerUp}
+        />
         {finishPopup && <div class="finish-popup">
           <StarsDisplay stars={finishPopup.stars} wrapClass="finish-stars" trophyClass="finish-trophy" medalClass="finish-medal" offClass="star-off" />
           <div class="finish-total">{finishPopup.accPoints + finishPopup.speedPoints} points</div>
