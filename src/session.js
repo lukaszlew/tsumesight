@@ -8,184 +8,232 @@ function vertexKey(v) {
   return `${v[0]},${v[1]}`
 }
 
-// Cursor-based quiz session. Owns all quiz-session state; delegates Go
-// board/liberty logic to QuizEngine (treated as a library).
+// Quiz session — V4 shape.
 //
-// State:
+// State (plain object, produced by `init`, advanced by `step`):
 //   cursor       0..N+1     each advance produces one visible state change
 //                           0     = before any advance (empty board)
 //                           1..N  = showing move K (engine.showingMove=true)
 //                           N+1   = past all moves (in exercise or finished)
 //   marks        Map<key, {value, color}>
-//                           value: number 1..maxLibertyLabel, or '?' sentinel (missed group)
+//                           value: number 1..maxLibertyLabel, or '?' sentinel
 //                           color: null | 'green' | 'red'
-//                           Entries are per-intersection. The eval result from
-//                           Done overwrites them in-place (evals replace user
-//                           markings — no separate display state).
 //   submitCount  int        number of submits done
-//   submitResults array     per-submit array of per-group statuses; fold for scoring
-//   events       []         canonical append-only log
+//   submitResults array     per-submit array of per-group statuses
+//   events       []         canonical append-only log (source of truth)
+//   engine       QuizEngine internal, mutated in place by step
+//   startTime    number     performance.now() at first event; elapsedMs ref
 //
-// Phase is derived; no separate booleans.
+// Phase, finalized, changedGroups, etc. are derived selectors.
+//
+// The QuizSession class at the bottom of this file is a thin wrapper
+// that delegates to step + selectors and exposes state fields on
+// `this`. It exists so existing tests and quiz.jsx (pre-P2) keep
+// working verbatim while the step/init extraction is proved
+// behavior-preserving by snapshot diffs.
+
+export function init(sgf, { maxSubmits = 2, maxQuestions = 2 } = {}) {
+  let engine = new QuizEngine(sgf, true, maxQuestions)
+  return {
+    sgf,
+    maxSubmits,
+    maxQuestions,
+    engine,
+    totalMoves: engine.totalMoves,
+    cursor: 0,
+    hasExercise: false,
+    marks: new Map(),
+    submitCount: 0,
+    submitResults: [],
+    events: [],
+    startTime: null,
+  }
+}
+
+// Apply a single event to state. Mutates engine, marks, arrays in place;
+// returns the same state reference (a new reducer API shape — makes the
+// migration to useReducer cheap). Locked-vertex setMark is a no-op and
+// intentionally *not* recorded in the event log.
+export function step(state, event) {
+  if (state.startTime == null) state.startTime = performance.now()
+  let t = event.t ?? Math.round(performance.now() - state.startTime)
+  let recorded = { ...event, t }
+
+  switch (event.kind) {
+    case 'advance':
+      _doAdvance(state)
+      break
+    case 'rewind':
+      _doRewind(state)
+      break
+    case 'setMark':
+      if (isLockedVertex(state, event.vertex)) return state
+      _doSetMark(state, event.vertex, event.value)
+      break
+    case 'submit':
+      _doSubmit(state)
+      break
+    default:
+      throw new Error(`Unknown event kind: ${event.kind}`)
+  }
+
+  state.events.push(recorded)
+  return state
+}
+
+// --- Pure selectors (state → value) ---
+
+export function phase(state) {
+  if (state.cursor <= state.totalMoves) return 'showing'
+  if (!state.hasExercise) return 'finished'
+  if (finalized(state)) return 'finished'
+  return 'exercise'
+}
+
+export function finalized(state) {
+  if (state.submitCount === 0) return false
+  if (state.submitCount >= state.maxSubmits) return true
+  let last = state.submitResults.at(-1)
+  return last?.every(r => r.status === 'correct') === true
+}
+
+export function elapsedMs(state) {
+  if (state.startTime == null) return 0
+  return Math.round(performance.now() - state.startTime)
+}
+
+export function changedGroups(state) {
+  return state.engine.libertyExercise?.groups.filter(g => g.changed) || []
+}
+
+// The representative intersection of a pre-marked (unchanged) group shows
+// its fixed liberty count as a label. That specific intersection is not
+// editable by the user. Other stones of the same group stay tappable.
+export function isLockedVertex(state, vertex) {
+  let key = vertexKey(vertex)
+  let groups = state.engine.libertyExercise?.groups || []
+  return groups.some(g => !g.changed && vertexKey(g.vertex) === key)
+}
+
+// Per-group: number of submits on which this group was not correct.
+export function mistakesByGroup(state) {
+  let n = changedGroups(state).length
+  let counts = new Array(n).fill(0)
+  for (let r of state.submitResults) {
+    for (let i = 0; i < n; i++) {
+      if (r[i]?.status !== 'correct') counts[i]++
+    }
+  }
+  return counts
+}
+
+export function totalMistakes(state) {
+  return mistakesByGroup(state).reduce((a, b) => a + b, 0)
+}
+
+// --- Private event handlers ---
+
+function _doAdvance(state) {
+  assert(state.cursor <= state.totalMoves, `advance at cursor=${state.cursor}/${state.totalMoves}`)
+  if (state.cursor < state.totalMoves) {
+    // Play and show the next move.
+    state.engine.advance()
+    state.cursor++
+  } else {
+    // cursor === totalMoves: last move is currently shown; activate the
+    // exercise (or enter finished if no changed groups). No new stone is
+    // played — this advance represents the user moving past the showing
+    // state into the next phase.
+    state.engine.activateQuestions()
+    state.cursor++
+    state.hasExercise = state.engine.libertyExerciseActive
+  }
+}
+
+function _doRewind(state) {
+  // Rebuild engine from scratch; preserve session-level state (marks,
+  // submitCount, submitResults, startTime, events).
+  state.engine = new QuizEngine(state.sgf, true, state.maxQuestions)
+  state.cursor = 0
+  state.hasExercise = false
+}
+
+function _doSetMark(state, vertex, value) {
+  assert(state.cursor === state.totalMoves + 1, `setMark at cursor=${state.cursor}`)
+  assert(!finalized(state), `setMark after finalized`)
+  let key = vertexKey(vertex)
+  if (value === 0) state.marks.delete(key)
+  else state.marks.set(key, { value, color: null })
+}
+
+function _doSubmit(state) {
+  assert(state.cursor === state.totalMoves + 1, `submit at cursor=${state.cursor}`)
+  assert(state.hasExercise, `submit with no exercise`)
+  assert(!finalized(state), `submit after finalized`)
+
+  // Engine wants Map<key, number>. '?' sentinels left over from previous
+  // missed-group submits are filtered out (user never intended them).
+  let plain = new Map()
+  for (let [k, m] of state.marks) {
+    if (typeof m.value === 'number') plain.set(k, m.value)
+  }
+  let result = state.engine.checkLibertyExercise(plain)
+  state.submitResults.push(result)
+  state.submitCount++
+
+  // Overwrite marks on each changed group's stones with the eval outcome.
+  // User's intersection-level marks on the group are replaced by a single
+  // entry reflecting the group's result (green/red on user's vertex, or
+  // '?' red on the representative vertex for missed).
+  let groups = changedGroups(state)
+  for (let i = 0; i < groups.length; i++) {
+    let g = groups[i]
+    let r = result[i]
+    for (let k of g.chainKeys) state.marks.delete(k)
+    if (r.status === 'correct') {
+      state.marks.set(r.userVertex, { value: r.userVal, color: 'green' })
+    } else if (r.status === 'wrong') {
+      state.marks.set(r.userVertex, { value: r.userVal, color: 'red' })
+    } else {
+      // missed
+      state.marks.set(vertexKey(g.vertex), { value: '?', color: 'red' })
+    }
+  }
+}
+
+// --- Back-compat class wrapper. Deleted in P2 once quiz.jsx moves to
+//     useReducer + the functional surface (init/step/selectors) directly.
+//     Tests still drive the session through this class until P2.
+
+const STATE_FIELDS = [
+  'sgf', 'maxSubmits', 'maxQuestions', 'engine', 'totalMoves',
+  'cursor', 'hasExercise', 'marks', 'submitCount',
+  'submitResults', 'events', 'startTime',
+]
+
 export class QuizSession {
-  constructor(sgf, { maxSubmits = 2, maxQuestions = 2 } = {}) {
-    this.sgf = sgf
-    this.maxSubmits = maxSubmits
-    this.maxQuestions = maxQuestions
-    this.engine = new QuizEngine(sgf, true, maxQuestions)
-    this.totalMoves = this.engine.totalMoves
-    this.cursor = 0
-    this.hasExercise = false
-    this.marks = new Map()
-    this.submitCount = 0
-    this.submitResults = []
-    this.events = []
-    this.startTime = null
+  constructor(sgf, config) {
+    this._state = init(sgf, config)
     this.clockNow = () => performance.now()
+    this._sync()
   }
 
-  get phase() {
-    if (this.cursor <= this.totalMoves) return 'showing'
-    if (!this.hasExercise) return 'finished'
-    if (this.finalized) return 'finished'
-    return 'exercise'
+  _sync() {
+    for (let f of STATE_FIELDS) this[f] = this._state[f]
   }
 
-  get finalized() {
-    if (this.submitCount === 0) return false
-    if (this.submitCount >= this.maxSubmits) return true
-    let last = this.submitResults.at(-1)
-    return last?.every(r => r.status === 'correct') === true
-  }
+  get phase() { return phase(this._state) }
+  get finalized() { return finalized(this._state) }
+  get elapsedMs() { return elapsedMs(this._state) }
+  get changedGroups() { return changedGroups(this._state) }
 
-  get elapsedMs() {
-    if (this.startTime == null) return 0
-    return Math.round(this.clockNow() - this.startTime)
-  }
+  isLockedVertex(v) { return isLockedVertex(this._state, v) }
+  mistakesByGroup() { return mistakesByGroup(this._state) }
+  totalMistakes() { return totalMistakes(this._state) }
 
   applyEvent(event) {
-    if (this.startTime == null) this.startTime = this.clockNow()
-    let t = event.t ?? Math.round(this.clockNow() - this.startTime)
-    let recorded = { ...event, t }
-
-    switch (event.kind) {
-      case 'advance':
-        this._doAdvance()
-        break
-      case 'rewind':
-        this._doRewind()
-        break
-      case 'setMark':
-        if (this.isLockedVertex(event.vertex)) return  // locked label; no-op
-        this._doSetMark(event.vertex, event.value)
-        break
-      case 'submit':
-        this._doSubmit()
-        break
-      default:
-        throw new Error(`Unknown event kind: ${event.kind}`)
-    }
-
-    this.events.push(recorded)
-  }
-
-  _doAdvance() {
-    assert(this.cursor <= this.totalMoves, `advance at cursor=${this.cursor}/${this.totalMoves}`)
-    if (this.cursor < this.totalMoves) {
-      // Play and show the next move.
-      this.engine.advance()
-      this.cursor++
-    } else {
-      // cursor === totalMoves: last move is currently shown; activate the
-      // exercise (or enter finished if no changed groups). No new stone is
-      // played — this advance represents the user moving past the showing
-      // state into the next phase.
-      this.engine.activateQuestions()
-      this.cursor++
-      this.hasExercise = this.engine.libertyExerciseActive
-    }
-  }
-
-  _doRewind() {
-    // Rebuild engine from scratch; preserve session-level state (marks,
-    // submitCount, submitResults, startTime, events).
-    this.engine = new QuizEngine(this.sgf, true, this.maxQuestions)
-    this.cursor = 0
-    this.hasExercise = false
-  }
-
-  _doSetMark(vertex, value) {
-    assert(this.cursor === this.totalMoves + 1, `setMark at cursor=${this.cursor}`)
-    assert(!this.finalized, `setMark after finalized`)
-    let key = vertexKey(vertex)
-    if (value === 0) this.marks.delete(key)
-    else this.marks.set(key, { value, color: null })
-  }
-
-  _doSubmit() {
-    assert(this.cursor === this.totalMoves + 1, `submit at cursor=${this.cursor}`)
-    assert(this.hasExercise, `submit with no exercise`)
-    assert(!this.finalized, `submit after finalized`)
-
-    // Engine wants Map<key, number>. '?' sentinels left over from previous
-    // missed-group submits are filtered out (user never intended them).
-    let plain = new Map()
-    for (let [k, m] of this.marks) {
-      if (typeof m.value === 'number') plain.set(k, m.value)
-    }
-    let result = this.engine.checkLibertyExercise(plain)
-    this.submitResults.push(result)
-    this.submitCount++
-
-    // Overwrite marks on each changed group's stones with the eval outcome.
-    // User's intersection-level marks on the group are replaced by a single
-    // entry reflecting the group's result (green/red on user's vertex, or
-    // '?' red on the representative vertex for missed).
-    let changedGroups = this.changedGroups
-    for (let i = 0; i < changedGroups.length; i++) {
-      let g = changedGroups[i]
-      let r = result[i]
-      for (let k of g.chainKeys) this.marks.delete(k)
-      if (r.status === 'correct') {
-        this.marks.set(r.userVertex, { value: r.userVal, color: 'green' })
-      } else if (r.status === 'wrong') {
-        this.marks.set(r.userVertex, { value: r.userVal, color: 'red' })
-      } else {
-        // missed
-        this.marks.set(vertexKey(g.vertex), { value: '?', color: 'red' })
-      }
-    }
-  }
-
-  // --- Derived views for UI / scoring ---
-
-  get changedGroups() {
-    return this.engine.libertyExercise?.groups.filter(g => g.changed) || []
-  }
-
-  // The representative intersection of a pre-marked (unchanged) group shows
-  // its fixed liberty count as a label. That specific intersection is not
-  // editable by the user. Other stones of the same group stay tappable.
-  isLockedVertex(vertex) {
-    let key = vertexKey(vertex)
-    let groups = this.engine.libertyExercise?.groups || []
-    return groups.some(g => !g.changed && vertexKey(g.vertex) === key)
-  }
-
-  // Per-group: number of submits on which this group was not correct.
-  mistakesByGroup() {
-    let n = this.changedGroups.length
-    let counts = new Array(n).fill(0)
-    for (let r of this.submitResults) {
-      for (let i = 0; i < n; i++) {
-        if (r[i]?.status !== 'correct') counts[i]++
-      }
-    }
-    return counts
-  }
-
-  totalMistakes() {
-    return this.mistakesByGroup().reduce((a, b) => a + b, 0)
+    step(this._state, event)
+    this._sync()
   }
 }
 
