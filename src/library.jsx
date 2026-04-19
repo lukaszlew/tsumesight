@@ -5,6 +5,7 @@ import { parseSgf } from './sgf-utils.js'
 import { siblings as siblingsAt, nextUnsolved, toSelection } from './navigation.js'
 import { importFiles, importFolder, importUrl } from './importer.js'
 import { GIT_SHA, GIT_DATE, GIT_DATE_SHORT, BUILD_TIME } from './version.js'
+import { usePwaInstall } from './usePwaInstall.js'
 
 const DEFAULT_URL = 'https://files.catbox.moe/v3phv1.zip'
 const isDev = location.pathname.includes('/dev/')
@@ -44,29 +45,12 @@ function useLongPress(callback, ms = 500) {
   return { onPointerDown: onDown, onPointerUp: cancel, onPointerLeave: cancel, onPointerCancel: cancel }
 }
 
-let deferredPrompt = null
-window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e })
-
 export function Library({ onSelect, cwd, onCwdChange }) {
   let [sgfs, setSgfs] = useState([])
   let [loading, setLoading] = useState(true)
   let [importing, setImporting] = useState(null) // { done, total } or null
-  let [canInstall, setCanInstall] = useState(!!deferredPrompt)
   let [menuOpen, setMenuOpen] = useState(false)
-
-  useEffect(() => {
-    let onPrompt = (e) => { e.preventDefault(); deferredPrompt = e; setCanInstall(true) }
-    window.addEventListener('beforeinstallprompt', onPrompt)
-    return () => window.removeEventListener('beforeinstallprompt', onPrompt)
-  }, [])
-
-  let handleInstall = async () => {
-    if (!deferredPrompt) return
-    deferredPrompt.prompt()
-    await deferredPrompt.userChoice
-    deferredPrompt = null
-    setCanInstall(false)
-  }
+  let { canInstall, install: handleInstall } = usePwaInstall()
 
   useEffect(() => {
     function onKeyDown(e) {
