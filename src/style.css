@@ -924,7 +924,7 @@ body {
 .finish-breakdown {
   margin: .6em auto 0;
   border-collapse: collapse;
-  font-size: 1em;
+  font-size: .85em;
   line-height: 1.4;
 }
 .finish-breakdown td {

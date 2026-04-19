@@ -133,7 +133,6 @@
       "errors": 3,
       "date": 1776542604451,
       "thresholdMs": 16500,
-      "cupMs": 16500,
       "parScore": 96.5,
       "accPoints": 50,
       "speedPoints": 12,
@@ -143,7 +142,8 @@
         1,
         2,
         0
-      ]
+      ],
+      "maxTimeMs": 33000
     },
     "finalMarks": null,
     "submitResults": null,
