@@ -91,6 +91,7 @@ src/
 
   engine.js             QuizEngine (Go/liberty domain; mutable class)
   scoring.js            computeStars, computeParScore, etc. + <StarsDisplay>
+                        (rules + formulas: see docs/SCORING.md)
   sounds.js             playStoneClick, playMark, playCorrect, etc.
   sgf-utils.js          parseSgf, decodeSgf, computeRange
   archive.js            isArchive, extractSgfs (.zip / .tar / .tar.gz)
