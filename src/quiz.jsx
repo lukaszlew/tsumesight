@@ -10,14 +10,15 @@ import { kv, kvSet, addReplay, getLatestReplay } from './db.js'
 import config from './config.js'
 import { sideEffectsFor, computeFinalizeData } from './effects.js'
 
-export function Quiz({ sgf, sgfId, wasSolved, restored, onBack, onSolved, onProgress, onLoadError, onNextUnsolved, onPrev, onNext }) {
+export function Quiz({ sgf, sgfId, wasSolved, restored, initialEvents, onBack, onSolved, onProgress, onLoadError, onNextUnsolved, onPrev, onNext }) {
   let [maxQ] = useState(() => parseInt(kv('quizMaxQ', '2')))
   let sessionConfig = useMemo(() => ({ maxSubmits: config.maxSubmits, maxQuestions: maxQ }), [maxQ])
 
-  // Initial events: if reopening a solved puzzle, fold its stored replay.
-  // Otherwise start fresh. This is the P2 shape; once P2.5 lands, kv
-  // persistence per-event makes abandoned sessions recoverable too.
+  // Initial events: explicit `initialEvents` prop wins (tests inject
+  // fixture events here). Otherwise, if reopening a solved puzzle,
+  // fold its stored replay. Otherwise start fresh.
   let [initState] = useState(() => {
+    if (initialEvents) return { events: initialEvents, autoSolved: true }
     let events = []
     let autoSolved = false
     if (wasSolved && restored) {
