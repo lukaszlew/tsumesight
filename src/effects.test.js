@@ -50,7 +50,7 @@ describe('sideEffectsFor — per-event effects', () => {
     ])
   })
 
-  it('cooldown scales as 2 × N (counted mistakes after forgiveness)', () => {
+  it('cooldown scales as 2 × N (any non-correct group counts)', () => {
     let s = init('(;SZ[9];B[ee];W[aa];B[fe])', { maxSubmits: 3 })
     advanceThroughShowing(s)
     for (let g of s.engine.libertyExercise.groups.filter(g => g.changed)) {
@@ -60,8 +60,8 @@ describe('sideEffectsFor — per-event effects', () => {
     step(s, evt)
     let effects = sideEffectsFor(s, evt)
     let cooldown = effects.find(e => e.kind === 'cooldown')
-    let wrongCount = s.submitResults.at(-1).filter(r => r.status === 'wrong').length
-    expect(cooldown).toEqual({ kind: 'cooldown', seconds: 2 * wrongCount })
+    let nonCorrect = s.submitResults.at(-1).filter(r => r.status !== 'correct').length
+    expect(cooldown).toEqual({ kind: 'cooldown', seconds: 2 * nonCorrect })
   })
 
   it('correct submit (finalizing) → sound/correct + onProgress', () => {
