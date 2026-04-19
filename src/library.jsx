@@ -198,37 +198,27 @@ export function Library({ onSelect, cwd, onCwdChange }) {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [sgfs, cwd])
 
-  // Subdirectories of current directory
-  let subdirs = new Set()
+  // Subdirectories of current directory + their stats — single pass over
+  // sgfs, bucketed by top-level subdir name under cwd. O(n+d) replacing
+  // the old O(dirs × sgfs) scan.
   let prefix = cwd ? cwd + '/' : ''
+  let dirStats = {}
   for (let s of sgfs) {
     let p = s.path || ''
-    if (p.startsWith(prefix) && p !== cwd) {
-      let rest = p.slice(prefix.length)
-      let dir = rest.split('/')[0]
-      if (dir) subdirs.add(dir)
+    if (!p.startsWith(prefix) || p === cwd) continue
+    let dir = p.slice(prefix.length).split('/')[0]
+    if (!dir) continue
+    let st = dirStats[dir] ||= { total: 0, solved: 0, started: 0, latestDate: 0 }
+    st.total++
+    if (s.solved) {
+      st.solved++
+      let d2 = getLatestScoreDate(s.id)
+      if (d2 > st.latestDate) st.latestDate = d2
+    } else if (s.done > 0) {
+      st.started++
     }
   }
-  // Directory stats: total, solved, started counts, latest score date
-  let dirStats = {}
-  for (let d of subdirs) {
-    let dirPrefix = prefix + d
-    let total = 0, solved = 0, started = 0, latestDate = 0
-    for (let s of sgfs) {
-      let p = s.path || ''
-      if (p === dirPrefix || p.startsWith(dirPrefix + '/')) {
-        total++
-        if (s.solved) {
-          solved++
-          let d2 = getLatestScoreDate(s.id)
-          if (d2 > latestDate) latestDate = d2
-        }
-        else if (s.done > 0) started++
-      }
-    }
-    dirStats[d] = { total, solved, started, latestDate }
-  }
-  let sortedDirs = [...subdirs].sort((a, b) =>
+  let sortedDirs = Object.keys(dirStats).sort((a, b) =>
     dirStats[b].latestDate - dirStats[a].latestDate || a.localeCompare(b)
   )
 
