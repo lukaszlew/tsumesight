@@ -1,15 +1,13 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'preact/hooks'
 import { Goban } from '@sabaki/shudan'
-import {
-  init, step, phase, finalized, isLockedVertex,
-  changedGroups, mistakesByGroup, totalMistakes, pointsByGroup,
-} from './session.js'
+import { init, step, phase, isLockedVertex } from './session.js'
 import { derive } from './derive.js'
-import { buildMaps, rotateMaps, orderGroupsByDisplay } from './display.js'
+import { buildMaps, rotateMaps } from './display.js'
 import { playCorrect, playWrong, playComplete, playStoneClick, playMark, resetStreak, isSoundEnabled, toggleSound } from './sounds.js'
 import { kv, kvSet, getScores, addReplay, getLatestReplay } from './db.js'
 import config from './config.js'
-import { computeStars, computeParScore, computeAccPoints, computeSpeedPoints, StarsDisplay } from './scoring.js'
+import { StarsDisplay } from './scoring.js'
+import { sideEffectsFor, computeFinalizeData } from './effects.js'
 
 // Decide board orientation and vertex size that fit a puzzle of cols x rows
 // in an availW x availH rectangle. Pure function — exported for testing.
@@ -200,98 +198,60 @@ export function Quiz({ sgf, sgfId, quizKey, wasSolved, restored, onBack, onSolve
     kvSet(sessionKeyRef.current, JSON.stringify(events))
   }, [events])
 
-  // Per-event sound effects. Walks from lastEventIdxRef to the current end.
+  // Run a single effect descriptor from sideEffectsFor. Closure over
+  // setWrongFlash + onProgress captures the UI-level targets.
+  function runEffect(e) {
+    switch (e.kind) {
+      case 'sound/stoneClick': playStoneClick(); break
+      case 'sound/mark': playMark(e.value); break
+      case 'sound/correct': playCorrect(); break
+      case 'sound/wrong': playWrong(); break
+      case 'wrongFlash':
+        setWrongFlash(true)
+        setTimeout(() => setWrongFlash(false), 150)
+        break
+      case 'onProgress':
+        onProgress({ correct: e.correct, done: e.done, total: e.total })
+        break
+    }
+  }
+
+  // Per-event side effects. Processes exactly the newest event since the
+  // last render. On a review-mode mount (autoSolved) no event is new, so
+  // nothing fires. dispatchAdvance still plays the stone-click sound
+  // predictively — advance events' effects run here too, so don't double up.
   useEffect(() => {
     if (!state) return
-    let n = state.events.length
-    while (lastEventIdxRef.current < n - 1) {
-      let idx = ++lastEventIdxRef.current
-      let evt = state.events[idx]
-      if (evt.kind === 'setMark') playMark(evt.value)
-      // advance sound is handled in dispatchAdvance (predictive on pre-state)
-      // submit sounds are handled by the submit effect below (needs post-state)
-    }
-  }, [state?.events])
+    let lastIdx = state.events.length - 1
+    if (lastIdx <= lastEventIdxRef.current) return
+    lastEventIdxRef.current = lastIdx
+    let evt = state.events[lastIdx]
+    // Skip advance events — dispatchAdvance handles their sound predictively
+    // (and this effect runs after React commits, potentially delayed).
+    if (evt.kind === 'advance') return
+    for (let e of sideEffectsFor(state, evt)) runEffect(e)
+  }, [state])
 
-  // Submit effects: post-submit sound + wrong flash + onProgress on finalize.
-  useEffect(() => {
-    if (!state) return
-    if (state.submitCount <= prevSubmitCountRef.current) return
-    prevSubmitCountRef.current = state.submitCount
-    let lastResult = state.submitResults.at(-1) || []
-    let allCorrect = lastResult.every(r => r.status === 'correct')
-    if (finalized(state)) {
-      if (allCorrect) playCorrect(); else playWrong()
-      let total = changedGroups(state).length
-      let wrongCount = mistakesByGroup(state).filter(m => m > 0).length
-      onProgress({
-        correct: allCorrect ? total : total - wrongCount,
-        done: total,
-        total,
-      })
-    } else {
-      playWrong()
-      setWrongFlash(true)
-      setTimeout(() => setWrongFlash(false), 150)
-    }
-  }, [state?.submitCount])
-
-  // Finalize effect: compute scoring, write enriched replay, show popup,
-  // play completion sound. Runs exactly once per session (gated on
-  // solvedRef) when state transitions to 'finished'.
+  // Finalize effect: computeFinalizeData folds the scoring math; the
+  // runner fans out into addReplay / onSolved / setFinishPopup /
+  // playComplete. Gated by solvedRef so it fires exactly once per
+  // session.
   useEffect(() => {
     if (!state) return
     if (phase(state) !== 'finished' || solvedRef.current) return
     solvedRef.current = true
-    let groups = changedGroups(state)
-    let groupCount = groups.length
-    let mistakes = totalMistakes(state)
-    let mbg = mistakesByGroup(state)
-    let elapsedMs = Math.round(performance.now() - loadTimeRef.current)
-    // Cup time: base 3s + 1.5s per move + 1.5s per group.
-    let cupMs = (3 + state.totalMoves * 1.5 + groupCount * 1.5) * 1000
-    let parScore = computeParScore(groupCount, cupMs)
-    let accPoints = computeAccPoints(mistakes, groupCount)
-    let speedPoints = computeSpeedPoints(elapsedMs, cupMs)
-    let stars = computeStars(accPoints, speedPoints, mistakes, parScore)
-
-    // Order per-group points by displayed board position (left-to-right, top-to-bottom).
-    let displayIdx = orderGroupsByDisplay(groups, rotated)
-    let orderedPointsByGroup = displayIdx.map(i => pointsByGroup(mbg)[i])
-
-    let correct = Math.max(0, groupCount - mistakes)
-    let total = groupCount
-    let accuracy = total > 0 ? correct / total : 1
-    let date = Date.now()
-    let scoreEntry = {
-      correct, total, accuracy,
-      totalMs: elapsedMs, mistakes, errors: mistakes, date,
-      thresholdMs: cupMs, cupMs, parScore, accPoints, speedPoints, groupCount, mistakesByGroup: mbg,
-    }
-    // v:3 enriched record. Matches the fixture schema (src/fixture-schema.js)
-    // so the converter can promote this into a committed test fixture.
-    let finalMarks = [...state.marks.entries()].map(([key, m]) => ({ key, value: m.value, color: m.color }))
-    let changedGroupsVertices = groups.map(g => g.vertex)
-    addReplay(sgfId, date, {
-      events: state.events,
+    let ctx = {
+      sgfId,
       config: sessionConfig,
-      viewport: { w: window.innerWidth, h: window.innerHeight, rotated },
-      goldens: {
-        scoreEntry,
-        finalMarks,
-        submitResults: state.submitResults,
-        changedGroupsVertices,
-      },
-    })
-    onSolved(correct, total, scoreEntry)
-    setFinishPopup({
-      elapsedSec: Math.round(elapsedMs / 1000),
-      mistakes, accPoints, speedPoints, stars, parScore,
-      pointsByGroup: orderedPointsByGroup,
-      maxGroups: 10 * groupCount,
-      maxSpeed: Math.round(2 * (cupMs / 1000)),
-    })
-    playComplete(stars)
+      loadTimeMs: loadTimeRef.current,
+      rotated,
+      viewport: { w: window.innerWidth, h: window.innerHeight },
+    }
+    let data = computeFinalizeData(state, ctx)
+    playComplete(data.stars)
+    addReplay(sgfId, data.date, data.replayPayload)
+    onSolved(data.correct, data.total, data.scoreEntry)
+    setFinishPopup(data.popupData)
   }, [state])
 
   if (error) {
