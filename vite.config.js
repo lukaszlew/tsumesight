@@ -15,10 +15,14 @@ function swVersionPlugin() {
   }
 }
 
-// Git SHA at build time. Fallback 'nogit' if git isn't available (e.g. a
+// Git identity at build time. Fallbacks if git isn't reachable (e.g. a
 // tarball build outside the repo).
 let gitSha = 'nogit'
-try { gitSha = execSync('git rev-parse --short HEAD').toString().trim() } catch {}
+let gitDate = ''
+try {
+  gitSha = execSync('git rev-parse --short HEAD').toString().trim()
+  gitDate = execSync('git show -s --format=%cI HEAD').toString().trim()
+} catch {}
 
 export default defineConfig({
   plugins: [preact(), swVersionPlugin()],
@@ -26,6 +30,7 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __APP_GIT_SHA__: JSON.stringify(gitSha),
+    __APP_GIT_DATE__: JSON.stringify(gitDate),
     __APP_BUILD_TIME__: JSON.stringify(new Date().toISOString()),
   },
 })
