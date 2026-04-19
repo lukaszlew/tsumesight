@@ -6,7 +6,15 @@ Items deferred from the V4 UI refactor (see git log for the P0–P8 commit serie
 
 **Priority 1 — all 11 items shipped** (commits C1–C11, 2026-04-18). Every P1 entry below is now historical reference. Total churn: ~180 lines deleted from src/ (engine dead code, sounds variants, autoShowFirstMove branches), 11 commits, test count 257 → 269.
 
-P2/P3/P4 items remain as-specified.
+**Priority 2 — 3 of 7 shipped:**
+- `library.jsx` decomposition (L1–L3 commits) — library-menu.jsx, library-tile.jsx, usePwaInstall.js extracted.
+- Layer B DOM snapshot per fixture (LB commit) — 18 new snapshot files under fixtures/__snapshots__/\*.dom.html.
+- CI pipeline — test job now gates the deploy job on both main and dev branches via matrix; pull_request also triggers tests.
+
+**Priority 3 — 1 of 4 shipped:**
+- Events-is-truth invariant documented in `session.js` top comment.
+
+Remaining items below are as-specified.
 
 ---
 
