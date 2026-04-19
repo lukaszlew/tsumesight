@@ -66,23 +66,27 @@ goldens cross-check fails.
 # 1. Regenerate canonical fixtures (they recompute goldens at gen time):
 node scripts/gen-canonical-fixtures.mjs
 
-# 2. Re-fold all other fixtures' events through the current reducer
-#    and overwrite scoreEntry.{mistakes, mistakesByGroup, correct,
-#    accuracy, errors} in place. Other goldens are left untouched.
+# 2. Dry-run the refresh: re-fold all other fixtures' events through the
+#    current reducer and scoring, and print every field that WOULD
+#    change. Writes nothing.
 node scripts/refresh-fixture-goldens.mjs
 
-# 3. Regenerate Layer A + Layer B snapshots:
+#    EYEBALL THE DRY-RUN OUTPUT before applying:
+#    - Does every delta match your rule change's intent?
+#    - Any field changing that you didn't expect?
+#    - Are the unaffected fixtures really unchanged ("N unchanged")?
+
+# 3. Apply the changes (overwrites scoreEntry fields in place):
+node scripts/refresh-fixture-goldens.mjs --apply
+
+# 4. Regenerate Layer A + Layer B snapshots:
 npx vitest -u
 
-# 4. EYEBALL THE DIFF before committing:
+# 5. Final diff check before committing:
 git diff fixtures/
 git diff fixtures/__snapshots__/
-#    - Spot-check one or two affected fixtures.
-#    - Does the new scoreEntry match your new rule's intent?
-#    - Are unaffected fixtures really unchanged (the script prints
-#      "N unchanged" at the end)?
 
-# 5. Commit the rule change, the fixture update, and the snapshot
+# 6. Commit the rule change, the fixture update, and the snapshot
 #    update. Prefer three separate commits: rule, fixture refresh,
 #    snapshot regeneration — so review can examine each.
 ```
