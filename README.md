@@ -86,9 +86,7 @@ npx vitest -u
 git diff fixtures/
 git diff fixtures/__snapshots__/
 
-# 6. Commit the rule change, the fixture update, and the snapshot
-#    update. Prefer three separate commits: rule, fixture refresh,
-#    snapshot regeneration — so review can examine each.
+# 6. Commit.
 ```
 
 `refresh-fixture-goldens.mjs` only touches recorded-mistake fields; it
