@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'preact/hooks'
-import { getAllSgfs, addSgfBatch, deleteSgf, deleteSgfsByPrefix, renameSgfsByPrefix, clearAll, getBestScore, getLatestScoreDate, updateSgf, exportDb, downloadExport } from './db.js'
+import { getAllSgfs, addSgfBatch, deleteSgf, deleteSgfsByPrefix, renameSgfsByPrefix, clearAll, getBestScore, getLatestScoreDate, updateSgf } from './db.js'
 import { parseSgf } from './sgf-utils.js'
 import { siblings as siblingsAt, nextUnsolved, toSelection } from './navigation.js'
 import { importFiles, importFolder, importUrl } from './importer.js'
-import { GIT_SHA, GIT_DATE, GIT_DATE_SHORT, BUILD_TIME } from './version.js'
-import { usePwaInstall } from './usePwaInstall.js'
 import { DirTile, DirHeaderTile, FileTile } from './library-tile.jsx'
+import { LibraryMenu } from './library-menu.jsx'
 
 const DEFAULT_URL = 'https://files.catbox.moe/v3phv1.zip'
-const isDev = location.pathname.includes('/dev/')
 
 function WelcomeMessage() {
   return (
@@ -22,8 +20,6 @@ export function Library({ onSelect, cwd, onCwdChange }) {
   let [sgfs, setSgfs] = useState([])
   let [loading, setLoading] = useState(true)
   let [importing, setImporting] = useState(null) // { done, total } or null
-  let [menuOpen, setMenuOpen] = useState(false)
-  let { canInstall, install: handleInstall } = usePwaInstall()
 
   useEffect(() => {
     function onKeyDown(e) {
@@ -206,35 +202,12 @@ export function Library({ onSelect, cwd, onCwdChange }) {
         </>
       })()}
 
-      <div class="menu-wrap">
-        <button class="menu-toggle" title="Menu" onClick={() => setMenuOpen(v => !v)}>☰</button>
-        {menuOpen && <>
-          <div class="menu-backdrop" onClick={() => setMenuOpen(false)} />
-          <div class="menu-dropdown">
-            <label class="menu-item">
-              Upload files
-              <input type="file" accept=".sgf,.zip,.tar.gz,.tgz,.tar" multiple onChange={e => { setMenuOpen(false); handleFiles(e) }} hidden />
-            </label>
-            <button class="menu-item" onClick={() => { setMenuOpen(false); handleFolder() }}>Upload folder</button>
-            <button class="menu-item" onClick={() => {
-              setMenuOpen(false)
-              let url = prompt('Enter URL to SGF or archive:', 'https://files.catbox.moe/r92xsw.zip')
-              if (url) fetchUrl(url)
-            }}>Upload from URL</button>
-            <button class="menu-item" onClick={async () => { setMenuOpen(false); downloadExport(await exportDb()) }}>Export data</button>
-            {canInstall && <button class="menu-item" onClick={() => { setMenuOpen(false); handleInstall() }}>Install app</button>}
-            <button class="menu-item menu-danger" onClick={() => { setMenuOpen(false); handleReset() }}>Reset all data</button>
-            <div class="menu-sep" />
-            <div class="env-toggle">
-              <a class={`env-btn${isDev ? '' : ' env-active'}`} href={isDev ? '../' : undefined} onClick={() => localStorage.setItem('preferredEnv', 'prod')}>Prod</a>
-              <a class={`env-btn${isDev ? ' env-active' : ''}`} href={isDev ? undefined : 'dev/'} onClick={() => localStorage.setItem('preferredEnv', 'dev')}>Dev</a>
-            </div>
-            <div class="menu-version" title={`commit ${GIT_DATE}\nbuilt  ${BUILD_TIME || ''}`}>
-              <div>{GIT_SHA}{GIT_DATE_SHORT && ` · ${GIT_DATE_SHORT}`}</div>
-            </div>
-          </div>
-        </>}
-      </div>
+      <LibraryMenu
+        onUpload={handleFiles}
+        onUploadFolder={handleFolder}
+        onFetchUrl={fetchUrl}
+        onReset={handleReset}
+      />
 
       {importing && (
         <p class="loading">Importing {importing.done}/{importing.total}...</p>
