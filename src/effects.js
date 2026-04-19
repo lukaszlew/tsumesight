@@ -41,6 +41,14 @@ export function sideEffectsFor(next, event) {
     } else {
       out.push({ kind: 'sound/wrong' })
       out.push({ kind: 'wrongFlash' })
+      // Cooldown penalty: disable Done for `3 + N` seconds where N is
+      // the number of wrong-or-missed groups in this submit. 3 s baseline
+      // is forced reflection time; +1 s per wrong nudges speedPoints
+      // down proportionally to the user's error density. Fast Done-Done
+      // spam loses elapsed-time speedPoints instead of getting a cheap
+      // partial score.
+      let wrongCount = lastResult.filter(r => r.status !== 'correct').length
+      if (wrongCount > 0) out.push({ kind: 'cooldown', seconds: 3 + wrongCount })
     }
   }
   return out

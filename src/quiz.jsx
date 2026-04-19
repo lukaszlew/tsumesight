@@ -70,9 +70,28 @@ export function Quiz({ sgf, sgfId, wasSolved, restored, initialEvents, onBack, o
   let [showSeqStones, setShowSeqStones] = useState(false)
   let [confirmExit, setConfirmExit] = useState(false)
   let [finishPopup, setFinishPopup] = useState(null)
+  // Cooldown after a wrong non-finalizing submit. The Done button is
+  // disabled for cooldownUntil - now; the ticker useEffect re-renders
+  // every 250 ms while active so the displayed countdown updates.
+  let [cooldownUntil, setCooldownUntil] = useState(0)
+  let [, setCooldownTick] = useState(0)
+  let cooldownRemaining = Math.max(0, Math.ceil((cooldownUntil - Date.now()) / 1000))
+  let cooldownActive = cooldownRemaining > 0
 
   // Mount: reset sound streak. First move is revealed on user's first tap.
   useEffect(() => { resetStreak() }, [])
+
+  // Cooldown ticker: re-render every 250 ms while cooldown is active so
+  // the countdown on the Done button refreshes. Stops once the deadline
+  // passes.
+  useEffect(() => {
+    if (cooldownUntil <= Date.now()) return
+    let id = setInterval(() => {
+      setCooldownTick(n => n + 1)
+      if (Date.now() >= cooldownUntil) clearInterval(id)
+    }, 250)
+    return () => clearInterval(id)
+  }, [cooldownUntil])
 
   // Dispatch: append an event. Sets t relative to the first event's time.
   // First dispatch also pins the session kv key so the live event log
@@ -110,6 +129,9 @@ export function Quiz({ sgf, sgfId, wasSolved, restored, initialEvents, onBack, o
         break
       case 'onProgress':
         onProgress({ correct: e.correct, done: e.done, total: e.total })
+        break
+      case 'cooldown':
+        setCooldownUntil(Date.now() + e.seconds * 1000)
         break
     }
   }
@@ -181,8 +203,9 @@ export function Quiz({ sgf, sgfId, wasSolved, restored, initialEvents, onBack, o
   function dispatchSubmit() {
     if (!inExercise) return
     if (state.marks.size === 0) return
+    if (cooldownActive) return
     dispatch({ kind: 'submit' })
-    // Sound + wrong-flash + onProgress + finalize handled in useEffects.
+    // Sound + wrong-flash + onProgress + cooldown + finalize handled in useEffects.
   }
 
   let commitMark = useCallback((vertex, value) => {
@@ -211,6 +234,7 @@ export function Quiz({ sgf, sgfId, wasSolved, restored, initialEvents, onBack, o
     loadTimeRef.current = performance.now()
     setFinishPopup(null)
     setWrongFlash(false)
+    setCooldownUntil(0)
     resetStreak()
     setEvents([])
   }
@@ -347,8 +371,16 @@ export function Quiz({ sgf, sgfId, wasSolved, restored, initialEvents, onBack, o
             </>
           : <>
               {inExercise
-                ? <button class={`next-hero${hasMarks ? '' : ' next-hero-hidden'}`} title="Submit (Space/Enter)" onClick={dispatchSubmit}>
-                    {hasMarks ? 'Done' : 'Press and swipe each group to set its liberty count'}
+                ? <button
+                    class={`next-hero${hasMarks ? '' : ' next-hero-hidden'}${cooldownActive ? ' next-hero-cooldown' : ''}`}
+                    title="Submit (Space/Enter)"
+                    disabled={cooldownActive}
+                    onClick={dispatchSubmit}>
+                    {cooldownActive
+                      ? `Fix marks — ${cooldownRemaining}s`
+                      : hasMarks
+                        ? 'Done'
+                        : 'Press and swipe each group to set its liberty count'}
                   </button>
                 : phase(state) === 'showing'
                   ? <div class="action-hint"><span class="hint-blue">Tap</span> board to advance. <span class="hint-blue">Remember</span> the variation. Move {state.cursor}/{state.totalMoves}.</div>

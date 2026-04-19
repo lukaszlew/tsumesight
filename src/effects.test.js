@@ -35,17 +35,33 @@ describe('sideEffectsFor — per-event effects', () => {
     expect(effects).toEqual([{ kind: 'sound/mark', value: 3 }])
   })
 
-  it('wrong submit (non-finalizing) → sound/wrong + wrongFlash', () => {
+  it('wrong submit (non-finalizing) → sound/wrong + wrongFlash + cooldown', () => {
     let s = init('(;SZ[9];B[ee])', { maxSubmits: 2 })
     advanceThroughShowing(s)
     step(s, { kind: 'setMark', vertex: [4, 4], value: 2 })
     let evt = { kind: 'submit', t: 0 }
     step(s, evt)
     let effects = sideEffectsFor(s, evt)
+    // 3 s baseline + 1 s per wrong group; 1 wrong → 4 s.
     expect(effects).toEqual([
       { kind: 'sound/wrong' },
       { kind: 'wrongFlash' },
+      { kind: 'cooldown', seconds: 4 },
     ])
+  })
+
+  it('cooldown scales as 3 + N (wrong-group count)', () => {
+    let s = init('(;SZ[9];B[ee];W[aa];B[fe])', { maxSubmits: 3 })
+    advanceThroughShowing(s)
+    for (let g of s.engine.libertyExercise.groups.filter(g => g.changed)) {
+      step(s, { kind: 'setMark', vertex: g.vertex, value: 1 })
+    }
+    let evt = { kind: 'submit', t: 0 }
+    step(s, evt)
+    let effects = sideEffectsFor(s, evt)
+    let cooldown = effects.find(e => e.kind === 'cooldown')
+    let wrongCount = s.submitResults.at(-1).filter(r => r.status !== 'correct').length
+    expect(cooldown).toEqual({ kind: 'cooldown', seconds: 3 + wrongCount })
   })
 
   it('correct submit (finalizing) → sound/correct + onProgress', () => {
