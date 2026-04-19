@@ -1,185 +1,104 @@
 # Cleanups — post-refactor work list
 
-Items deferred from the V4 UI refactor (see `UiRefactorPlan.md`). Ranked by leverage × clarity × risk. Effort tags: `[S]` under 1 hour, `[M]` 1–3 hours, `[L]` 3 hours+, `[XL]` multi-day.
+Items deferred from the V4 UI refactor (see `UiRefactorPlan.md`). Sorted by priority: **impact ÷ (work × risk)**, fastest-first within each priority tier. Effort tags: `[S]` under 1h, `[M]` 1–3h, `[L]` 3h+, `[XL]` multi-day.
 
 ---
 
-## Tier 1 — Mechanical wins (high leverage, low risk)
+## Priority 1 — Do these first (high impact, low risk, short)
 
-### 1. `library.jsx` decomposition `[M]`
+### `[S]` Refresh `ARCHITECTURE.md`
 
-`library.jsx` is still 379 lines with eight concerns welded together. Natural cuts:
+Likely stale after the refactor. Migrate the module layout + data-flow diagram + "known behavior changes" from `UiRefactorPlan.md` into `ARCHITECTURE.md`; the plan doc becomes implementation history. Zero risk. Unblocks anyone reading the repo cold.
 
-- `src/library-menu.jsx` — hamburger + dropdown + PWA install + reset-data button (~60 lines out).
-- `src/library-tile.jsx` — dir tile, file tile, `useLongPress`, `scoreColor`, `splitDirName` (~80 lines out).
-- `src/usePwaInstall.js` — hook wrapping `deferredPrompt` + `beforeinstallprompt` listener, replaces the module-level side effect.
-- Keep `library.jsx` as the browser orchestrator: loads sgfs, manages cwd, computes dir stats, wires the keyboard.
+### `[S]` Dead code in `engine.js`
 
-Target: `library.jsx` at ~180 lines. No behavior change.
+`staleness` and `prevLibs` maps are populated on every `advance()` but never read. Commit `47b3983` removed their consumers (`getGroupScores`) but left the bookkeeping. Verify with grep, remove both maps and their update logic. Also check whether `boardHistory` is load-bearing — if it's only used in `_setupLibertyExercise` and nowhere else, keep; otherwise trim. ~30 lines out. Engine stays deterministic; tests stay green.
 
-### 2. `app.jsx` finishing polish `[S]`
+### `[S]` Decide `autoShowFirstMove`
 
-- Move `ErrorBoundary` to `src/error-boundary.jsx` (20 lines; used once but shouldn't be inlined in the router).
-- Introduce `useSgfs()` hook: loads and caches `getAllSgfs()` at app level. Eliminates two `getAllSgfs()` re-fetches in `goStep` / `goNextUnsolved` on every Prev/Next click. Also unblocks (13).
-- Result: `app.jsx` under 60 lines.
+The config toggle is `false`. There are three branches in `quiz.jsx` (mount effect, `doRewind`, `doRestart`) "kept for parity." Pick one:
 
-### 3. Dead code in `engine.js` `[S]`
+- **(a)** Remove the flag + branches. User always taps to see move 1.
+- **(b)** Set to `true`, remove the flag, auto-advance always.
 
-`staleness` and `prevLibs` maps are populated on every `advance()` but never read. Commit `47b3983` removed their consumers (`getGroupScores`) but left the bookkeeping. Verify with grep, remove both maps and their update logic. Also check whether `boardHistory` is load-bearing — if it's only used in `_setupLibertyExercise` and that one loop, keep; otherwise trim.
+Dead config flags are worse than either commitment.
 
-~30 lines out of engine.js. All tests stay green.
+### `[S]` `sounds.js` dead branches
 
-### 4. `sounds.js` dead branches `[S]`
+`config.markSoundMode` has four values (`repeat`, `interval`, `pluck`, `interval_pluck`) but only `interval_pluck` is active. The three unused `playMarkX` functions are ~60 lines of dead audio code. Delete the three unused variants; `playMark` calls `playMarkIntervalPluck` directly; drop `markSoundMode` from config.
 
-`config.markSoundMode` has four values (`repeat`, `interval`, `pluck`, `interval_pluck`) but only `interval_pluck` is in current config. The three unused `playMarkX` functions are ~60 lines of dead audio code. Options:
+### `[S]` `?` missed-group sentinel → symbol / constant
 
-- **(a)** Delete the three unused variants; `playMark` calls `playMarkIntervalPluck` directly. Drops `markSoundMode` from config too.
-- **(b)** Keep the variants but hoist the shared oscillator scaffolding into a helper (`plucker`, `envelope`) — the DSP code repeats itself.
+`state.marks.set(key, { value: '?', color: 'red' })` mixes a string sentinel with numeric values. Replace with `MISSED = Symbol('missed')` (or a named constant); display.js checks `value === MISSED` to render the "?" literal. Minor type-mix cleanup.
 
-(a) is strict honesty (no variants = no choice). (b) keeps options while reducing duplication. Prefer (a); inline dev-time flexibility when it crosses into the product.
+### `[S]` Magic numbers into `config.js`
 
----
-
-## Tier 2 — Architectural completion (medium risk, real gains)
-
-### 5. Finish V4: engine out of `state` `[L]`
-
-The one architectural compromise the refactor left: `state.engine` is still mutable, carried across events. P3 kept it pragmatically to avoid engine rebuild cost. Real V4:
-
-- `state` shape becomes `{sgf, config, cursor, marks, submitCount, submitResults, events, startTime}`. Engine gone.
-- `derive(state)` rebuilds `new QuizEngine(state.sgf, ...)` and replays advances up to cursor.
-- Memoize by `(sgf, events.length)` — one engine cache entry per dispatch, invalidated automatically when events array identity changes.
-- `step(state, 'submit')` builds a transient engine to evaluate marks, stores result in state, throws engine away.
-
-Payoffs:
-
-- State is JSON-serializable. `kv('session:*')` can store state directly (currently only events are persisted; state reconstructs on load).
-- Time-travel for free: `events.slice(0, k).reduce(step, init(sgf, config))` gives state at step k without side effects.
-- `step` becomes truly pure (no shared mutable engine across state references).
-
-Risk: engine rebuild must be deterministic. It already is (`mulberry32(hashString(sgf))` + events). But partial replays need to consume the RNG at the exact same point — today `_setupLibertyExercise` calls `this.random()` once at the final move; rebuilding engine for submit-at-cursor=N+1 must produce the same representative vertex. Layer A snapshots pin this, so regressions would be loud.
-
-### 6. Move mark-coloring out of `step`'s submit handler `[M]`
-
-Currently `_doSubmit` mutates `state.marks` to overlay green/red/? colors. That's the reducer embedding display concerns. Cleaner:
-
-- `state.marks` stores raw user input only (value, no color).
-- `view.marks` (computed in derive) overlays colors from `state.submitResults[last]`.
-- Display uses `view.marks` as it does today — no visible change.
-
-User intent for "tap after submit to clear color" naturally falls out: overwriting `state.marks[key]` changes user intent; eval results aren't re-run until next submit.
-
-Dependency: easier to do after (5) so engine state is derived consistently.
-
-### 7. Persist state, not just events `[S after (5)]`
-
-P2.5 writes `kv('session:*', JSON.stringify(events))` on every dispatch. With state also JSON-serializable (after (5)), we could persist full state and skip the fold-on-resume. But: events is canonical; state is derivative. If we persist both we have drift risk. If we persist only state we lose replayability. Keep events-only.
-
-Resolution: document that events is truth, state is derivable. No code change — just make sure future work doesn't add a "persist state" shortcut.
-
----
-
-## Tier 3 — Testing reach (Layer B + Layer C)
-
-### 8. Layer B: DOM snapshot at finalize `[M]`
-
-For each of the 18 fixtures, render `<Quiz />` into happy-dom, fold events via a testable `initialEvents` prop, snapshot `container.innerHTML` once (at final state). ~18 new snapshot files.
-
-Requires a small Quiz API change: accept `initialEvents` prop for test injection (~5 lines). Production callers don't use it.
-
-Catches: class-name drift, conditional JSX regressions, button text, aria attrs.
-
-### 9. Layer C: pointer math + keyboard handlers `[S]`
-
-5–10 tests in a `wheel.test.js` (or reuse `quiz-wheel.test.js`):
-
-- `getWheelZone(dx, dy)` for all 6 zones (cardinal + intermediate angles).
-- Pointer-down + simulated window move + up → verify `commitMark` called with right vertex/value.
-- Keyboard: Enter in finished phase, Space in exercise phase, Escape in confirm state, 'r' in showing phase.
-
-Pure function tests are trivial. Pointer simulation needs happy-dom PointerEvent mock; ~30 lines of setup.
-
-### 10. Integration test for crash recovery `[S]`
-
-Now that P2.5 persists events eagerly:
-
-- Mount Quiz, dispatch 3 events (no finalize).
-- Assert `kv('session:<sgfId>:<startTime>')` contains those events.
-- This test already exists in spirit via `db.test.js`; extend to verify the specific key pattern quiz.jsx produces.
-
-Not a lot of coverage, but explicitly pins the contract.
-
-### 11. Converter script path-coverage test `[S]`
-
-`scripts/zip-to-fixtures.mjs` has three classification branches (v:3 full, v:2 verbose, v:2 compact skip) and a replay-validation step. No tests. Build a tiny synthetic zip in a test, run the converter programmatically, assert output.
-
-Not high-priority — the script is one-off tooling — but ~30 minutes of insurance.
-
----
-
-## Tier 4 — Performance (measure first; only if hotspots)
-
-### 12. Incremental fold `[M]`
-
-Current `useMemo(() => events.reduce(step, init(sgf, config)), [events, ...])` re-folds the entire event array on every dispatch. For N events, O(N) work per dispatch — O(N²) across a session.
-
-Better: track previous events + previous state via a ref. On dispatch, `next = step(prev, newEvent)`. O(1) per dispatch.
-
-Requires step to be truly pure (5) so the previous-state reference isn't mutated by the latest step call. Blocked on (5).
-
-Actual cost today: 30-event session × 1ms per step ≈ 30ms per dispatch. Noticeable on slower phones? Possibly. Measure first.
-
-### 13. `getBestScore` + library subdir stats `[S]`
-
-- `getBestScore` linearly scans all scores per call; called once per file tile per render. At 30,000 files × 5 scores each = 150k ops per library render. Harmless today but not great. Cache by `(sgfId, scoresVersion)`.
-- Library subdir stats: currently O(dirs × sgfs). Rewrite as single pass building a `{dir → {total, solved, latestDate}}` map in O(sgfs).
-
-### 14. Debounce `kvSet` eager persistence `[S]`
-
-P2.5 writes on every event. A burst of 5 setMarks in 2 seconds writes 5 times. Harmless (IDB-backed, async) but wasteful. Coalesce with `requestIdleCallback` or a 200ms debounce. Measure IDB write impact first.
-
----
-
-## Tier 5 — UX / config cleanup
-
-### 15. Decide `autoShowFirstMove` `[S]`
-
-The config toggle is `false`. There's branching code in `quiz.jsx` (mount effect, `doRewind`, `doRestart`) "kept for parity." Either:
-
-- **(a)** Remove the config flag and the branches. User always taps to see move 1.
-- **(b)** Make it `true`, remove the flag, auto-advance.
-
-Decision, then removal. Having a dead config flag is worse than either commitment.
-
-### 16. Magic numbers into `config.js` `[S]`
-
-- `wrongFlash` timeout (150ms) — currently inline in the effects runner.
-- Cup time formula (3s base + 1.5s/move + 1.5s/group) — literal numbers in `effects.js:computeFinalizeData`. Name the constants.
+- `wrongFlash` timeout (150ms) — inline in the effects runner.
+- Cup time formula (3s base + 1.5s/move + 1.5s/group) — literal numbers in `effects.js:computeFinalizeData`.
 - `maxLibertyLabel` is already in config — good precedent.
 
-### 17. `?` missed-group sentinel `[S]`
+Name the constants, hoist.
 
-`state.marks.set(key, { value: '?', color: 'red' })` — magic string mixed with numbers. Could be `{ value: MISSED, color: 'red' }` where `MISSED = Symbol('missed')` or a named constant. Display.js checks `value === '?'` to render "?" literal.
+### `[S]` `vitest.config.js` centralization
 
-Minor. Cleans up a type-mix.
+No config file today; per-file `// @vitest-environment happy-dom` directives. Consolidate into a single `vitest.config.js` with `environment: 'happy-dom'` default. Removes a preamble line from every new test.
 
----
-
-## Tier 6 — Dev ergonomics
-
-### 18. `vitest.config.js` `[S]`
-
-Currently no config file; per-file `// @vitest-environment happy-dom` directives. Consolidate into a single `vitest.config.js` with `environment: 'happy-dom'` default. Simplifies new test creation.
-
-### 19. `fake-indexeddb` polyfill `[S]`
+### `[S]` `fake-indexeddb` polyfill
 
 The `.catch(() => {})` on `kvSet` / `kvRemove` (added in P0.1) silences IDB-missing errors in tests. It's a smell — production errors also get silenced. Better:
 
 - Add `fake-indexeddb` as a devDep.
-- Polyfill `globalThis.indexedDB` in `vitest.config.js` setup file.
-- Remove the `.catch()` — let production errors surface.
+- Polyfill `globalThis.indexedDB` in vitest setup.
+- Remove the `.catch()` — let real production errors surface.
 
-### 20. CI pipeline `[M]`
+### `[S]` `app.jsx` polish + `useSgfs()` hook
+
+Move `ErrorBoundary` to `src/error-boundary.jsx`. Introduce `useSgfs()` hook caching `getAllSgfs()` at app level — eliminates two `getAllSgfs()` re-fetches per Prev/Next click. Result: `app.jsx` under 60 lines. Also unblocks the perf work below.
+
+### `[S]` `getBestScore` + library subdir stats
+
+- `getBestScore` linear-scans scores per call; called once per file tile per render. Cache by `(sgfId, scoresVersion)`.
+- Library subdir stats are currently O(dirs × sgfs). Single pass over sgfs into a `{dir → {total, solved, latestDate}}` map gives O(n+d).
+
+Scale-harmless today; 10 minutes of "better default shape."
+
+### `[S]` Layer C tests (wheel math + keyboard)
+
+5–10 targeted tests in `quiz-wheel.test.js`:
+
+- `getWheelZone(dx, dy)` across all 6 zones (cardinal + intermediate angles).
+- Pointer-down + simulated window move/up → `commitMark` called with right vertex/value.
+- Keyboard: Enter finished→onNextUnsolved, Space exercise→submit, Escape confirm flow, 'r' rewind/restart.
+
+Closes a real test gap at the UI edge; pure function tests trivially pass.
+
+---
+
+## Priority 2 — Medium investment, medium payoff
+
+### `[S]` Fixture corpus growth (user work)
+
+Current corpus: 9 user-recorded (all capture-race) + 9 canonical = 18. Biased toward 9x9 semeai. Missing: life-and-death, 13x13/19x19 boards, multi-group exercises with pre-marked groups, rewind mid-setMarks, orientation-rotated recordings.
+
+One hour of guided play → export → re-run converter → ~40 fixtures. Non-negligible chance new fixtures expose a regression the current set missed.
+
+### `[S]` Crash-recovery integration test
+
+Now that P2.5 persists events eagerly: mount Quiz, dispatch 3 events (no finalize), assert `kv('session:<sgfId>:<startTime>')` contains them. Not much coverage, but explicitly pins the contract.
+
+### `[S]` Converter script path-coverage test
+
+`scripts/zip-to-fixtures.mjs` has three classification branches (v:3 full, v:2 verbose, v:2 compact-skip) + replay validation. No tests. Build a tiny synthetic zip in a test, run converter programmatically, assert output.
+
+### `[S]` Debounce `kvSet` eager persistence
+
+P2.5 writes on every event. Burst of 5 setMarks → 5 IDB writes. Harmless (fire-and-forget) but wasteful. Coalesce with a 200ms debounce. Measure IDB write impact first; may not be needed.
+
+### `[M]` Layer B — DOM snapshot at finalize
+
+For each of 18 fixtures, render `<Quiz />` into happy-dom, fold events via a testable `initialEvents` prop, snapshot `container.innerHTML` at final state. Requires small Quiz API change (accept `initialEvents` prop; ~5 lines). Catches class-name drift, conditional JSX regressions, button text, aria attrs.
+
+### `[M]` CI pipeline
 
 If `.github/workflows/` doesn't exist, add one:
 
@@ -197,67 +116,95 @@ jobs:
       - run: npm run build
 ```
 
-Layer A + every test runs in 1-2 seconds; total CI under a minute.
+Suite runs in ~1 second; total CI under a minute.
 
-### 21. `ARCHITECTURE.md` refresh `[S]`
+### `[M]` `library.jsx` decomposition
 
-Likely stale after the refactor. Should now reflect V4 + the new module layout + the data-flow diagram from the plan doc. Migrate the relevant sections from `UiRefactorPlan.md` into `ARCHITECTURE.md`; plan doc becomes an implementation history.
+`library.jsx` is 379 lines with eight concerns. Natural cuts:
 
----
+- `library-menu.jsx` — hamburger + dropdown + PWA install + reset (~60 lines).
+- `library-tile.jsx` — dir tile, file tile, `useLongPress`, `scoreColor`, `splitDirName` (~80 lines).
+- `usePwaInstall.js` — hook wrapping `deferredPrompt` + `beforeinstallprompt` (replaces module-level side effect).
 
-## Tier 7 — Fixture corpus growth
-
-### 22. Play session to expand coverage `[S — user work]`
-
-Current fixture corpus: 9 user-recorded (capture-race only) + 9 canonical = 18. Bias: mostly 9x9 semeai. Missing variety:
-
-- Life-and-death problems (different liberty dynamics)
-- 13x13 and 19x19 boards
-- Multi-group exercises with pre-marked groups
-- Rewind in the middle of setMarks (not just after a submit)
-- Orientation-rotated recordings (viewport stored in v:3 goldens)
-
-One hour of guided play → re-export → re-run converter → fixture corpus goes to ~40. Non-negligible chance new fixtures expose a bug no current fixture caught.
-
-### 23. Legacy compact decoder (the 95 skipped replays) `[L]`
-
-If the expanded corpus still misses coverage, decode the legacy `v:2` compact events (`{a:1,t}`, `{v:[x,y],t}`, `{ex:{...},t}`) into synthesized verbose event streams. Requires reverse-engineering the old click-cycle UI's tap semantics. Decoder lives in the converter script; synthesized events go through the same replay validation.
-
-Deferred indefinitely. Only worth it if (22) proves insufficient.
+Target: `library.jsx` at ~180 lines. No behavior change. Big visible refactor; medium time investment.
 
 ---
 
-## Tier 8 — Deeper engine / domain work (low-leverage, big rewrites)
+## Priority 3 — Architectural completion (do when mentally fresh)
 
-Named for completeness; skip unless a concrete bug pushes you there.
+### `[S]` Document "events is truth, state is derivable"
 
-### 24. Engine immutability `[XL]`
+P2.5 persists events eagerly. With state also JSON-serializable (after item below), future work might be tempted to persist state directly. That introduces drift risk. Add a comment block in `session.js` + `quiz.jsx` establishing the invariant: events canonical, state derived, never both persisted.
 
-`QuizEngine.advance()` mutates `trueBoard`, `boardHistory`, internal state. A purely-functional engine would return a new engine per advance. Uses persistent data structures or accepts clone cost.
+No code change. 10 minutes.
 
-Gains: engine moves to state cleanly, time-travel works at engine level, incremental fold trivial.
-Cost: significant rewrite.
+### `[L]` Finish V4 — engine out of `state`
 
-Probably not worth it. The mutation is localized and the hash-seeded RNG makes behavior deterministic regardless.
+The one architectural compromise the refactor left: `state.engine` is still mutable, carried across events. P3 kept it pragmatically. Real V4:
 
-### 25. SGF parser replacement `[L]`
+- `state` = `{sgf, config, cursor, marks, submitCount, submitResults, events, startTime}`. Engine gone.
+- `derive(state)` rebuilds `new QuizEngine(state.sgf, ...)` and replays advances up to cursor.
+- Memoize by `(sgf, events.length)` — one entry per dispatch; invalidates when events array identity changes.
+- `step(state, 'submit')` builds a transient engine to evaluate marks, stores result, throws engine away.
 
-`sgf-utils.js` is a homegrown parser. Works on the fixture corpus and the user's 30k SGFs. But edge cases (nested variations, complex setup, encodings) might bite. Consider replacing with `@sabaki/sgf` (already a dep — `package.json` lists it). Migrate `parseSgf` to use it internally, keep the output shape for back-compat.
+Payoffs:
 
-Risk: different parsing behavior could shift moveCount / boardSize for edge-case SGFs. Run against full corpus first.
+- State is JSON-serializable. `kv('session:*')` could store state directly (we won't — see above).
+- `events.slice(0, k).reduce(step, init(sgf, config))` gives state at any step k, pure.
+- `step` becomes truly pure (no shared mutable engine across state references).
 
-### 26. `db.js` rewrite `[L]`
+Risk: engine rebuild must be deterministic. It already is (`mulberry32(hashString(sgf))` + events). But `_setupLibertyExercise` consumes the RNG at final move — must produce same representative vertex on rebuild. Layer A snapshots pin this; regressions would be loud.
 
-`kvCache` as module-global is a race-condition magnet in theory. In practice, Preact's synchronous render + single-tab-per-PWA makes it fine. A cleaner version would use a context provider + hook. Cost > benefit for now.
+### `[M]` Mark-coloring out of `step`'s submit handler (depends on above)
+
+`_doSubmit` currently mutates `state.marks` to overlay green/red/? colors. That's the reducer embedding display concerns. Cleaner:
+
+- `state.marks` stores raw user input (value only, no color).
+- `view.marks` overlays colors from `state.submitResults[last]` in derive.
+- Display uses `view.marks` — no visible change.
+
+Easier after engine-out-of-state because everything in state is plain data by then.
+
+### `[M]` Incremental fold (depends on above)
+
+`useMemo(() => events.reduce(step, init(sgf, config)), [events, ...])` re-folds the entire array per dispatch. For N events: O(N) per dispatch, O(N²) across a session. Typical cost today: 30 events × 1ms ≈ 30ms per dispatch.
+
+Fix: track previous events + state in a ref; on dispatch `next = step(prev, newEvent)`. O(1).
+
+Blocked on step being truly pure (previous engine must not be mutated by the latest step call).
 
 ---
 
-## Recommended ordering if you had a full day
+## Priority 4 — Only if specifically pressured
 
-1. Tier 1 items 1–4 (2–4h): real decomposition wins, low risk.
-2. Tier 3 items 8–9 (1.5h): closes visible regression gap.
-3. Tier 5 items 15–17 (1h): dead-code / magic-number cleanup.
-4. Tier 6 items 18–19 (1h): makes future test work cleaner.
-5. Tier 2 items 5–6 (3–4h): real V4. Do when you have mental space.
+### `[L]` Legacy compact replay decoder
 
-Leave Tiers 4, 7, 8 for when specific pressure appears.
+The 95 `v:2` compact replays in user exports (`{a:1,t}`, `{v:[x,y],t}`, `{ex:{...},t}`) were skipped by the converter because they encode a different UI model (tap-to-cycle, not swipe). Decoder would reverse-engineer the old click semantics into synthesized verbose event streams.
+
+Only worth the ~4-6h investment if the expanded fixture corpus (item 22) misses coverage the legacy logs would provide.
+
+### `[L]` SGF parser replacement
+
+`sgf-utils.js` is homegrown. Works on the current 30k-SGF corpus. Edge cases (nested variations, complex setup, encodings) might bite. `@sabaki/sgf` is already a dep — migrate `parseSgf` to use it internally, keep output shape.
+
+Risk: different parsing behavior could shift moveCount/boardSize for edge cases. Would need to run against full corpus before committing.
+
+### `[L]` `db.js` context-provider rewrite
+
+`kvCache` module-global is a race-condition magnet in theory. Preact's synchronous render + single-tab PWA makes it fine in practice. Cleaner version: React context + hook. Cost > benefit today.
+
+### `[XL]` Engine immutability
+
+`QuizEngine.advance()` mutates internal state. Purely functional engine would return a new engine per advance (persistent data structures or clone-cost acceptance). Gains: engine in state cleanly, engine-level time-travel, trivial incremental fold. Cost: significant rewrite of engine.js.
+
+Mutation is localized and hash-seeded RNG keeps behavior deterministic regardless. Skip unless a concrete bug pushes you there.
+
+---
+
+## Reading guide
+
+- **One free hour:** top 3 Priority 1 items.
+- **Half a day:** all of Priority 1.
+- **Full day:** Priority 1 + Priority 2 through `library.jsx` decomposition.
+- **Week of mental space:** add Priority 3 — real V4 architectural completion.
+- **Everything else:** only as a response to specific pressure.
