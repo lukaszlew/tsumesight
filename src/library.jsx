@@ -2,9 +2,8 @@ import { useState, useEffect } from 'preact/hooks'
 import { getAllSgfs, addSgfBatch, deleteSgf, deleteSgfsByPrefix, renameSgfsByPrefix, clearAll, getBestScore, getLatestScoreDate, updateSgf, exportDb, downloadExport, getScores } from './db.js'
 import { starsFromScore, StarsDisplay } from './scoring.js'
 import { parseSgf } from './sgf-utils.js'
-import { isArchive, extractSgfs } from './archive.js'
-import { decodeSgf } from './sgf-utils.js'
 import { siblings as siblingsAt, nextUnsolved } from './navigation.js'
+import { importFiles, importFolder, importUrl } from './importer.js'
 
 const DEFAULT_URL = 'https://files.catbox.moe/v3phv1.zip'
 const isDev = location.pathname.includes('/dev/')
@@ -27,58 +26,12 @@ function scoreColor(accuracy) {
   return '#c44'
 }
 
-let numInParens = /^(.*\()(\d+)(\)\..+)$/
-
-function padFilenames(records) {
-  // Group by path, find max number per group, zero-pad
-  let byPath = new Map()
-  for (let r of records) {
-    let m = numInParens.exec(r.filename)
-    if (!m) continue
-    let list = byPath.get(r.path)
-    if (!list) { list = []; byPath.set(r.path, list) }
-    list.push({ record: r, prefix: m[1], num: parseInt(m[2]), suffix: m[3] })
-  }
-  for (let entries of byPath.values()) {
-    let maxN = Math.max(...entries.map(e => e.num))
-    let width = String(maxN).length
-    for (let { record, prefix, num, suffix } of entries) {
-      record.filename = prefix + String(num).padStart(width, '0') + suffix
-    }
-  }
-}
-
-function archivePrefix(entries, fallback) {
-  // If all entries are inside directories and there are <10 top-level dirs, skip wrapper
-  let topDirs = new Set()
-  for (let { name } of entries) {
-    let slash = name.indexOf('/')
-    if (slash < 0) return fallback // loose file at root → use wrapper
-    topDirs.add(name.slice(0, slash))
-  }
-  return topDirs.size < 10 ? '' : fallback
-}
-
 function WelcomeMessage() {
   return (
     <div class="welcome">
       <p>Upload SGF files above or click <b>Fetch</b> below to load the default collection.</p>
     </div>
   )
-}
-
-async function collectSgfFiles(dirHandle, path) {
-  let results = []
-  for await (let [name, handle] of dirHandle) {
-    if (handle.kind === 'file' && name.endsWith('.sgf')) {
-      let file = await handle.getFile()
-      results.push({ file, path })
-    } else if (handle.kind === 'directory') {
-      let sub = path ? path + '/' + name : name
-      results.push(...await collectSgfFiles(handle, sub))
-    }
-  }
-  return results
 }
 
 function useLongPress(callback, ms = 500) {
@@ -147,30 +100,7 @@ export function Library({ onSelect, cwd, onCwdChange }) {
     })
   }, [])
 
-  let parseAndCollect = (entries, pathPrefix, uploadedAt) => {
-    let records = []
-    for (let { name, content } of entries) {
-      try {
-        let parts = name.split('/')
-        let filename = parts.pop()
-        let path = [pathPrefix, ...parts].filter(Boolean).join('/')
-        let parsed = parseSgf(content)
-        records.push({
-          filename, path, content,
-          boardSize: parsed.boardSize,
-          moveCount: parsed.moveCount,
-          playerBlack: parsed.playerBlack,
-          playerWhite: parsed.playerWhite,
-          uploadedAt,
-        })
-      } catch {
-        console.warn('Skipping unparseable SGF:', name)
-      }
-    }
-    padFilenames(records)
-    return records
-  }
-
+  // Batch-write records to the DB with progress updates.
   let importBatch = async (records) => {
     setImporting({ done: 0, total: records.length })
     let BATCH = 500
@@ -183,57 +113,27 @@ export function Library({ onSelect, cwd, onCwdChange }) {
   }
 
   let handleFiles = async (e) => {
-    let now = Date.now()
-    let allRecords = []
-    for (let file of Array.from(e.target.files)) {
-      if (isArchive(file.name)) {
-        setImporting({ done: 0, total: 0 })
-        let entries = await extractSgfs(file)
-        let fallback = file.name.replace(/\.(zip|tar\.gz|tgz|tar)$/i, '')
-        allRecords.push(...parseAndCollect(entries, archivePrefix(entries, fallback), now))
-      } else if (file.name.toLowerCase().endsWith('.sgf')) {
-        let content = decodeSgf(new Uint8Array(await file.arrayBuffer()))
-        allRecords.push(...parseAndCollect([{ name: file.name, content }], '', now))
-      }
-    }
-    if (allRecords.length > 0) await importBatch(allRecords)
+    let records = await importFiles(e.target.files, {
+      onArchiveStart: () => setImporting({ done: 0, total: 0 }),
+    })
+    if (records.length > 0) await importBatch(records)
     e.target.value = ''
     refresh()
   }
 
   let handleFolder = async () => {
     let dirHandle = await window.showDirectoryPicker()
-    let collected = await collectSgfFiles(dirHandle, dirHandle.name)
-    let now = Date.now()
-    let entries = []
-    for (let { file, path } of collected) {
-      let content = decodeSgf(new Uint8Array(await file.arrayBuffer()))
-      entries.push({ name: path + '/' + file.name, content })
-    }
-    let records = parseAndCollect(entries, '', now)
+    let records = await importFolder(dirHandle)
     if (records.length > 0) await importBatch(records)
     refresh()
   }
 
   let fetchUrl = async (url) => {
     try {
-      let resp = await fetch(url)
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
-      let filename = url.split('/').pop().split('?')[0] || 'download.sgf'
-      let blob = await resp.blob()
-      let file = new File([blob], filename)
-      let now = Date.now()
-      let allRecords = []
-      if (isArchive(filename)) {
-        setImporting({ done: 0, total: 0 })
-        let entries = await extractSgfs(file)
-        let fallback = filename.replace(/\.(zip|tar\.gz|tgz|tar)$/i, '')
-        allRecords = parseAndCollect(entries, archivePrefix(entries, fallback), now)
-      } else {
-        let content = decodeSgf(new Uint8Array(await file.arrayBuffer()))
-        allRecords = parseAndCollect([{ name: filename, content }], '', now)
-      }
-      if (allRecords.length > 0) await importBatch(allRecords)
+      let records = await importUrl(url, {
+        onArchiveStart: () => setImporting({ done: 0, total: 0 }),
+      })
+      if (records.length > 0) await importBatch(records)
       refresh()
     } catch (err) {
       setImporting(null)
