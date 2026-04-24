@@ -43,7 +43,8 @@ jobs:
         include: ${{ fromJson(needs.list.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
-        with: { ref: ${{ matrix.ref }} }
+        with:
+          ref: ${{ matrix.ref }}
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - run: npm ci
@@ -58,7 +59,8 @@ jobs:
         include: ${{ fromJson(needs.list.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
-        with: { ref: ${{ matrix.ref }} }
+        with:
+          ref: ${{ matrix.ref }}
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - run: npm ci
