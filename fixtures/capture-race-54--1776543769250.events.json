@@ -1,0 +1,193 @@
+{
+  "schemaVersion": 1,
+  "sgf": {
+    "content": "(;GM[1]FF[4]CA[UTF-8]AP[Converter:3]ST[2]RU[Japanese]SZ[19]KM[0.00]PW[White]PB[Black]\nAB[bb][be][cc][cd][ce][df][ef][fc][fe][gb][gc]\nAW[bf][cb][cf][ch][cj][db][dc][dd][de][eb][fb]PL[B]C[Black to play.\n\nCapture race - One Eye Kills Blind\n\nSource: Xuan-Xuan-Qi-Jin.]\n(\n;B[ad]\n;W[ba]\n;B[bc]\n;W[ab]\n;B[ca]\n;W[da]\n;B[fa]C[RIGHT\nWhite Death])\n(\n;B[ba]\n;W[ad]\n;B[bc]\n;W[ae]C[Black Death]))",
+    "filename": "CAPTURE RACE (54).sgf",
+    "path": "Semeai - Intermediate",
+    "contentHash": "sha256:7bf8ba2551fd61d6c0b67c08b35b68c2c111757f3afd499906f209d0ca30e197"
+  },
+  "config": {
+    "maxSubmits": 2,
+    "maxQuestions": 2
+  },
+  "recorded": {
+    "at": "2026-04-18T20:22:49.250Z",
+    "eventSchemaVersion": 2,
+    "viewport": null,
+    "rotated": null,
+    "source": "v2-verbose"
+  },
+  "events": [
+    {
+      "kind": "rewind",
+      "t": 0
+    },
+    {
+      "kind": "advance",
+      "t": 833
+    },
+    {
+      "kind": "advance",
+      "t": 1354
+    },
+    {
+      "kind": "advance",
+      "t": 1803
+    },
+    {
+      "kind": "advance",
+      "t": 2286
+    },
+    {
+      "kind": "advance",
+      "t": 2662
+    },
+    {
+      "kind": "advance",
+      "t": 3262
+    },
+    {
+      "kind": "advance",
+      "t": 4276
+    },
+    {
+      "kind": "advance",
+      "t": 4702
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        3,
+        1
+      ],
+      "value": 5,
+      "t": 10998
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        1,
+        0
+      ],
+      "value": 2,
+      "t": 13375
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        0,
+        1
+      ],
+      "value": 3,
+      "t": 14751
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        0,
+        1
+      ],
+      "value": 2,
+      "t": 15662
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        0,
+        3
+      ],
+      "value": 3,
+      "t": 17584
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        1,
+        4
+      ],
+      "value": 1,
+      "t": 19757
+    },
+    {
+      "kind": "submit",
+      "t": 20186
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        5,
+        0
+      ],
+      "value": 2,
+      "t": 22913
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        2,
+        5
+      ],
+      "value": 2,
+      "t": 26180
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        0,
+        5
+      ],
+      "value": 2,
+      "t": 27822
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        1,
+        4
+      ],
+      "value": 1,
+      "t": 31485
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        1,
+        4
+      ],
+      "value": 3,
+      "t": 34064
+    },
+    {
+      "kind": "submit",
+      "t": 35330
+    }
+  ],
+  "goldens": {
+    "scoreEntry": {
+      "correct": 4,
+      "total": 6,
+      "accuracy": 0.6666666666666666,
+      "totalMs": 87951,
+      "mistakes": 2,
+      "errors": 2,
+      "date": 1776543769250,
+      "thresholdMs": 22500,
+      "parScore": 142.5,
+      "accPoints": 104,
+      "speedPoints": 0,
+      "groupCount": 6,
+      "mistakesByGroup": [
+        0,
+        0,
+        1,
+        0,
+        1,
+        0
+      ],
+      "maxTimeMs": 45000
+    },
+    "finalMarks": null,
+    "submitResults": null,
+    "changedGroupsVertices": null
+  }
+}

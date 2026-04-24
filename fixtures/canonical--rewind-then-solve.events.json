@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 1,
+  "sgf": {
+    "content": "(;SZ[9];B[ba];W[aa])",
+    "filename": "canonical-rewind-then-solve.sgf",
+    "path": "canonical",
+    "contentHash": "sha256:9bd13f1618f9b4afce348e1a5a02e4e21009651bb7beb2e4ab61137b7cdc2ed9"
+  },
+  "config": {
+    "maxSubmits": 3,
+    "maxQuestions": 2
+  },
+  "recorded": {
+    "at": null,
+    "eventSchemaVersion": 2,
+    "viewport": null,
+    "rotated": null,
+    "source": "canonical",
+    "description": "Wrong submit, rewind, replay, correct submit"
+  },
+  "events": [
+    {
+      "kind": "advance",
+      "t": 0
+    },
+    {
+      "kind": "advance",
+      "t": 1
+    },
+    {
+      "kind": "advance",
+      "t": 2
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        0,
+        0
+      ],
+      "value": 1,
+      "t": 3
+    },
+    {
+      "kind": "submit",
+      "t": 4
+    },
+    {
+      "kind": "rewind",
+      "t": 5
+    },
+    {
+      "kind": "advance",
+      "t": 6
+    },
+    {
+      "kind": "advance",
+      "t": 7
+    },
+    {
+      "kind": "advance",
+      "t": 8
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        0,
+        0
+      ],
+      "value": 1,
+      "t": 9
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        1,
+        0
+      ],
+      "value": 2,
+      "t": 10
+    },
+    {
+      "kind": "submit",
+      "t": 11
+    }
+  ],
+  "goldens": {
+    "scoreEntry": {
+      "correct": 1,
+      "total": 2,
+      "accuracy": 0.5,
+      "mistakes": 1,
+      "mistakesByGroup": [
+        0,
+        1
+      ],
+      "groupCount": 2
+    },
+    "finalMarks": [
+      {
+        "key": "0,0",
+        "value": 1,
+        "color": "green"
+      },
+      {
+        "key": "1,0",
+        "value": 2,
+        "color": "green"
+      }
+    ],
+    "submitResults": [
+      [
+        {
+          "status": "correct",
+          "userVertex": "0,0",
+          "userVal": 1
+        },
+        {
+          "status": "missed"
+        }
+      ],
+      [
+        {
+          "status": "correct",
+          "userVertex": "0,0",
+          "userVal": 1
+        },
+        {
+          "status": "correct",
+          "userVertex": "1,0",
+          "userVal": 2
+        }
+      ]
+    ],
+    "changedGroupsVertices": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        0
+      ]
+    ]
+  }
+}

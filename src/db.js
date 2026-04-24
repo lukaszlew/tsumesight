@@ -118,6 +118,10 @@ export function kv(key, fallback) {
   return val !== undefined ? val : fallback
 }
 
+// kv writes are fire-and-forget. The in-memory cache makes them
+// effectively synchronous to readers; the IDB write is best-effort
+// durability. Tests provide a fake IndexedDB via src/test-setup.js so
+// production IDB errors surface instead of being swallowed.
 export function kvSet(key, value) {
   kvCache[key] = value
   openDb().then(db => promisify(tx(db, 'readwrite', KV_STORE).put(value, key)))
@@ -148,17 +152,27 @@ export function getBestScore(sgfId) {
   )
 }
 
-export function addReplay(sgfId, date, events) {
-  kvSet(`replay:${sgfId}:${date}`, JSON.stringify({ v: 2, events }))
+// Write an enriched replay record (v:3). Payload shape:
+//   { events, config, viewport, goldens }
+// Mirrors the fixture schema so the converter can promote this directly
+// into a committed test fixture. See src/fixture-schema.js.
+export function addReplay(sgfId, date, payload) {
+  kvSet(`replay:${sgfId}:${date}`, JSON.stringify({ v: 3, ...payload }))
 }
 
+// Read a replay record, normalized to the v:3 shape regardless of what
+// was stored. v:2 records return with null config/viewport/goldens; older
+// or unparseable records return null. Callers that only need events
+// destructure `.events`.
 export function getReplay(sgfId, date) {
   let raw = kv(`replay:${sgfId}:${date}`)
   if (!raw) return null
   try {
     let parsed = JSON.parse(raw)
-    if (!parsed || parsed.v !== 2) return null // ignore old format replays
-    return parsed.events
+    if (!parsed) return null
+    if (parsed.v === 3) return parsed
+    if (parsed.v === 2) return { v: 3, events: parsed.events, config: null, viewport: null, goldens: null }
+    return null
   } catch { return null }
 }
 
@@ -166,6 +180,15 @@ export function getLatestScoreDate(sgfId) {
   let scores = getScores(sgfId)
   if (scores.length === 0) return 0
   return Math.max(...scores.map(s => s.date || 0))
+}
+
+// Latest replay events for this sgf, or null if none stored in the current
+// format (v2). Used to restore a solved puzzle by folding the events back
+// through a fresh session.
+export function getLatestReplay(sgfId) {
+  let date = getLatestScoreDate(sgfId)
+  if (!date) return null
+  return getReplay(sgfId, date)
 }
 
 export async function exportDb() {

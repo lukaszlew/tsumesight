@@ -1,0 +1,658 @@
+{
+  "totalMoves": 5,
+  "eventCount": 16,
+  "finalPhase": "finished",
+  "timeline": [
+    {
+      "event": null,
+      "state": {
+        "cursor": 0,
+        "phase": "showing",
+        "hasExercise": false,
+        "submitCount": 0,
+        "finalized": false,
+        "marks": [],
+        "submitResults": [],
+        "mistakesByGroup": null
+      }
+    },
+    {
+      "event": {
+        "kind": "advance",
+        "t": 0
+      },
+      "state": {
+        "cursor": 1,
+        "phase": "showing",
+        "hasExercise": false,
+        "submitCount": 0,
+        "finalized": false,
+        "marks": [],
+        "submitResults": [],
+        "mistakesByGroup": null
+      }
+    },
+    {
+      "event": {
+        "kind": "advance",
+        "t": 731
+      },
+      "state": {
+        "cursor": 2,
+        "phase": "showing",
+        "hasExercise": false,
+        "submitCount": 0,
+        "finalized": false,
+        "marks": [],
+        "submitResults": [],
+        "mistakesByGroup": null
+      }
+    },
+    {
+      "event": {
+        "kind": "advance",
+        "t": 1203
+      },
+      "state": {
+        "cursor": 3,
+        "phase": "showing",
+        "hasExercise": false,
+        "submitCount": 0,
+        "finalized": false,
+        "marks": [],
+        "submitResults": [],
+        "mistakesByGroup": null
+      }
+    },
+    {
+      "event": {
+        "kind": "advance",
+        "t": 1627
+      },
+      "state": {
+        "cursor": 4,
+        "phase": "showing",
+        "hasExercise": false,
+        "submitCount": 0,
+        "finalized": false,
+        "marks": [],
+        "submitResults": [],
+        "mistakesByGroup": null
+      }
+    },
+    {
+      "event": {
+        "kind": "advance",
+        "t": 2142
+      },
+      "state": {
+        "cursor": 5,
+        "phase": "showing",
+        "hasExercise": false,
+        "submitCount": 0,
+        "finalized": false,
+        "marks": [],
+        "submitResults": [],
+        "mistakesByGroup": null
+      }
+    },
+    {
+      "event": {
+        "kind": "advance",
+        "t": 2603
+      },
+      "state": {
+        "cursor": 6,
+        "phase": "exercise",
+        "hasExercise": true,
+        "submitCount": 0,
+        "finalized": false,
+        "marks": [],
+        "submitResults": [],
+        "mistakesByGroup": null
+      }
+    },
+    {
+      "event": {
+        "kind": "setMark",
+        "vertex": [
+          0,
+          7
+        ],
+        "value": 2,
+        "t": 4518
+      },
+      "state": {
+        "cursor": 6,
+        "phase": "exercise",
+        "hasExercise": true,
+        "submitCount": 0,
+        "finalized": false,
+        "marks": [
+          {
+            "key": "0,7",
+            "value": 2,
+            "color": null
+          }
+        ],
+        "submitResults": [],
+        "mistakesByGroup": null
+      }
+    },
+    {
+      "event": {
+        "kind": "setMark",
+        "vertex": [
+          1,
+          6
+        ],
+        "value": 3,
+        "t": 7527
+      },
+      "state": {
+        "cursor": 6,
+        "phase": "exercise",
+        "hasExercise": true,
+        "submitCount": 0,
+        "finalized": false,
+        "marks": [
+          {
+            "key": "0,7",
+            "value": 2,
+            "color": null
+          },
+          {
+            "key": "1,6",
+            "value": 3,
+            "color": null
+          }
+        ],
+        "submitResults": [],
+        "mistakesByGroup": null
+      }
+    },
+    {
+      "event": {
+        "kind": "setMark",
+        "vertex": [
+          0,
+          4
+        ],
+        "value": 1,
+        "t": 9673
+      },
+      "state": {
+        "cursor": 6,
+        "phase": "exercise",
+        "hasExercise": true,
+        "submitCount": 0,
+        "finalized": false,
+        "marks": [
+          {
+            "key": "0,4",
+            "value": 1,
+            "color": null
+          },
+          {
+            "key": "0,7",
+            "value": 2,
+            "color": null
+          },
+          {
+            "key": "1,6",
+            "value": 3,
+            "color": null
+          }
+        ],
+        "submitResults": [],
+        "mistakesByGroup": null
+      }
+    },
+    {
+      "event": {
+        "kind": "setMark",
+        "vertex": [
+          0,
+          3
+        ],
+        "value": 1,
+        "t": 10534
+      },
+      "state": {
+        "cursor": 6,
+        "phase": "exercise",
+        "hasExercise": true,
+        "submitCount": 0,
+        "finalized": false,
+        "marks": [
+          {
+            "key": "0,3",
+            "value": 1,
+            "color": null
+          },
+          {
+            "key": "0,4",
+            "value": 1,
+            "color": null
+          },
+          {
+            "key": "0,7",
+            "value": 2,
+            "color": null
+          },
+          {
+            "key": "1,6",
+            "value": 3,
+            "color": null
+          }
+        ],
+        "submitResults": [],
+        "mistakesByGroup": null
+      }
+    },
+    {
+      "event": {
+        "kind": "setMark",
+        "vertex": [
+          1,
+          1
+        ],
+        "value": 3,
+        "t": 12117
+      },
+      "state": {
+        "cursor": 6,
+        "phase": "exercise",
+        "hasExercise": true,
+        "submitCount": 0,
+        "finalized": false,
+        "marks": [
+          {
+            "key": "0,3",
+            "value": 1,
+            "color": null
+          },
+          {
+            "key": "0,4",
+            "value": 1,
+            "color": null
+          },
+          {
+            "key": "0,7",
+            "value": 2,
+            "color": null
+          },
+          {
+            "key": "1,1",
+            "value": 3,
+            "color": null
+          },
+          {
+            "key": "1,6",
+            "value": 3,
+            "color": null
+          }
+        ],
+        "submitResults": [],
+        "mistakesByGroup": null
+      }
+    },
+    {
+      "event": {
+        "kind": "submit",
+        "t": 14233
+      },
+      "state": {
+        "cursor": 6,
+        "phase": "exercise",
+        "hasExercise": true,
+        "submitCount": 1,
+        "finalized": false,
+        "marks": [
+          {
+            "key": "0,3",
+            "value": 1,
+            "color": "red"
+          },
+          {
+            "key": "0,4",
+            "value": 1,
+            "color": null
+          },
+          {
+            "key": "0,7",
+            "value": 2,
+            "color": "green"
+          },
+          {
+            "key": "1,1",
+            "value": 3,
+            "color": "green"
+          },
+          {
+            "key": "1,6",
+            "value": 3,
+            "color": "red"
+          }
+        ],
+        "submitResults": [
+          [
+            {
+              "status": "correct",
+              "userVertex": "1,1",
+              "userVal": 3
+            },
+            {
+              "status": "wrong",
+              "userVertex": "0,3",
+              "userVal": 1
+            },
+            {
+              "status": "wrong",
+              "userVertex": "1,6",
+              "userVal": 3
+            },
+            {
+              "status": "correct",
+              "userVertex": "0,7",
+              "userVal": 2
+            }
+          ]
+        ],
+        "mistakesByGroup": null
+      }
+    },
+    {
+      "event": {
+        "kind": "setMark",
+        "vertex": [
+          0,
+          3
+        ],
+        "value": 1,
+        "t": 15483
+      },
+      "state": {
+        "cursor": 6,
+        "phase": "exercise",
+        "hasExercise": true,
+        "submitCount": 1,
+        "finalized": false,
+        "marks": [
+          {
+            "key": "0,3",
+            "value": 1,
+            "color": null
+          },
+          {
+            "key": "0,4",
+            "value": 1,
+            "color": null
+          },
+          {
+            "key": "0,7",
+            "value": 2,
+            "color": "green"
+          },
+          {
+            "key": "1,1",
+            "value": 3,
+            "color": "green"
+          },
+          {
+            "key": "1,6",
+            "value": 3,
+            "color": "red"
+          }
+        ],
+        "submitResults": [
+          [
+            {
+              "status": "correct",
+              "userVertex": "1,1",
+              "userVal": 3
+            },
+            {
+              "status": "wrong",
+              "userVertex": "0,3",
+              "userVal": 1
+            },
+            {
+              "status": "wrong",
+              "userVertex": "1,6",
+              "userVal": 3
+            },
+            {
+              "status": "correct",
+              "userVertex": "0,7",
+              "userVal": 2
+            }
+          ]
+        ],
+        "mistakesByGroup": null
+      }
+    },
+    {
+      "event": {
+        "kind": "setMark",
+        "vertex": [
+          0,
+          3
+        ],
+        "value": 2,
+        "t": 17783
+      },
+      "state": {
+        "cursor": 6,
+        "phase": "exercise",
+        "hasExercise": true,
+        "submitCount": 1,
+        "finalized": false,
+        "marks": [
+          {
+            "key": "0,3",
+            "value": 2,
+            "color": null
+          },
+          {
+            "key": "0,4",
+            "value": 1,
+            "color": null
+          },
+          {
+            "key": "0,7",
+            "value": 2,
+            "color": "green"
+          },
+          {
+            "key": "1,1",
+            "value": 3,
+            "color": "green"
+          },
+          {
+            "key": "1,6",
+            "value": 3,
+            "color": "red"
+          }
+        ],
+        "submitResults": [
+          [
+            {
+              "status": "correct",
+              "userVertex": "1,1",
+              "userVal": 3
+            },
+            {
+              "status": "wrong",
+              "userVertex": "0,3",
+              "userVal": 1
+            },
+            {
+              "status": "wrong",
+              "userVertex": "1,6",
+              "userVal": 3
+            },
+            {
+              "status": "correct",
+              "userVertex": "0,7",
+              "userVal": 2
+            }
+          ]
+        ],
+        "mistakesByGroup": null
+      }
+    },
+    {
+      "event": {
+        "kind": "setMark",
+        "vertex": [
+          0,
+          4
+        ],
+        "value": 0,
+        "t": 19131
+      },
+      "state": {
+        "cursor": 6,
+        "phase": "exercise",
+        "hasExercise": true,
+        "submitCount": 1,
+        "finalized": false,
+        "marks": [
+          {
+            "key": "0,3",
+            "value": 2,
+            "color": null
+          },
+          {
+            "key": "0,7",
+            "value": 2,
+            "color": "green"
+          },
+          {
+            "key": "1,1",
+            "value": 3,
+            "color": "green"
+          },
+          {
+            "key": "1,6",
+            "value": 3,
+            "color": "red"
+          }
+        ],
+        "submitResults": [
+          [
+            {
+              "status": "correct",
+              "userVertex": "1,1",
+              "userVal": 3
+            },
+            {
+              "status": "wrong",
+              "userVertex": "0,3",
+              "userVal": 1
+            },
+            {
+              "status": "wrong",
+              "userVertex": "1,6",
+              "userVal": 3
+            },
+            {
+              "status": "correct",
+              "userVertex": "0,7",
+              "userVal": 2
+            }
+          ]
+        ],
+        "mistakesByGroup": null
+      }
+    },
+    {
+      "event": {
+        "kind": "submit",
+        "t": 19559
+      },
+      "state": {
+        "cursor": 6,
+        "phase": "finished",
+        "hasExercise": true,
+        "submitCount": 2,
+        "finalized": true,
+        "marks": [
+          {
+            "key": "0,3",
+            "value": 2,
+            "color": "green"
+          },
+          {
+            "key": "0,7",
+            "value": 2,
+            "color": "green"
+          },
+          {
+            "key": "1,1",
+            "value": 3,
+            "color": "green"
+          },
+          {
+            "key": "1,6",
+            "value": 3,
+            "color": "red"
+          }
+        ],
+        "submitResults": [
+          [
+            {
+              "status": "correct",
+              "userVertex": "1,1",
+              "userVal": 3
+            },
+            {
+              "status": "wrong",
+              "userVertex": "0,3",
+              "userVal": 1
+            },
+            {
+              "status": "wrong",
+              "userVertex": "1,6",
+              "userVal": 3
+            },
+            {
+              "status": "correct",
+              "userVertex": "0,7",
+              "userVal": 2
+            }
+          ],
+          [
+            {
+              "status": "correct",
+              "userVertex": "1,1",
+              "userVal": 3
+            },
+            {
+              "status": "correct",
+              "userVertex": "0,3",
+              "userVal": 2
+            },
+            {
+              "status": "wrong",
+              "userVertex": "1,6",
+              "userVal": 3
+            },
+            {
+              "status": "correct",
+              "userVertex": "0,7",
+              "userVal": 2
+            }
+          ]
+        ],
+        "mistakesByGroup": [
+          0,
+          1,
+          2,
+          0
+        ]
+      }
+    }
+  ]
+}

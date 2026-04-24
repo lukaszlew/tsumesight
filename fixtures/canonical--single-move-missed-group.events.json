@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "sgf": {
+    "content": "(;SZ[9];B[ee])",
+    "filename": "canonical-single-move-missed-group.sgf",
+    "path": "canonical",
+    "contentHash": "sha256:3652cca95e5284f8e1e0ceecfe48d4721c9de3e1b67b2482f23ec8cc3e1d95b7"
+  },
+  "config": {
+    "maxSubmits": 3,
+    "maxQuestions": 2
+  },
+  "recorded": {
+    "at": null,
+    "eventSchemaVersion": 2,
+    "viewport": null,
+    "rotated": null,
+    "source": "canonical",
+    "description": "Submit with no marks; group shows as missed after force-commit"
+  },
+  "events": [
+    {
+      "kind": "advance",
+      "t": 0
+    },
+    {
+      "kind": "advance",
+      "t": 1
+    },
+    {
+      "kind": "submit",
+      "t": 2
+    },
+    {
+      "kind": "submit",
+      "t": 3
+    },
+    {
+      "kind": "submit",
+      "t": 4
+    }
+  ],
+  "goldens": {
+    "scoreEntry": {
+      "correct": 0,
+      "total": 1,
+      "accuracy": 0,
+      "mistakes": 3,
+      "mistakesByGroup": [
+        3
+      ],
+      "groupCount": 1
+    },
+    "finalMarks": [
+      {
+        "key": "4,4",
+        "value": "?",
+        "color": "red"
+      }
+    ],
+    "submitResults": [
+      [
+        {
+          "status": "missed"
+        }
+      ],
+      [
+        {
+          "status": "missed"
+        }
+      ],
+      [
+        {
+          "status": "missed"
+        }
+      ]
+    ],
+    "changedGroupsVertices": [
+      [
+        4,
+        4
+      ]
+    ]
+  }
+}

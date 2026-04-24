@@ -1,0 +1,111 @@
+{
+  "totalMoves": 1,
+  "eventCount": 4,
+  "finalPhase": "finished",
+  "timeline": [
+    {
+      "event": null,
+      "state": {
+        "cursor": 0,
+        "phase": "showing",
+        "hasExercise": false,
+        "submitCount": 0,
+        "finalized": false,
+        "marks": [],
+        "submitResults": [],
+        "mistakesByGroup": null
+      }
+    },
+    {
+      "event": {
+        "kind": "advance",
+        "t": 0
+      },
+      "state": {
+        "cursor": 1,
+        "phase": "showing",
+        "hasExercise": false,
+        "submitCount": 0,
+        "finalized": false,
+        "marks": [],
+        "submitResults": [],
+        "mistakesByGroup": null
+      }
+    },
+    {
+      "event": {
+        "kind": "advance",
+        "t": 1
+      },
+      "state": {
+        "cursor": 2,
+        "phase": "exercise",
+        "hasExercise": true,
+        "submitCount": 0,
+        "finalized": false,
+        "marks": [],
+        "submitResults": [],
+        "mistakesByGroup": null
+      }
+    },
+    {
+      "event": {
+        "kind": "setMark",
+        "vertex": [
+          4,
+          4
+        ],
+        "value": 4,
+        "t": 2
+      },
+      "state": {
+        "cursor": 2,
+        "phase": "exercise",
+        "hasExercise": true,
+        "submitCount": 0,
+        "finalized": false,
+        "marks": [
+          {
+            "key": "4,4",
+            "value": 4,
+            "color": null
+          }
+        ],
+        "submitResults": [],
+        "mistakesByGroup": null
+      }
+    },
+    {
+      "event": {
+        "kind": "submit",
+        "t": 3
+      },
+      "state": {
+        "cursor": 2,
+        "phase": "finished",
+        "hasExercise": true,
+        "submitCount": 1,
+        "finalized": true,
+        "marks": [
+          {
+            "key": "4,4",
+            "value": 4,
+            "color": "green"
+          }
+        ],
+        "submitResults": [
+          [
+            {
+              "status": "correct",
+              "userVertex": "4,4",
+              "userVal": 4
+            }
+          ]
+        ],
+        "mistakesByGroup": [
+          0
+        ]
+      }
+    }
+  ]
+}

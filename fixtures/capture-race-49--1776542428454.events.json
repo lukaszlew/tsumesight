@@ -1,0 +1,161 @@
+{
+  "schemaVersion": 1,
+  "sgf": {
+    "content": "(;GM[1]FF[4]CA[UTF-8]AP[Converter:3]ST[2]RU[Japanese]SZ[19]KM[0.00]PW[White]PB[Black]\nAB[ba][cb][cc][dd][de][fb][fd]\nAW[cd][ce][cf][da][db][dc]PL[W]C[White to play.\n\nCapture race - Reduce Opponent's Liberties\n\nSource: Guan-Zhi-Pu.]\n(\n;W[bb]\n;B[bc]\n;W[ab]\n;B[ec]\n(\n;W[bd]\n;B[ac]\n;W[ca]\n;B[aa]\n(\n;W[bb]C[RIGHT\n])\n(\n;W[ab]C[RIGHT\n]))\n(\n;W[ca]\n;B[eb]\n;W[aa]\n;B[ea]))\n(\n;W[bc]\n;B[bb]\n;W[bd]\n;B[ec]\n;W[ab]\n;B[eb]))",
+    "filename": "CAPTURE RACE (49).sgf",
+    "path": "Semeai - Intermediate",
+    "contentHash": "sha256:fe1834880d59a748d0dadc2a8df5014a41e59dde42c6925aad54096b28aa4a32"
+  },
+  "config": {
+    "maxSubmits": 2,
+    "maxQuestions": 2
+  },
+  "recorded": {
+    "at": "2026-04-18T20:00:28.454Z",
+    "eventSchemaVersion": 2,
+    "viewport": null,
+    "rotated": null,
+    "source": "v2-verbose"
+  },
+  "events": [
+    {
+      "kind": "advance",
+      "t": 0
+    },
+    {
+      "kind": "advance",
+      "t": 385
+    },
+    {
+      "kind": "advance",
+      "t": 763
+    },
+    {
+      "kind": "advance",
+      "t": 1067
+    },
+    {
+      "kind": "advance",
+      "t": 1986
+    },
+    {
+      "kind": "advance",
+      "t": 3105
+    },
+    {
+      "kind": "advance",
+      "t": 4051
+    },
+    {
+      "kind": "advance",
+      "t": 5304
+    },
+    {
+      "kind": "advance",
+      "t": 5707
+    },
+    {
+      "kind": "advance",
+      "t": 6442
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        3,
+        1
+      ],
+      "value": 2,
+      "t": 8894
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        1,
+        1
+      ],
+      "value": 1,
+      "t": 11440
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        1,
+        0
+      ],
+      "value": 1,
+      "t": 11974
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        2,
+        2
+      ],
+      "value": 2,
+      "t": 13495
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        2,
+        4
+      ],
+      "value": 0,
+      "t": 14938
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        2,
+        4
+      ],
+      "value": 5,
+      "t": 15620
+    },
+    {
+      "kind": "submit",
+      "t": 16510
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        4,
+        2
+      ],
+      "value": 3,
+      "t": 17871
+    },
+    {
+      "kind": "submit",
+      "t": 18748
+    }
+  ],
+  "goldens": {
+    "scoreEntry": {
+      "correct": 5,
+      "total": 6,
+      "accuracy": 0.8333333333333334,
+      "totalMs": 19361,
+      "mistakes": 1,
+      "errors": 1,
+      "date": 1776542428454,
+      "thresholdMs": 25500,
+      "parScore": 145.5,
+      "accPoints": 112,
+      "speedPoints": 32,
+      "groupCount": 6,
+      "mistakesByGroup": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        0
+      ],
+      "maxTimeMs": 51000
+    },
+    "finalMarks": null,
+    "submitResults": null,
+    "changedGroupsVertices": null
+  }
+}

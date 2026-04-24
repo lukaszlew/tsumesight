@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "sgf": {
+    "content": "(;GM[1]FF[4]CA[UTF-8]AP[Converter:3]ST[2]RU[Japanese]SZ[19]KM[0.00]PW[White]PB[Black]\nAB[bd][bf][cd][cf][cg][db][de][df][eb][ec][ed][fc][gb][gd][hd]\nAW[bc][bg][bh][cb][cc][ch][dc][dd][dg][ee][ef][fd][fe][gc][ge]PL[W]C[White to play.\n\nCapture race - Reduce Opponent's Liberties\n\nSource: Guan-Zhi-Pu.]\n(\n;W[ae]\n;B[ad]\n;W[be]C[RIGHT\n])\n(\n;W[af]\n;B[ae]\n;W[ag]\n;B[ab]\n;W[be]\n;B[ce]\n;W[ac]\n;B[ca]\n;W[ba]\n;B[da]C[Both Alive]))",
+    "filename": "CAPTURE RACE (48).sgf",
+    "path": "Semeai - Intermediate",
+    "contentHash": "sha256:c72c206e45ca4217667e5496500d6371ce0a1e2f3345d7760e8ee2f25b5d78d6"
+  },
+  "config": {
+    "maxSubmits": 2,
+    "maxQuestions": 2
+  },
+  "recorded": {
+    "at": "2026-04-18T19:46:03.630Z",
+    "eventSchemaVersion": 2,
+    "viewport": null,
+    "rotated": null,
+    "source": "v2-verbose"
+  },
+  "events": [
+    {
+      "kind": "advance",
+      "t": 0
+    },
+    {
+      "kind": "advance",
+      "t": 317
+    },
+    {
+      "kind": "advance",
+      "t": 542
+    },
+    {
+      "kind": "advance",
+      "t": 947
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        1,
+        4
+      ],
+      "value": 2,
+      "t": 3936
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        1,
+        3
+      ],
+      "value": 2,
+      "t": 5189
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        2,
+        5
+      ],
+      "value": 2,
+      "t": 6821
+    },
+    {
+      "kind": "submit",
+      "t": 9573
+    }
+  ],
+  "goldens": {
+    "scoreEntry": {
+      "correct": 3,
+      "total": 3,
+      "accuracy": 1,
+      "totalMs": 68406,
+      "mistakes": 0,
+      "errors": 0,
+      "date": 1776541563630,
+      "thresholdMs": 12000,
+      "parScore": 72,
+      "accPoints": 60,
+      "speedPoints": 0,
+      "groupCount": 3,
+      "mistakesByGroup": [
+        0,
+        0,
+        0
+      ],
+      "maxTimeMs": 24000
+    },
+    "finalMarks": null,
+    "submitResults": null,
+    "changedGroupsVertices": null
+  }
+}

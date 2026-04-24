@@ -87,8 +87,7 @@ describe('QuizEngine', () => {
 
     it('returns null when all moves are played', () => {
       let engine = new QuizEngine(singleSgf)
-      engine.advance(); engine.activateQuestions()
-      engine.submitLibertyExercise(correctMarks(engine))
+      engine.advance()
       let state = engine.advance()
       expect(state).toBe(null)
       expect(engine.finished).toBe(true)
@@ -129,8 +128,8 @@ describe('QuizEngine', () => {
       for (let i = 0; i < 5; i++) engine.advance()
       engine.activateQuestions()
       // Mark everything correctly (>5 groups marked as 5)
-      let result = engine.submitLibertyExercise(correctMarks(engine))
-      expect(result.correctCount).toBe(result.total)
+      let result = engine.checkLibertyExercise(correctMarks(engine))
+      expect(result.every(r => r.status === 'correct')).toBe(true)
     })
 
     it('marks unchanged groups as not changed', () => {
@@ -176,80 +175,6 @@ describe('QuizEngine', () => {
       expect(engine.libertyExercise).toBe(null)
     })
 
-    it('submitLibertyExercise scores correctly', () => {
-      let engine = new QuizEngine('(;SZ[9];B[ba];W[aa])')
-      engine.advance()
-      engine.advance(); engine.activateQuestions()
-      let changedGroups = engine.libertyExercise.groups.filter(g => g.changed)
-      expect(changedGroups.length).toBe(2)
-
-      let result = engine.submitLibertyExercise(correctMarks(engine))
-      expect(result.correctCount).toBe(2)
-      expect(result.wrongCount).toBe(0)
-      expect(engine.correct).toBe(2)
-    })
-
-    it('submitLibertyExercise detects wrong marks', () => {
-      let engine = new QuizEngine('(;SZ[9];B[ba];W[aa])')
-      engine.advance()
-      engine.advance(); engine.activateQuestions()
-
-      // Mark nothing → all missed
-      let result = engine.submitLibertyExercise(new Map())
-      let changedCount = engine.libertyExercise.groups.filter(g => g.changed).length
-      expect(result.wrongCount).toBe(changedCount)
-      expect(result.correctCount).toBe(0)
-      expect(engine.wrong).toBe(changedCount)
-    })
-
-    it('submitLibertyExercise deactivates exercise', () => {
-      let engine = new QuizEngine(singleSgf)
-      engine.advance(); engine.activateQuestions()
-      expect(engine.libertyExerciseActive).toBe(true)
-      engine.submitLibertyExercise(new Map())
-      expect(engine.libertyExerciseActive).toBe(false)
-    })
-
-    it('resolves marks by chain membership', () => {
-      // B[ee] then W[de]: B has chain {ee}, W has chain {de}
-      let engine = new QuizEngine('(;SZ[9];B[ee];W[de])')
-      engine.advance()
-      engine.advance(); engine.activateQuestions()
-      let groups = engine.libertyExercise.groups
-      let bGroup = groups.find(g => [...g.chainKeys].includes('4,4'))
-      let wGroup = groups.find(g => [...g.chainKeys].includes('3,4'))
-
-      // Mark B correctly, W with wrong number
-      let marks = new Map()
-      marks.set('4,4', Math.min(bGroup.libCount, 6))
-      let wrongNum = Math.min(wGroup.libCount, 6) === 1 ? 2 : 1
-      marks.set('3,4', wrongNum)
-
-      let result = engine.submitLibertyExercise(marks)
-      expect(result.correctCount).toBe(1) // B correct
-      expect(result.wrongCount).toBe(1) // W wrong number
-    })
-
-    it('accepts any stone in the chain as a valid mark', () => {
-      // B[ee] then W[de] then B[ed]: B chain ee+ed has 5 libs
-      let engine = new QuizEngine('(;SZ[9];B[ee];W[de];B[ed])')
-      engine.advance(); engine.advance(); engine.advance()
-      engine.activateQuestions()
-      let groups = engine.libertyExercise.groups
-      let bGroup = groups.find(g => [...g.chainKeys].includes('4,4'))
-      assert(bGroup, 'should find black group')
-      expect([...bGroup.chainKeys]).toContain('4,3')
-
-      // Mark via ed=[4,3] (not the representative vertex necessarily)
-      let marks = new Map()
-      marks.set('4,3', Math.min(bGroup.libCount, 6))
-      // Mark other changed groups correctly too
-      for (let g of groups.filter(g => g.changed && g !== bGroup))
-        marks.set([...g.chainKeys][0], Math.min(g.libCount, config.maxLibertyLabel))
-      engine.submitLibertyExercise(marks)
-      let bIdx = groups.filter(g => g.changed).indexOf(bGroup)
-      expect(engine.results[bIdx]).toBe(true)
-    })
   })
 
   describe('captures', () => {
@@ -327,49 +252,6 @@ describe('QuizEngine', () => {
   })
 
   describe('group scoring', () => {
-    it('questioned stone staleness tracks age', () => {
-      let engine = new QuizEngine(simpleSgf)
-      engine.advance() // B[ee] — only stone, staleness 0
-      expect(engine.staleness.get('4,4')).toBe(0)
-    })
-
-    it('staleness increments each turn for unchosen groups', () => {
-      // 4 moves, all separate groups
-      let sgf = '(;SZ[9];B[aa];W[ii];B[ai];W[ia])'
-      let engine = new QuizEngine(sgf)
-      engine.advance()
-      engine.advance()
-      engine.advance()
-      engine.advance()
-      // All staleness values should be <= 4
-      for (let [, val] of engine.staleness) {
-        expect(val).toBeLessThanOrEqual(4)
-      }
-    })
-
-    it('staleness caps at 4', () => {
-      // Many moves to age a stone
-      let sgf = '(;SZ[9];B[aa];W[ii];B[bb];W[hh];B[cc];W[gg];B[dd];W[ff])'
-      let engine = new QuizEngine(sgf)
-      for (let i = 0; i < 8; i++) engine.advance()
-      for (let [, val] of engine.staleness) {
-        expect(val).toBeLessThanOrEqual(4)
-      }
-    })
-
-    it('getGroupScores returns liberties and libsChanged', () => {
-      let engine = new QuizEngine('(;SZ[9];B[aa];W[ii])')
-      engine.advance() // B[aa]
-      engine.advance() // W[ii]
-      let groups = engine.getGroupScores()
-      let blackGroup = groups.find(g => g.vertices.some(v => v[0] === 0 && v[1] === 0))
-      expect(blackGroup.liberties).toBe(2)
-      expect(blackGroup.libsChanged).toBe(false) // W[ii] is far away
-      let whiteGroup = groups.find(g => g.vertices.some(v => v[0] === 8 && v[1] === 8))
-      expect(whiteGroup.liberties).toBe(2)
-      expect(whiteGroup.libsChanged).toBe(true) // just-played
-    })
-
     it('exercise selects groups that changed from initial position', () => {
       // B[ba] then W[aa]: both new stones, both differ from empty initial board
       let engine = new QuizEngine('(;SZ[9];B[ba];W[aa])')
@@ -378,46 +260,6 @@ describe('QuizEngine', () => {
       engine.advance(); engine.activateQuestions() // W[aa] — last, both groups changed
       let changedGroups = engine.libertyExercise.groups.filter(g => g.changed)
       expect(changedGroups.length).toBe(2)
-    })
-
-    it('libsChanged true when move affects adjacent group', () => {
-      // B[ee] center, then W[de] adjacent — reduces B[ee] libs from 4 to 3
-      let engine = new QuizEngine('(;SZ[9];B[ee];W[de])')
-      engine.advance() // B[ee]
-      engine.advance() // W[de] — B[ee] libs: 4→3
-      let groups = engine.getGroupScores()
-      let blackGroup = groups.find(g => g.vertices.some(v => v[0] === 4 && v[1] === 4))
-      expect(blackGroup.libsChanged).toBe(true)
-    })
-
-    it('libsChanged true for current move single stone', () => {
-      let engine = new QuizEngine('(;SZ[9];B[ee];W[aa])')
-      engine.advance() // B[ee]
-      engine.advance() // W[aa]
-      let groups = engine.getGroupScores()
-      let whiteGroup = groups.find(g => g.vertices.some(v => v[0] === 0 && v[1] === 0))
-      expect(whiteGroup.libsChanged).toBe(true)
-    })
-
-    it('libsChanged false for non-adjacent group', () => {
-      // B[aa] corner, then W[ii] far corner — B[aa] libs unchanged
-      let engine = new QuizEngine('(;SZ[9];B[aa];W[ii])')
-      engine.advance() // B[aa]
-      engine.advance() // W[ii]
-      let groups = engine.getGroupScores()
-      let blackGroup = groups.find(g => g.vertices.some(v => v[0] === 0 && v[1] === 0))
-      expect(blackGroup.libsChanged).toBe(false)
-    })
-
-    it('libsChanged true when current move joins existing chain', () => {
-      // B[ee], W[aa], B[fe] — B[fe] joins B[ee], chain libs change 4→6
-      let engine = new QuizEngine('(;SZ[9];B[ee];W[aa];B[fe])')
-      engine.advance() // B[ee]
-      engine.advance() // W[aa]
-      engine.advance() // B[fe] joins B[ee]
-      let groups = engine.getGroupScores()
-      let bigGroup = groups.find(g => g.liberties === 6)
-      expect(bigGroup.libsChanged).toBe(true)
     })
 
     it('exercise skips groups unchanged from initial position', () => {
@@ -558,14 +400,6 @@ describe('QuizEngine', () => {
       expect(aaGroup.changed).toBe(false)
     })
 
-    it('clears staleness on materialize', () => {
-      let engine = new QuizEngine(simpleSgf)
-      engine.advance()
-      engine.advance()
-      expect(engine.staleness.size).toBe(2)
-      engine.materialize()
-      expect(engine.staleness.size).toBe(0)
-    })
   })
 
   describe('checkLibertyExercise', () => {
@@ -610,12 +444,10 @@ describe('QuizEngine', () => {
       let engine = new QuizEngine('(;SZ[9];B[ba];W[aa])')
       engine.advance()
       engine.advance(); engine.activateQuestions()
-      let before = { correct: engine.correct, wrong: engine.wrong, results: [...engine.results] }
+      let beforeGroups = engine.libertyExercise.groups
       engine.checkLibertyExercise(correctMarks(engine))
-      expect(engine.correct).toBe(before.correct)
-      expect(engine.wrong).toBe(before.wrong)
-      expect(engine.results).toEqual(before.results)
       expect(engine.libertyExerciseActive).toBe(true)
+      expect(engine.libertyExercise.groups).toBe(beforeGroups)
     })
 
     it('can be called multiple times without side effects', () => {
@@ -645,16 +477,6 @@ describe('QuizEngine', () => {
       expect(results[1].status).toBe('missed')
     })
 
-    it('agrees with submitLibertyExercise scoring', () => {
-      let engine = new QuizEngine('(;SZ[9];B[ba];W[aa])')
-      engine.advance()
-      engine.advance(); engine.activateQuestions()
-      let marks = correctMarks(engine)
-      let checked = engine.checkLibertyExercise(marks)
-      let result = engine.submitLibertyExercise(marks)
-      expect(checked.filter(r => r.status === 'correct').length).toBe(result.correctCount)
-      expect(checked.filter(r => r.status !== 'correct').length).toBe(result.wrongCount)
-    })
   })
 
   describe('deterministic questions (seeded PRNG)', () => {
@@ -675,61 +497,6 @@ describe('QuizEngine', () => {
     })
   })
 
-  describe('fromReplay()', () => {
-    it('replays all correct answers to match normal play-through', () => {
-      let sgf = '(;SZ[9];B[ba];W[aa];B[ee];W[de])'
-      let engine = new QuizEngine(sgf)
-      while (!engine.finished) {
-        engine.advance()
-        engine.activateQuestions()
-        if (engine.libertyExerciseActive) break
-      }
-      engine.submitLibertyExercise(correctMarks(engine))
-      let changedGroups = engine.libertyExercise.groups.filter(g => g.changed)
-      engine.advance()
-      expect(engine.finished).toBe(true)
-
-      let history = changedGroups.map(() => true)
-      let replayed = QuizEngine.fromReplay(sgf, history)
-      expect(replayed.finished).toBe(true)
-      expect(replayed.correct).toBe(engine.correct)
-      expect(replayed.wrong).toBe(engine.wrong)
-      expect(replayed.results).toEqual(engine.results)
-    })
-
-    it('replays wrong answers correctly', () => {
-      let sgf = '(;SZ[9];B[ba];W[aa])'
-      let engine = new QuizEngine(sgf)
-      engine.advance()
-      engine.advance(); engine.activateQuestions()
-      let changedGroups = engine.libertyExercise.groups.filter(g => g.changed)
-
-      // All wrong (no marks)
-      engine.submitLibertyExercise(new Map())
-      engine.advance()
-
-      let history = changedGroups.map(() => false)
-      let replayed = QuizEngine.fromReplay(sgf, history)
-      expect(replayed.correct).toBe(engine.correct)
-      expect(replayed.wrong).toBe(engine.wrong)
-    })
-
-    it('returns finished engine for complete history', () => {
-      let sgf = '(;SZ[9];B[ee])'
-      let replayed = QuizEngine.fromReplay(sgf, [true])
-      expect(replayed.finished).toBe(true)
-    })
-
-    it('handles empty history (advances all moves, shows last move)', () => {
-      let sgf = '(;SZ[9];B[ee];W[dd])'
-      let replayed = QuizEngine.fromReplay(sgf, [])
-      // All moves advanced, but exercise not submitted yet
-      expect(replayed.moveIndex).toBe(2)
-      expect(replayed.showingMove).toBe(true)
-      expect(replayed.finished).toBe(false)
-    })
-  })
-
   describe('maxQuestions parameter', () => {
     it('maxQuestions=0 produces no exercise', () => {
       let engine = new QuizEngine('(;SZ[9];B[ba];W[aa])', true, 0)
@@ -739,24 +506,12 @@ describe('QuizEngine', () => {
       expect(engine.libertyExercise).toBe(null)
     })
 
-    it('maxQuestions=0 finishes with 0 correct and 0 wrong', () => {
+    it('maxQuestions=0 finishes without an exercise', () => {
       let engine = new QuizEngine('(;SZ[9];B[ba];W[aa];B[ee])', true, 0)
       while (!engine.finished) engine.advance()
-      expect(engine.correct).toBe(0)
-      expect(engine.wrong).toBe(0)
-      expect(engine.results.length).toBe(0)
-    })
-
-    it('maxQuestions=0 questionsPerMove is all zeros', () => {
-      let engine = new QuizEngine('(;SZ[9];B[ba];W[aa])', true, 0)
-      expect(engine.questionsPerMove).toEqual([0, 0])
-    })
-
-    it('maxQuestions=0 fromReplay with empty history finishes immediately', () => {
-      let sgf = '(;SZ[9];B[ba];W[aa];B[ee])'
-      let engine = QuizEngine.fromReplay(sgf, [], 0)
-      expect(engine.correct).toBe(0)
-      expect(engine.wrong).toBe(0)
+      expect(engine.finished).toBe(true)
+      expect(engine.libertyExercise).toBe(null)
+      expect(engine.libertyExerciseActive).toBe(false)
     })
   })
 
@@ -779,149 +534,6 @@ describe('QuizEngine', () => {
       expect(changedGroups.length).toBe(2)
     })
 
-    it('staleness tracks stone age', () => {
-      let engine = new QuizEngine('(;SZ[9];B[ba];W[aa])')
-      engine.advance() // B[ba] — staleness 0
-      engine.advance() // W[aa] — B[ba] aged to 1, W[aa] staleness 0
-      expect(engine.staleness.get('1,0')).toBe(1) // B[ba] aged
-      expect(engine.staleness.get('0,0')).toBe(0) // W[aa] just placed
-    })
-  })
-
-  describe('show window', () => {
-    it('starts at 1', () => {
-      let engine = new QuizEngine(simpleSgf)
-      expect(engine.showWindow).toBe(1)
-    })
-
-    it('getWindowStones returns empty when showWindow=1', () => {
-      let engine = new QuizEngine(simpleSgf)
-      engine.advance()
-      expect(engine.getWindowStones()).toEqual([])
-    })
-  })
-
-  describe('hint states', () => {
-    // At every point in a quiz session, exactly one hint condition should be active:
-    // 1. showingMove (not finished, not exercising) → "Tap board to advance"
-    // 2. libertyExerciseActive → "Mark liberty counts of all groups by tapping"
-    // 3. finished → stats/buttons (no action hint)
-    function hintState(engine) {
-      if (engine.finished) return 'finished'
-      if (engine.libertyExerciseActive) return 'exercise'
-      return 'advance'
-    }
-
-    it('every state in a full session maps to exactly one hint', () => {
-      let engine = new QuizEngine('(;SZ[9];B[ba];W[aa])')
-      let states = []
-      engine.advance()
-      states.push(hintState(engine)) // advance (showingMove)
-      engine.activateQuestions()
-      while (!engine.finished) {
-        let s = hintState(engine)
-        states.push(s)
-        if (s === 'exercise') {
-          engine.submitLibertyExercise(correctMarks(engine))
-          engine.advance()
-        } else {
-          engine.advance()
-          engine.activateQuestions()
-        }
-      }
-      states.push(hintState(engine))
-
-      expect(states.includes('advance')).toBe(true)
-      expect(states.includes('exercise')).toBe(true)
-      expect(states.includes('finished')).toBe(true)
-      for (let s of states) expect(['advance', 'exercise', 'finished']).toContain(s)
-    })
-  })
-
-  describe('lastWrong tracking on exercise', () => {
-    // Simulates the quiz.jsx flow: check → record wrong → set lastWrong → submit
-    function simulateSubmitWithRetry(engine, wrongMarks, correctMarksMap) {
-      let feedback = engine.checkLibertyExercise(wrongMarks)
-      let changedGroups = engine.libertyExercise.groups.filter(g => g.changed)
-      let lastWrong = new Map()
-      for (let i = 0; i < feedback.length; i++) {
-        if (feedback[i].status !== 'correct') {
-          lastWrong.set(changedGroups[i].vertex.toString(), feedback[i])
-        }
-      }
-      engine.libertyExercise.lastWrong = lastWrong
-      engine.submitLibertyExercise(correctMarksMap)
-      return lastWrong
-    }
-
-    it('records wrong answers for groups with mistakes', () => {
-      let engine = new QuizEngine('(;SZ[9];B[ee])')
-      engine.advance(); engine.activateQuestions()
-      let wrongMarks = new Map([['4,4', 1]]) // B[ee] has 4 libs, marking 1
-      let correct = correctMarks(engine)
-      simulateSubmitWithRetry(engine, wrongMarks, correct)
-
-      let lw = engine.libertyExercise.lastWrong
-      expect(lw.size).toBe(1)
-      let entry = [...lw.values()][0]
-      expect(entry.status).toBe('wrong')
-      expect(entry.userVal).toBe(1)
-    })
-
-    it('does not record groups answered correctly', () => {
-      let engine = new QuizEngine('(;SZ[9];B[ba];W[aa])')
-      engine.advance()
-      engine.advance(); engine.activateQuestions()
-      let changedGroups = engine.libertyExercise.groups.filter(g => g.changed)
-      // Mark first group correctly, second wrong
-      let g0 = changedGroups[0]
-      let g1 = changedGroups[1]
-      let wrongMarks = new Map([
-        [[...g0.chainKeys][0], Math.min(g0.libCount, config.maxLibertyLabel)],
-        [[...g1.chainKeys][0], 99],
-      ])
-      let correct = correctMarks(engine)
-      simulateSubmitWithRetry(engine, wrongMarks, correct)
-
-      let lw = engine.libertyExercise.lastWrong
-      expect(lw.size).toBe(1)
-      expect(lw.has(g1.vertex.toString())).toBe(true)
-    })
-
-    it('records missed groups', () => {
-      let engine = new QuizEngine('(;SZ[9];B[ee])')
-      engine.advance(); engine.activateQuestions()
-      let correct = correctMarks(engine)
-      simulateSubmitWithRetry(engine, new Map(), correct)
-
-      let lw = engine.libertyExercise.lastWrong
-      expect(lw.size).toBe(1)
-      let entry = [...lw.values()][0]
-      expect(entry.status).toBe('missed')
-    })
-
-    it('empty lastWrong when no mistakes made', () => {
-      let engine = new QuizEngine('(;SZ[9];B[ee])')
-      engine.advance(); engine.activateQuestions()
-      let correct = correctMarks(engine)
-      // Submit correct on first try — no wrong feedback to record
-      engine.libertyExercise.lastWrong = new Map()
-      engine.submitLibertyExercise(correct)
-
-      expect(engine.libertyExercise.lastWrong.size).toBe(0)
-    })
-
-    it('preserves lastWrong through submitLibertyExercise', () => {
-      let engine = new QuizEngine('(;SZ[9];B[ee])')
-      engine.advance(); engine.activateQuestions()
-      let wrongMarks = new Map([['4,4', 2]])
-      let correct = correctMarks(engine)
-      simulateSubmitWithRetry(engine, wrongMarks, correct)
-
-      // exercise still accessible after submit
-      expect(engine.libertyExercise).not.toBe(null)
-      expect(engine.libertyExercise.lastWrong.size).toBe(1)
-    })
   })
 
 })

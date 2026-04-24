@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "sgf": {
+    "content": "(;SZ[9];B[ee])",
+    "filename": "canonical-single-move-correct.sgf",
+    "path": "canonical",
+    "contentHash": "sha256:3652cca95e5284f8e1e0ceecfe48d4721c9de3e1b67b2482f23ec8cc3e1d95b7"
+  },
+  "config": {
+    "maxSubmits": 3,
+    "maxQuestions": 2
+  },
+  "recorded": {
+    "at": null,
+    "eventSchemaVersion": 2,
+    "viewport": null,
+    "rotated": null,
+    "source": "canonical",
+    "description": "Center stone, correct liberty count first submit"
+  },
+  "events": [
+    {
+      "kind": "advance",
+      "t": 0
+    },
+    {
+      "kind": "advance",
+      "t": 1
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        4,
+        4
+      ],
+      "value": 4,
+      "t": 2
+    },
+    {
+      "kind": "submit",
+      "t": 3
+    }
+  ],
+  "goldens": {
+    "scoreEntry": {
+      "correct": 1,
+      "total": 1,
+      "accuracy": 1,
+      "mistakes": 0,
+      "mistakesByGroup": [
+        0
+      ],
+      "groupCount": 1
+    },
+    "finalMarks": [
+      {
+        "key": "4,4",
+        "value": 4,
+        "color": "green"
+      }
+    ],
+    "submitResults": [
+      [
+        {
+          "status": "correct",
+          "userVertex": "4,4",
+          "userVal": 4
+        }
+      ]
+    ],
+    "changedGroupsVertices": [
+      [
+        4,
+        4
+      ]
+    ]
+  }
+}

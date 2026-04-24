@@ -1,4 +1,3 @@
-// @vitest-environment happy-dom
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 // Track oscillator creations

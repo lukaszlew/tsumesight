@@ -84,6 +84,13 @@ body {
 .next-hero:active {
   transform: scale(0.97);
 }
+.next-hero-cooldown {
+  background: #666;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+.next-hero-cooldown:hover { background: #666; transform: none; }
+.next-hero-cooldown:active { transform: none; }
 
 
 /* Hamburger menu */
@@ -155,6 +162,13 @@ body {
   display: flex;
   gap: 0;
   margin: 0.3rem 0.6rem;
+}
+.menu-version {
+  padding: 0.4rem 0.75rem 0.2rem;
+  font-size: 0.7rem;
+  color: #666;
+  text-align: center;
+  font-family: monospace;
 }
 .env-btn {
   flex: 1;
@@ -552,15 +566,6 @@ body {
   font-size: clamp(1.4rem, 3vw, 2rem);
   border-radius: calc(0.8 * var(--s));
 }
-.bottom-bar-row .mark-solved-btn {
-  flex: 1;
-  min-width: 0;
-  padding: clamp(0.6rem, 1.5vw, 1.2rem) clamp(0.4rem, 1vw, 1rem);
-  font-size: clamp(1.05rem, 2.2vw, 1.5rem);
-  line-height: 1.15;
-  white-space: normal;
-  text-wrap: balance;
-}
 .bottom-bar-row .nav-btn {
   flex: 1;
   min-width: 0;
@@ -889,23 +894,136 @@ body {
   display: flex;
   flex-direction: row;
   align-items: center;
+  justify-content: center;
 }
 .finish-stars .star-off { color: #553; }
 .finish-trophy {
-  font-size: 6em;
-  line-height: 1;
+  font-size: 5em;
+  line-height: 1.1;
+  display: block;
+  margin-bottom: .15em;
 }
 .finish-medal {
-  font-size: 3.5em;
-  line-height: 1;
-}
-.finish-trophy + .finish-time {
-  font-size: 3.5em;
+  font-size: 3em;
+  line-height: 1.1;
+  display: block;
+  margin-bottom: .15em;
 }
 .finish-time {
   font-size: 2.5em;
   font-weight: bold;
   color: #fff;
+}
+.finish-total {
+  font-size: 2.4em;
+  font-weight: bold;
+  color: #fc0;
+  margin-top: .2em;
+  line-height: 1;
+}
+.finish-breakdown {
+  margin: .6em auto 0;
+  border-collapse: collapse;
+  font-size: .85em;
+  line-height: 1.4;
+}
+.finish-breakdown td {
+  padding: 0 .3em;
+  white-space: nowrap;
+  line-height: 1.15;
+}
+.finish-breakdown .b-label {
+  text-align: right;
+  color: #aaa;
+}
+.finish-breakdown .b-total-col {
+  text-align: right;
+  padding: .1em 0;
+}
+.finish-breakdown .b-sum {
+  text-align: left;
+}
+.finish-breakdown .b-max {
+  text-align: left;
+  color: #666;
+  font-size: .85em;
+}
+.finish-breakdown .b-num {
+  color: #888;
+  font-weight: bold;
+}
+.finish-breakdown .b-zero {
+  color: #666;
+  font-weight: bold;
+}
+.finish-breakdown .b-count {
+  color: #888;
+  font-weight: bold;
+}
+.finish-breakdown .b-count-good {
+  color: #5c5;
+  font-weight: bold;
+}
+.finish-breakdown .b-count-bad {
+  color: #c55;
+  font-weight: bold;
+}
+.finish-breakdown .b-total {
+  color: #fc0;
+  font-weight: bold;
+}
+.finish-breakdown .b-eq,
+.finish-breakdown .b-unit {
+  color: #888;
+}
+.finish-breakdown .b-plus,
+.finish-breakdown .b-times {
+  color: #888;
+  font-weight: normal;
+  margin: 0 .1em;
+}
+.finish-breakdown .b-bucket-row .b-eq,
+.finish-breakdown .b-bucket-row .b-plus {
+  text-align: right;
+}
+.finish-breakdown .b-schedule {
+  text-align: left;
+  color: #888;
+  font-size: .95em;
+}
+.finish-breakdown .b-bucket-row td {
+  padding: 0 .3em;
+  line-height: 1.1;
+}
+.finish-breakdown .b-bucket {
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+.finish-breakdown .b-bucket-n {
+  color: #5c5;
+  font-weight: bold;
+}
+.finish-thresholds {
+  margin: .6em auto 0;
+  border-collapse: collapse;
+  font-size: .9em;
+  color: #fc0;
+}
+.finish-thresholds td {
+  padding: .2em .5em;
+  text-align: center;
+  min-width: 2em;
+}
+.finish-thresholds .thresh-reward td {
+  font-size: 1.3em;
+}
+.finish-thresholds .thresh-reward td:first-child {
+  font-size: 1.8em;
+}
+.finish-time-sub {
+  font-size: .9em;
+  color: #888;
+  margin-top: .5em;
 }
 .finish-detail {
   font-size: .9em;

@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "sgf": {
+    "content": "(;SZ[9];B[ee];W[aa];B[fe];W[ba];B[ge])",
+    "filename": "canonical-multi-move-all-correct.sgf",
+    "path": "canonical",
+    "contentHash": "sha256:5c9224c3f07e7ce02f416ef8763e017432c22b81b4cbb1dce082315040b6a7f7"
+  },
+  "config": {
+    "maxSubmits": 3,
+    "maxQuestions": 2
+  },
+  "recorded": {
+    "at": null,
+    "eventSchemaVersion": 2,
+    "viewport": null,
+    "rotated": null,
+    "source": "canonical",
+    "description": "Five-move sequence, all groups correct first try"
+  },
+  "events": [
+    {
+      "kind": "advance",
+      "t": 0
+    },
+    {
+      "kind": "advance",
+      "t": 1
+    },
+    {
+      "kind": "advance",
+      "t": 2
+    },
+    {
+      "kind": "advance",
+      "t": 3
+    },
+    {
+      "kind": "advance",
+      "t": 4
+    },
+    {
+      "kind": "advance",
+      "t": 5
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        1,
+        0
+      ],
+      "value": 3,
+      "t": 6
+    },
+    {
+      "kind": "setMark",
+      "vertex": [
+        4,
+        4
+      ],
+      "value": 5,
+      "t": 7
+    },
+    {
+      "kind": "submit",
+      "t": 8
+    }
+  ],
+  "goldens": {
+    "scoreEntry": {
+      "correct": 2,
+      "total": 2,
+      "accuracy": 1,
+      "mistakes": 0,
+      "mistakesByGroup": [
+        0,
+        0
+      ],
+      "groupCount": 2
+    },
+    "finalMarks": [
+      {
+        "key": "1,0",
+        "value": 3,
+        "color": "green"
+      },
+      {
+        "key": "4,4",
+        "value": 5,
+        "color": "green"
+      }
+    ],
+    "submitResults": [
+      [
+        {
+          "status": "correct",
+          "userVertex": "1,0",
+          "userVal": 3
+        },
+        {
+          "status": "correct",
+          "userVertex": "4,4",
+          "userVal": 5
+        }
+      ]
+    ],
+    "changedGroupsVertices": [
+      [
+        1,
+        0
+      ],
+      [
+        4,
+        4
+      ]
+    ]
+  }
+}

@@ -1,0 +1,153 @@
+{
+  "totalMoves": 1,
+  "eventCount": 5,
+  "finalPhase": "finished",
+  "timeline": [
+    {
+      "event": null,
+      "state": {
+        "cursor": 0,
+        "phase": "showing",
+        "hasExercise": false,
+        "submitCount": 0,
+        "finalized": false,
+        "marks": [],
+        "submitResults": [],
+        "mistakesByGroup": null
+      }
+    },
+    {
+      "event": {
+        "kind": "advance",
+        "t": 0
+      },
+      "state": {
+        "cursor": 1,
+        "phase": "showing",
+        "hasExercise": false,
+        "submitCount": 0,
+        "finalized": false,
+        "marks": [],
+        "submitResults": [],
+        "mistakesByGroup": null
+      }
+    },
+    {
+      "event": {
+        "kind": "advance",
+        "t": 1
+      },
+      "state": {
+        "cursor": 2,
+        "phase": "exercise",
+        "hasExercise": true,
+        "submitCount": 0,
+        "finalized": false,
+        "marks": [],
+        "submitResults": [],
+        "mistakesByGroup": null
+      }
+    },
+    {
+      "event": {
+        "kind": "submit",
+        "t": 2
+      },
+      "state": {
+        "cursor": 2,
+        "phase": "exercise",
+        "hasExercise": true,
+        "submitCount": 1,
+        "finalized": false,
+        "marks": [
+          {
+            "key": "4,4",
+            "value": "?",
+            "color": "red"
+          }
+        ],
+        "submitResults": [
+          [
+            {
+              "status": "missed"
+            }
+          ]
+        ],
+        "mistakesByGroup": null
+      }
+    },
+    {
+      "event": {
+        "kind": "submit",
+        "t": 3
+      },
+      "state": {
+        "cursor": 2,
+        "phase": "exercise",
+        "hasExercise": true,
+        "submitCount": 2,
+        "finalized": false,
+        "marks": [
+          {
+            "key": "4,4",
+            "value": "?",
+            "color": "red"
+          }
+        ],
+        "submitResults": [
+          [
+            {
+              "status": "missed"
+            }
+          ],
+          [
+            {
+              "status": "missed"
+            }
+          ]
+        ],
+        "mistakesByGroup": null
+      }
+    },
+    {
+      "event": {
+        "kind": "submit",
+        "t": 4
+      },
+      "state": {
+        "cursor": 2,
+        "phase": "finished",
+        "hasExercise": true,
+        "submitCount": 3,
+        "finalized": true,
+        "marks": [
+          {
+            "key": "4,4",
+            "value": "?",
+            "color": "red"
+          }
+        ],
+        "submitResults": [
+          [
+            {
+              "status": "missed"
+            }
+          ],
+          [
+            {
+              "status": "missed"
+            }
+          ],
+          [
+            {
+              "status": "missed"
+            }
+          ]
+        ],
+        "mistakesByGroup": [
+          3
+        ]
+      }
+    }
+  ]
+}
