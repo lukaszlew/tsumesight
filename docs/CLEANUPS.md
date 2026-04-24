@@ -9,7 +9,7 @@ Items deferred from the V4 UI refactor (see git log for the P0–P8 commit serie
 **Priority 2 — 3 of 7 shipped:**
 - `library.jsx` decomposition (L1–L3 commits) — library-menu.jsx, library-tile.jsx, usePwaInstall.js extracted.
 - Layer B DOM snapshot per fixture (LB commit) — 18 new snapshot files under fixtures/__snapshots__/\*.dom.html.
-- CI pipeline — test job now gates the deploy job on both main and dev branches via matrix; pull_request also triggers tests.
+- CI pipeline — test job gates deploy via matrix over all deployable branches (`main` + `*-deploy`), enumerated dynamically; pull_request also triggers tests.
 
 **Priority 3 — 1 of 4 shipped:**
 - Events-is-truth invariant documented in `session.js` top comment.

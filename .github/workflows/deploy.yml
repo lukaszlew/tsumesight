@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main, '*-deploy']
   pull_request:
 
 permissions:
@@ -15,52 +15,97 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Enumerate deployable branches (main + *-deploy) and emit a matrix
+  # of {ref, slug} pairs. `slug` is the URL subdir: main stays 'main'
+  # (special-cased to site root at assemble time), others drop -deploy.
+  list:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.list.outputs.matrix }}
+    steps:
+      - id: list
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          refs=$(gh api "repos/${{ github.repository }}/branches" --paginate -q '.[].name' \
+                 | grep -E '^(main|.*-deploy)$' \
+                 | sort -u)
+          json=$(printf '%s\n' "$refs" | jq -Rsc '
+            split("\n") | map(select(length>0)) |
+            map({ref: ., slug: (if . == "main" then "main" else sub("-deploy$"; "") end)})')
+          echo "matrix=$json" >>"$GITHUB_OUTPUT"
+
   test:
+    needs: list
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        ref: [main, dev]
+        include: ${{ fromJson(needs.list.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ matrix.ref }}
+        with: { ref: ${{ matrix.ref }} }
       - uses: actions/setup-node@v4
-        with:
-          node-version: 22
+        with: { node-version: 22 }
       - run: npm ci
       - run: npm test
 
+  build:
+    needs: [list, test]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include: ${{ fromJson(needs.list.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: ${{ matrix.ref }} }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm ci
+      - name: Build
+        env:
+          VITE_BRANCH: ${{ matrix.slug }}
+        run: |
+          if [ "${{ matrix.slug }}" = "main" ]; then
+            npx vite build --base /tsumesight/
+          else
+            npx vite build --base /tsumesight/${{ matrix.slug }}/
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site-${{ matrix.slug }}
+          path: dist
+
   deploy:
-    needs: test
+    needs: [list, build]
     if: github.event_name == 'push'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-node@v4
+      - uses: actions/download-artifact@v4
         with:
-          node-version: 22
-
-      # Build main branch
-      - uses: actions/checkout@v4
-        with:
-          ref: main
-      - run: npm ci
-      - run: npx vite build --base /tsumesight/
-      - run: mv dist /tmp/site
-
-      # Build dev branch (if it exists)
-      - uses: actions/checkout@v4
-        with:
-          ref: dev
-      - run: npm ci
-      - run: npx vite build --base /tsumesight/dev/
-      - run: mv dist /tmp/site/dev
-
-      # Deploy combined artifact
+          path: artifacts
+          pattern: site-*
+      - name: Assemble site tree + manifest
+        run: |
+          mkdir -p /tmp/site
+          slugs=()
+          for dir in artifacts/site-*; do
+            slug=${dir#artifacts/site-}
+            slugs+=("$slug")
+            if [ "$slug" = "main" ]; then
+              cp -r "$dir"/. /tmp/site/
+            else
+              mkdir -p "/tmp/site/$slug"
+              cp -r "$dir"/. "/tmp/site/$slug/"
+            fi
+          done
+          printf '%s\n' "${slugs[@]}" | jq -Rsc '
+            {branches: (split("\n") | map(select(length>0)) | sort)}' \
+            > /tmp/site/branches.json
       - uses: actions/upload-pages-artifact@v3
-        with:
-          path: /tmp/site
+        with: { path: /tmp/site }
       - id: deployment
         uses: actions/deploy-pages@v4

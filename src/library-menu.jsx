@@ -1,13 +1,25 @@
-import { useState } from 'preact/hooks'
+import { useState, useEffect } from 'preact/hooks'
 import { exportDb, downloadExport } from './db.js'
-import { GIT_SHA, GIT_DATE, GIT_DATE_SHORT, BUILD_TIME } from './version.js'
+import { GIT_SHA, GIT_DATE, GIT_DATE_SHORT, BUILD_TIME, BRANCH, SITE_ROOT, branchUrl } from './version.js'
 import { usePwaInstall } from './usePwaInstall.js'
 
-const isDev = location.pathname.includes('/dev/')
+// Deploy job writes branches.json at the site root listing every deployed
+// branch. 404 (local dev, first deploy) degrades to [BRANCH] — the dropdown
+// still shows where we are, just with nowhere to switch to.
+function useBranches() {
+  let [branches, setBranches] = useState([BRANCH])
+  useEffect(() => {
+    fetch(SITE_ROOT + 'branches.json')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.branches?.length) setBranches(data.branches) })
+      .catch(() => {})
+  }, [])
+  return branches
+}
 
 // Hamburger menu: upload paths (files / folder / URL), export, install
-// prompt (when available), destructive reset, Prod/Dev env toggle, and
-// a build-identity line. Owns its own open/closed state plus the PWA
+// prompt (when available), destructive reset, branch switcher, and a
+// build-identity line. Owns its own open/closed state plus the PWA
 // install hook.
 //
 // Props (parent-owned actions):
@@ -18,6 +30,14 @@ const isDev = location.pathname.includes('/dev/')
 export function LibraryMenu({ onUpload, onUploadFolder, onFetchUrl, onReset }) {
   let [open, setOpen] = useState(false)
   let { canInstall, install } = usePwaInstall()
+  let branches = useBranches()
+
+  let switchBranch = e => {
+    let next = e.target.value
+    if (next === BRANCH) return
+    localStorage.setItem('preferredBranch', next)
+    location.href = branchUrl(next)
+  }
 
   let close = () => setOpen(false)
   let exportData = async () => { close(); downloadExport(await exportDb()) }
@@ -44,10 +64,12 @@ export function LibraryMenu({ onUpload, onUploadFolder, onFetchUrl, onReset }) {
           {canInstall && <button class="menu-item" onClick={() => { close(); install() }}>Install app</button>}
           <button class="menu-item menu-danger" onClick={() => { close(); onReset() }}>Reset all data</button>
           <div class="menu-sep" />
-          <div class="env-toggle">
-            <a class={`env-btn${isDev ? '' : ' env-active'}`} href={isDev ? '../' : undefined} onClick={() => localStorage.setItem('preferredEnv', 'prod')}>Prod</a>
-            <a class={`env-btn${isDev ? ' env-active' : ''}`} href={isDev ? undefined : 'dev/'} onClick={() => localStorage.setItem('preferredEnv', 'dev')}>Dev</a>
-          </div>
+          <label class="branch-select">
+            Branch
+            <select value={BRANCH} onChange={switchBranch}>
+              {branches.map(b => <option key={b} value={b}>{b}</option>)}
+            </select>
+          </label>
           <div class="menu-version" title={`commit ${GIT_DATE}\nbuilt  ${BUILD_TIME || ''}`}>
             <div>{GIT_SHA}{GIT_DATE_SHORT && ` · ${GIT_DATE_SHORT}`}</div>
           </div>

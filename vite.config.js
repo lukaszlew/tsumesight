@@ -32,7 +32,17 @@ function gitVersionPlugin() {
       sha = execSync('git rev-parse --short HEAD').toString().trim()
       date = execSync('git show -s --format=%cI HEAD --').toString().trim()
     } catch {}
-    return { sha, date, buildTime: new Date().toISOString() }
+    // BRANCH is the deploy slug, not the raw git branch: the workflow
+    // strips '-deploy' before passing it in, so 'dev-deploy' → 'dev'.
+    // Falls back to the local git branch (same stripping) for dev server;
+    // 'main' when detached (CI without VITE_BRANCH would still map to root).
+    let branch = process.env.VITE_BRANCH
+    if (!branch) {
+      try {
+        branch = execSync('git symbolic-ref --short HEAD').toString().trim().replace(/-deploy$/, '')
+      } catch { branch = 'main' }
+    }
+    return { sha, date, branch, buildTime: new Date().toISOString() }
   }
 
   return {
@@ -40,9 +50,10 @@ function gitVersionPlugin() {
     resolveId(id) { if (id === VIRTUAL_ID) return RESOLVED },
     load(id) {
       if (id !== RESOLVED) return
-      let { sha, date, buildTime } = readGitInfo()
+      let { sha, date, branch, buildTime } = readGitInfo()
       return `export const GIT_SHA = ${JSON.stringify(sha)}
 export const GIT_DATE = ${JSON.stringify(date)}
+export const BRANCH = ${JSON.stringify(branch)}
 export const BUILD_TIME = ${JSON.stringify(buildTime)}
 `
     },

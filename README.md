@@ -94,6 +94,20 @@ leaves `finalMarks`, `submitResults`, `changedGroupsVertices` alone.
 If a rule change affects those too, extend the script or regenerate
 the source fixtures instead.
 
+## Deployment
+
+Every push to `main` or any `*-deploy` branch triggers a GitHub Pages deploy via `.github/workflows/deploy.yml`. The workflow:
+
+- enumerates live branches matching `^(main|.*-deploy)$` via the GitHub API,
+- runs tests and builds each branch in parallel (matrix),
+- assembles all builds into one site tree (`main` → site root, other branches → `/<slug>/` where slug is the branch name with `-deploy` stripped),
+- writes a `branches.json` manifest at the site root listing every deployed slug,
+- uploads the combined tree as a single Pages artifact.
+
+Adding a new deployable branch is zero-config: push `xyz-deploy` and it lands at `https://lukaszlew.github.io/tsumesight/xyz/`. Deleting a `-deploy` branch self-cleans — the next deploy rebuilds the tree from the current branch list and the orphan subdir simply isn't recreated.
+
+In the app, the hamburger menu's **Branch** dropdown fetches the manifest and lets users jump between deployed builds; the choice is saved to `localStorage.preferredBranch` and honored on PWA startup (see `src/main.jsx`). Each build knows its own slug via `VITE_BRANCH`, wired in through `vite.config.js`'s `virtual:git-version` module.
+
 ## Docs
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — V4 event-sourced design, module layout, data flow
