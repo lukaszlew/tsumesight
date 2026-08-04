@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Baduk Sight has moved</title>
+<style>
+  body { background: #1a1a1a; color: #eee; font-family: system-ui, sans-serif;
+         display: flex; min-height: 100dvh; margin: 0; align-items: center; justify-content: center; }
+  main { text-align: center; padding: 2em; max-width: 34em; }
+  h1 { font-size: 1.6em; }
+  a { color: #8c6; font-size: 1.2em; word-break: break-all; }
+  p.small { color: #aaa; font-size: .9em; margin-top: 2em; }
+</style>
+<script>
+  // Old installs keep a service worker registered at this scope; give the
+  // self-destructing sw.js a chance to replace it and clean up.
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/tsumesight/sw.js').catch(() => {})
+</script>
+</head>
+<body>
+<main>
+  <h1>Baduk Sight (formerly TsumeSight) has moved</h1>
+  <p><a href="https://lukaszlew.github.io/baduk-sight/">https://lukaszlew.github.io/baduk-sight/</a></p>
+  <p class="small">Your library and scores are already there - browser storage
+  is shared, nothing needs to be exported. If you had the app installed,
+  remove the old icon and install again from the new address.</p>
+</main>
+</body>
+</html>
